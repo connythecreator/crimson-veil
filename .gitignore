@@ -1,0 +1,24 @@
+# Python virtual environments
+.venv/
+venv/
+
+# Python bytecode / caches
+__pycache__/
+*.py[cod]
+*.egg-info/
+
+# Runtime scan output (temp PNGs written by the pipeline)
+crimson_veil/
+
+# Tool caches
+.pytest_cache/
+.ruff_cache/
+
+# Rust build artifacts
+kiosk-rs/target/
+
+# Editor / OS noise
+.DS_Store
+.idea/
+.vscode/
+docs/

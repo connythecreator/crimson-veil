@@ -1,0 +1,12 @@
+target-version = "py311"
+line-length = 100
+
+exclude = [".venv", "docs"]
+
+[lint]
+select = ["E", "F", "I", "B", "UP"]
+
+[lint.per-file-ignores]
+# gui.py manipulates sys.path before importing, so imports necessarily follow
+# executable statements.
+"apps/kiosk/gui.py" = ["E402"]

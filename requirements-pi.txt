@@ -1,0 +1,9 @@
+# Crimson Veil - device dependencies (Raspberry Pi + ESP32 front end).
+# Install on top of requirements.txt:
+#   pip install -r requirements.txt -r requirements-pi.txt
+#
+# The ESP32 drives the AD5933 + mux bank and talks to the host over USB serial,
+# so the host only needs a serial transport.
+-r requirements.txt
+
+pyserial>=3.5   # USB serial link to the ESP32

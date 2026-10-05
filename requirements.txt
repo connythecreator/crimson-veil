@@ -1,0 +1,4 @@
+# Crimson Veil - core suite + control service (laptop / dev)
+# The sim hardware backend and stub solver need nothing beyond the stdlib; the
+# control service only adds the WebSocket server.
+websockets>=13
