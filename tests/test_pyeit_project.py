@@ -4,24 +4,29 @@ This test verifies that:
 
 1. pyEIT generates 40 simulated baseline/anomaly measurements.
 2. Back projection localizes anomalies in four different quadrants.
+
+Test using: .\.venv\Scripts\python.exe -m pytest -s tests\test_pyeit_project.py
 """
+
+import sys
+from pathlib import Path
+
+_REPO_ROOT = Path(__file__).resolve().parents[1]
+if str(_REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(_REPO_ROOT))
 
 import pyeit.eit.bp as bp
 import pyeit.eit.protocol as protocol
 import matplotlib.pyplot as plt
 import numpy as np
 import pyeit.mesh as mesh
+import pytest
 
 from pyeit.eit.fem import EITForward
 from pyeit.mesh.wrapper import PyEITAnomaly_Circle
-from pathlib import Path
 from software.core.types import MeshConfig
 from software.reconstruction.pyeit_solver import PyEITSolver
 
-
-# ============================================================
-# TEST SETTINGS
-# ============================================================
 
 FREQ_HZ = 50_000.0
 N_ELECTRODES = 8
@@ -39,10 +44,6 @@ ANOMALY_POSITIONS = {
 def test_pyeit_with_project_protocol():
     """Test pyEIT's standard adjacent protocol with quadrant anomalies."""
 
-    # ========================================================
-    # 1. CREATE THE pyEIT SOLVER
-    # ========================================================
-
     solver = PyEITSolver(
         grid_size=GRID_SIZE,
         frequency_hz=FREQ_HZ,
@@ -57,6 +58,8 @@ def test_pyeit_with_project_protocol():
     )
 
     mesh_obj = solver.mesh_obj
+    # Use pyEIT's 40-measurement standard protocol for localization testing;
+    # the production project protocol currently contains only 8 measurements.
     protocol_obj = protocol.create(
         N_ELECTRODES,
         dist_exc=1,
@@ -66,11 +69,6 @@ def test_pyeit_with_project_protocol():
 
     assert mesh_obj is not None
     assert protocol_obj is not None
-
-
-    # ========================================================
-    # 2. CHECK THE STANDARD PROTOCOL
-    # ========================================================
 
     print("\n--- Crimson Veil pyEIT Protocol ---")
 
@@ -91,19 +89,10 @@ def test_pyeit_with_project_protocol():
 
     assert protocol_obj.n_meas_tot == 40
 
-    # ========================================================
-    # 3. CREATE FORWARD MODEL
-    # ========================================================
-
     forward = EITForward(
         mesh_obj,
         protocol_obj,
     )
-
-
-    # ========================================================
-    # 4. CREATE HOMOGENEOUS BASELINE
-    # ========================================================
 
     v0 = forward.solve_eit()
 
@@ -125,10 +114,6 @@ def test_pyeit_with_project_protocol():
         weight="none",
     )
 
-    # ========================================================
-    # 5. CREATE OUTPUT DIRECTORY
-    # ========================================================
-
     output_dir = (
         Path(__file__).resolve().parent
         / "pyeit_outputs"
@@ -139,22 +124,12 @@ def test_pyeit_with_project_protocol():
         exist_ok=True,
     )
 
-
-    # ========================================================
-    # 6. TEST EACH ANOMALY POSITION
-    # ========================================================
-
     for position_name, center in ANOMALY_POSITIONS.items():
 
         print(
             f"\n--- Testing {position_name} "
             f"at {center} ---"
         )
-
-
-        # ----------------------------------------------------
-        # 8A. CREATE SIMULATED ANOMALY
-        # ----------------------------------------------------
 
         anomaly = PyEITAnomaly_Circle(
             center=center,
@@ -168,11 +143,6 @@ def test_pyeit_with_project_protocol():
             background=1.0,
         )
 
-
-        # ----------------------------------------------------
-        # 8B. FORWARD SIMULATION
-        # ----------------------------------------------------
-
         v1 = forward.solve_eit(
             perm=mesh_anomaly.perm
         )
@@ -183,7 +153,6 @@ def test_pyeit_with_project_protocol():
         )
 
         assert len(v1) == 40
-
 
         # Check that the anomaly actually changed
         # the simulated measurements.
@@ -198,11 +167,6 @@ def test_pyeit_with_project_protocol():
 
         assert measurement_change > 1e-12
 
-
-        # ----------------------------------------------------
-        # 8C. BACK PROJECT USING THE 40-VALUE PROTOCOL
-        # ----------------------------------------------------
-
         ds = eit.solve(
             v1,
             v0,
@@ -216,11 +180,6 @@ def test_pyeit_with_project_protocol():
             dtype=float,
         )
 
-
-        # ----------------------------------------------------
-        # 8D. CHECK RECONSTRUCTION
-        # ----------------------------------------------------
-
         assert conductivity_map.width == GRID_SIZE
         assert conductivity_map.height == GRID_SIZE
 
@@ -230,21 +189,12 @@ def test_pyeit_with_project_protocol():
 
         assert np.max(values) != np.min(values)
 
-        # The solver convention is:
-        #
-        # increased conductivity
-        #       ->
-        # positive reconstructed value
+        # Positive reconstructed values indicate increased conductivity.
         peak_absolute_change = np.max(
             np.abs(values)
         )
 
         assert peak_absolute_change > 1e-12
-
-
-        # ----------------------------------------------------
-        # 8E. FIND STRONGEST RECONSTRUCTED LOCATION
-        # ----------------------------------------------------
 
         peak_row, peak_col = np.unravel_index(
             np.argmax(np.abs(values)),
@@ -252,6 +202,8 @@ def test_pyeit_with_project_protocol():
         )
         assert values[peak_row, peak_col] > 0
 
+        # Image rows run from top to bottom, so the grid midpoint separates
+        # upper/lower and left/right quadrants in pixel coordinates.
         middle_row = values.shape[0] / 2
         middle_col = values.shape[1] / 2
 
@@ -269,11 +221,6 @@ def test_pyeit_with_project_protocol():
             f"{vertical_position}_"
             f"{horizontal_position}"
         )
-
-
-        # ----------------------------------------------------
-        # 8F. PRINT RESULT
-        # ----------------------------------------------------
 
         print(
             "Expected position:",
@@ -300,16 +247,12 @@ def test_pyeit_with_project_protocol():
             np.max(values),
         )
 
-
-        # ----------------------------------------------------
-        # 8G. SAVE RECONSTRUCTED IMAGE
-        # ----------------------------------------------------
-
         output_path = (
             output_dir
             / f"{position_name}.png"
         )
 
+        # Keep PNG row zero at the top to match the reconstructed map grid.
         plt.imsave(
             output_path,
             values,
@@ -321,9 +264,8 @@ def test_pyeit_with_project_protocol():
             output_path,
         )
 
-
-    # ========================================================
-    # 9. CLEAN UP
-    # ========================================================
-
     solver.close()
+
+
+if __name__ == "__main__":
+    raise SystemExit(pytest.main([__file__]))
