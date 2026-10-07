@@ -26,7 +26,7 @@ pub struct ServerMessage {
     #[serde(default)]
     pub n_electrodes: u32,
     #[serde(default)]
-    pub frequencies_hz: Vec<f64>,
+    pub frequency_hz: f64,
     #[serde(default)]
     pub width: u32,
     #[serde(default)]
@@ -64,8 +64,8 @@ pub enum ClientMessage {
     Activity,
     #[serde(rename = "stop")]
     Stop,
-    #[serde(rename = "set_freqs")]
-    SetFreqs { frequencies_hz: Vec<f64> },
+    #[serde(rename = "set_frequency")]
+    SetFrequency { frequency_hz: f64 },
     #[serde(rename = "ping")]
     Ping,
 }
@@ -82,11 +82,11 @@ mod tests {
 
     #[test]
     fn parse_ready() {
-        let raw = r#"{"type":"ready","backend":"sim:phantom","solver":"stub","n_electrodes":8,"frequencies_hz":[5000.0,20000.0]}"#;
+        let raw = r#"{"type":"ready","backend":"sim:phantom","solver":"stub","n_electrodes":8,"frequency_hz":50000.0}"#;
         let m: ServerMessage = serde_json::from_str(raw).unwrap();
         assert_eq!(m.kind, "ready");
         assert_eq!(m.n_electrodes, 8);
-        assert_eq!(m.frequencies_hz.len(), 2);
+        assert_eq!(m.frequency_hz, 50000.0);
     }
 
     #[test]

@@ -185,9 +185,9 @@ class ControlServer:
                     await self._send_json(
                         ws, protocol.State(continuous=False, scanning=False, interval_s=0.0)
                     )
-                elif kind == "set_freqs":
+                elif kind == "set_frequency":
                     try:
-                        self._session.set_frequencies(list(msg.get("frequencies_hz", [])))
+                        self._session.set_frequency(float(msg.get("frequency_hz", 0.0)))
                         await self._send_json(ws, protocol.Ready(**self._session.ready_payload()))
                     except ValueError as exc:
                         await self._send_json(ws, protocol.ScanError(id="", message=str(exc)))

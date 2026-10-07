@@ -10,3 +10,6 @@ select = ["E", "F", "I", "B", "UP"]
 # gui.py manipulates sys.path before importing, so imports necessarily follow
 # executable statements.
 "apps/kiosk/gui.py" = ["E402"]
+# test_pyeit_project.py guards optional pyEIT/numpy/matplotlib imports with
+# importorskip, so imports necessarily follow executable statements.
+"tests/test_pyeit_project.py" = ["E402", "I001"]

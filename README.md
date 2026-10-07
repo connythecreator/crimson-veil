@@ -14,10 +14,9 @@ dev.py                  bring-up tooling (doctor, scan-once, calibrate)
 software/               Python suite
   interfaces/           HardwareBackend + SolverBackend contracts
   core/                 shared types + config
-  acquisition/          electrode roles, sequencing, calibration
   reconstruction/       grid -> PNG encoding
   sim/                  simulated backend (laptop/CI) + stub solver
-  pipeline.py           run_scan(): plan -> measure -> calibrate -> reconstruct
+  pipeline.py           run_scan(): scan -> reconstruct
 service/                WebSocket control surface over software.pipeline
   server.py             asyncio ws server (owns the backends)
   session.py            boot + single-flight scan session
@@ -25,7 +24,7 @@ service/                WebSocket control surface over software.pipeline
   protocol.py           wire protocol (mirrored by kiosk-rs/src/protocol.rs)
 kiosk-rs/               native Rust/eframe kiosk UI (full vector HUD)
 hardware/               ESP32 hardware backend (USB serial)
-firmware/               ESP32 Arduino sketch (you manage it)
+firmware/               ESP32 MicroPython firmware (see firmware/mp-firm)
 tests/                  pytest suite (runs on the sim backend)
 ```
 

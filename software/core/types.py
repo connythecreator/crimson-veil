@@ -13,10 +13,10 @@ from dataclasses import dataclass, field
 
 @dataclass(frozen=True)
 class Measurement:
-    """One tetrapolar measurement to perform.
+    """One tetrapolar measurement: a drive pair and a disjoint sense pair.
 
-    drive and sense are pairs of electrode indices. They must be four distinct
-    electrodes (see ``software.acquisition.electrode``).
+    Used by the simulated front end to model a phantom reading; the real front
+    end owns its own scan sequence and does not send measurements to the host.
     """
 
     freq_hz: float
@@ -47,14 +47,15 @@ class RawPoint:
 class ScanData:
     """A full frame of raw measurements from one scan.
 
-    ``points`` are aligned with the ``plan`` used to acquire them. ``baseline``
-    frames (plain saline, no simulated bleed) are stored separately so the
-    solver can difference against them.
+    ``points`` are in the front end's standard adjacent order (the front end
+    owns the scan plan). ``baseline`` frames (plain saline, no simulated bleed)
+    are stored separately so the solver can difference against them.
     """
 
-    plan: list[Measurement] = field(default_factory=list)
     points: list[RawPoint] = field(default_factory=list)
     label: str = ""
+    n_electrodes: int = 0
+    frequency_hz: float = 0.0
 
     def __len__(self) -> int:
         return len(self.points)
@@ -81,22 +82,22 @@ class ConductivityMap:
 
 @dataclass
 class MeshConfig:
-    """Mesh parameters handed to a solver during setup (target deferred)."""
+    """Mesh parameters handed to a solver during setup."""
 
     n_electrodes: int = 8
     shape: str = "circle"
-    n_points: int = 0
 
 
 @dataclass
 class DeviceConfig:
     """Runtime configuration for opening a hardware backend.
 
-    ``options`` carries backend-specific settings (I2C address, serial port,
-    GPIO profile, ...) so new backends can be added without changing this type.
+    ``frequency_hz`` is the single excitation frequency for a scan (the front
+    end runs one frequency per scan). ``options`` carries backend-specific
+    settings (I2C address, serial port, GPIO profile, ...) so new backends can
+    be added without changing this type.
     """
 
     backend: str = "sim"
-    frequencies_hz: list[float] = field(default_factory=list)
-    settle_cycles: int = 15
+    frequency_hz: float = 50_000.0
     options: dict = field(default_factory=dict)

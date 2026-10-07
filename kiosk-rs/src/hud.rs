@@ -374,7 +374,7 @@ fn scan_page(
         ("Active", format!("{:.0}s", state.active_interval_s)),
         ("Idle", format!("{:.0}s", state.idle_interval_s)),
         ("Electrodes", format!("{}", state.n_electrodes)),
-        ("Freq", format!("{:.0} kHz", state.top_freq_hz / 1000.0)),
+        ("Freq", format!("{:.0} kHz", state.frequency_hz / 1000.0)),
         ("Scans", format!("{}", state.scan_count)),
     ];
     let cell_w = chips.width() / items.len() as f32;

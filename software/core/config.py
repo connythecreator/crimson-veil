@@ -19,12 +19,13 @@ from .types import DeviceConfig, MeshConfig
 HARDWARE_BACKEND = os.environ.get("CV_BACKEND", "sim")
 
 # "stub" -> software.sim.stub_solver (placeholder image)
-# "pyeit" -> real reconstruction (TODO)
+# "pyeit" -> real reconstruction (see software/reconstruction/PYEIT_SOLVER.md)
 SOLVER_BACKEND = os.environ.get("CV_SOLVER", "stub")
 
-# AD5933 ceiling is ~100 kHz, so the research-recommended 300-500 kHz points
-# are NOT reachable on the current front end. Keep every point <= 100 kHz.
-DEFAULT_FREQUENCIES_HZ = [5_000.0, 20_000.0, 50_000.0, 75_000.0, 100_000.0]
+# One excitation frequency per scan (the front end runs a single frequency).
+# The AD5933 ceiling is ~100 kHz. The ESP32 is authoritative once connected; it
+# reports its frequency in ``hello`` and the backend uses that.
+DEFAULT_FREQUENCY_HZ = float(os.environ.get("CV_FREQUENCY_HZ", "50000"))
 
 # The ESP32 is authoritative for the electrode count and pairing; this value is
 # only a fallback used by the sim backend and before the ESP32 handshake.
@@ -44,8 +45,7 @@ def device_config(backend: str | None = None) -> DeviceConfig:
     """Build a :class:`DeviceConfig` from the current suite settings."""
     return DeviceConfig(
         backend=backend or HARDWARE_BACKEND,
-        frequencies_hz=list(DEFAULT_FREQUENCIES_HZ),
-        settle_cycles=15,
+        frequency_hz=DEFAULT_FREQUENCY_HZ,
         options={"port": ESP32_PORT, "baud": ESP32_BAUD},
     )
 

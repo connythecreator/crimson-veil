@@ -18,13 +18,13 @@ Client -> service messages::
      "active_interval_s": float, "idle_interval_s": float}
     {"type": "activity"}                      # user interaction; sets active state
     {"type": "stop"}
-    {"type": "set_freqs", "frequencies_hz": [float, ...]}
+    {"type": "set_frequency", "frequency_hz": float}
     {"type": "ping"}
 
 Service -> client messages::
 
     {"type": "ready", "backend": str, "solver": str,
-     "n_electrodes": int, "frequencies_hz": [float, ...]}
+     "n_electrodes": int, "frequency_hz": float}
     {"type": "boot_error", "message": str}
     {"type": "progress", "id": str, "message": str}
     {"type": "scan_result", "id": str, "width": int, "height": int, "bytes": int}
@@ -84,9 +84,9 @@ class Stop:
 
 
 @dataclass
-class SetFreqs:
-    frequencies_hz: list[float] = field(default_factory=list)
-    type: str = field(default="set_freqs", init=False)
+class SetFrequency:
+    frequency_hz: float = 0.0
+    type: str = field(default="set_frequency", init=False)
 
 
 @dataclass
@@ -102,7 +102,7 @@ class Ready:
     backend: str
     solver: str
     n_electrodes: int
-    frequencies_hz: list[float]
+    frequency_hz: float
     type: str = field(default="ready", init=False)
 
 

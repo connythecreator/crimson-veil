@@ -18,7 +18,7 @@ from service import protocol
 from service.server import ControlServer
 from service.session import ScanSession
 
-FREQS = [5_000.0, 50_000.0]
+FREQ_HZ = 50_000.0
 
 
 def _free_port() -> int:
@@ -60,7 +60,7 @@ async def _recv_result(ws, scan_id: str) -> bytes:
 @pytest.fixture
 def session():
     s = ScanSession()
-    s.set_frequencies(FREQS)
+    s.set_frequency(FREQ_HZ)
     s.boot()
     yield s
     s.close()

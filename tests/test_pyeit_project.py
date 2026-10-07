@@ -1,4 +1,4 @@
-"""Diagnostic test for pyEIT's 40-measurement adjacent protocol.
+r"""Diagnostic test for pyEIT's 40-measurement adjacent protocol.
 
 This test verifies that:
 
@@ -15,15 +15,22 @@ _REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
-import pyeit.eit.bp as bp
-import pyeit.eit.protocol as protocol
-import matplotlib.pyplot as plt
-import numpy as np
-import pyeit.mesh as mesh
 import pytest
 
+# pyEIT, numpy and matplotlib are installed manually (see
+# software/reconstruction/PYEIT_SOLVER.md); skip cleanly when they are absent.
+pytest.importorskip("pyeit")
+pytest.importorskip("matplotlib")
+pytest.importorskip("numpy")
+
+import matplotlib.pyplot as plt
+import numpy as np
+import pyeit.eit.bp as bp
+import pyeit.eit.protocol as protocol
+import pyeit.mesh as mesh
 from pyeit.eit.fem import EITForward
 from pyeit.mesh.wrapper import PyEITAnomaly_Circle
+
 from software.core.types import MeshConfig
 from software.reconstruction.pyeit_solver import PyEITSolver
 

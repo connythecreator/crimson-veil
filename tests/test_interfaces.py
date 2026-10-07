@@ -35,4 +35,4 @@ def test_scan_data_len_tracks_points():
 def test_default_device_config_is_sim():
     cfg = DeviceConfig()
     assert cfg.backend == "sim"
-    assert cfg.frequencies_hz == []
+    assert cfg.frequency_hz > 0

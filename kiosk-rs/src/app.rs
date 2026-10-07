@@ -107,8 +107,7 @@ pub struct AppState {
     pub backend: String,
     pub solver: String,
     pub n_electrodes: u32,
-    pub frequencies_hz: Vec<f64>,
-    pub top_freq_hz: f64,
+    pub frequency_hz: f64,
     pub active_interval_s: f64,
     pub idle_interval_s: f64,
     pub scanning: bool,
@@ -132,8 +131,7 @@ impl Default for AppState {
             backend: "connecting...".into(),
             solver: "-".into(),
             n_electrodes: 8,
-            frequencies_hz: Vec::new(),
-            top_freq_hz: 0.0,
+            frequency_hz: 0.0,
             active_interval_s: active_interval_s(),
             idle_interval_s: idle_interval_s(),
             scanning: false,
@@ -232,8 +230,7 @@ impl KioskApp {
                 self.state.backend = msg.backend;
                 self.state.solver = msg.solver;
                 self.state.n_electrodes = msg.n_electrodes;
-                self.state.frequencies_hz = msg.frequencies_hz.clone();
-                self.state.top_freq_hz = msg.frequencies_hz.iter().cloned().fold(0.0_f64, f64::max);
+                self.state.frequency_hz = msg.frequency_hz;
                 self.state.boot_error = None;
                 if !self.auto_started {
                     self.auto_started = true;

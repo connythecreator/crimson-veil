@@ -27,7 +27,7 @@ def cmd_doctor(_args: argparse.Namespace) -> int:
     print("Crimson Veil - doctor")
     print(f"  hardware backend : {config.HARDWARE_BACKEND}")
     print(f"  solver backend   : {config.SOLVER_BACKEND}")
-    print(f"  frequencies (Hz) : {config.DEFAULT_FREQUENCIES_HZ}")
+    print(f"  frequency (Hz)   : {config.DEFAULT_FREQUENCY_HZ}")
     print(f"  electrodes       : {config.N_ELECTRODES}")
 
     print("  dependencies     :")

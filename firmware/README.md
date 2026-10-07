@@ -21,11 +21,12 @@ The sketch must speak the line-delimited JSON protocol documented in
 
 - On boot (and on `{"type":"identify"}`): send
   `{"type":"hello","firmware":…,"n_electrodes":…,"electrodes":[…],"sweep_hz":…}`.
-- On `{"type":"scan","plan":[…]}`: run the planned measurements once, then send
-  `{"type":"frame","points":[{"f":…,"re":…,"im":…}, …]}` (one point per plan
-  entry, in order).
+- On `{"type":"scan"}`: run the fixed adjacent scan once, then send
+  `{"type":"frame","points":[{"n":…,"f":…,"re":…,"im":…}, …]}` (one point per
+  measurement, in pyEIT's standard adjacent order).
 - Periodically: send `{"type":"telemetry", …}` with battery/temperature.
 - On any fault: send `{"type":"error","message":…}`.
 
 The host (`hardware/esp32.py`) is the reference implementation of the other
-side of this protocol; matching it is the contract.
+side of this protocol; matching it is the contract. The firmware owns the scan
+process and calibration; the host sends no plan and applies no calibration.

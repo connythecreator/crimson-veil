@@ -8,8 +8,7 @@ import pytest
 
 from hardware.esp32 import Esp32Error, Esp32Hardware
 from software import pipeline
-from software.acquisition import sequence
-from software.core.types import DeviceConfig, Measurement
+from software.core.types import DeviceConfig
 
 
 class FakeTransport:
@@ -36,82 +35,68 @@ class FakeTransport:
 def _hello(**over) -> dict:
     base = {
         "type": "hello",
-        "firmware": "0.1.0",
+        "firmware": "1.0.0",
         "n_electrodes": 8,
         "electrodes": list(range(8)),
-        "sweep_hz": 1000.0,
+        "sweep_hz": 50_000.0,
     }
     base.update(over)
     return base
 
 
-def _frame(plan) -> dict:
+def _frame(n_points: int, freq: float = 50_000.0) -> dict:
     return {
         "type": "frame",
         "points": [
-            {"f": m.freq_hz, "re": 1000.0 + i, "im": -50.0 - i}
-            for i, m in enumerate(plan)
+            {"n": i, "f": freq, "re": 1000.0 + i, "im": -50.0 - i} for i in range(n_points)
         ],
     }
 
 
-def test_open_learns_electrodes_from_hello():
+def test_open_learns_electrodes_and_frequency():
     t = FakeTransport([_hello(n_electrodes=8), _hello(n_electrodes=8)])
     hw = Esp32Hardware(t)
     hw.open(DeviceConfig(backend="esp32", options={"port": "/dev/ttyACM0"}))
     assert hw.n_electrodes == 8
     assert hw.electrodes == list(range(8))
-    assert hw.firmware == "0.1.0"
+    assert hw.firmware == "1.0.0"
+    assert hw.frequency_hz == 50_000.0
     assert hw.identify() == "esp32:/dev/ttyACM0"
     # It asked the ESP32 to identify itself.
     assert t.written[0]["type"] == "identify"
 
 
-def test_measure_sends_plan_and_parses_frame():
-    plan = sequence.adjacent_drive_plan([5_000.0, 50_000.0])
-    t = FakeTransport([_hello(), _hello(), _frame(plan)])
+def test_scan_sends_bare_scan_and_parses_frame():
+    # 8 electrodes -> 8 * (8 - 3) = 40 adjacent measurements.
+    t = FakeTransport([_hello(), _hello(), _frame(40)])
     hw = Esp32Hardware(t)
     hw.open(DeviceConfig(backend="esp32", options={"port": "/dev/ttyACM0"}))
 
-    points = hw.measure(plan)
+    points = hw.scan()
 
-    assert len(points) == len(plan)
-    # The scan command carried the full plan, in order.
+    assert len(points) == 40
+    # The scan command carried no plan (the firmware owns the sequence).
     scan = next(w for w in t.written if w["type"] == "scan")
-    assert len(scan["plan"]) == len(plan)
-    assert scan["plan"][0] == {
-        "f": plan[0].freq_hz,
-        "d": list(plan[0].drive),
-        "s": list(plan[0].sense),
-    }
+    assert "plan" not in scan
     assert points[0].real == 1000.0
     assert points[0].imag == -50.0
 
 
-def test_measure_absorbs_telemetry_then_reads_frame():
-    plan = [Measurement(freq_hz=1_000.0, drive=(0, 4), sense=(2, 6))]
+def test_scan_absorbs_telemetry_then_reads_frame():
     tel = {"type": "telemetry", "battery_pct": 87.0, "battery_charging": False, "temp_c": 31.5}
-    t = FakeTransport([_hello(), _hello(), tel, _frame(plan)])
+    t = FakeTransport([_hello(), _hello(), tel, _frame(40)])
     hw = Esp32Hardware(t)
     hw.open(DeviceConfig(backend="esp32", options={}))
 
-    points = hw.measure(plan)
-    assert len(points) == 1
+    points = hw.scan()
+    assert len(points) == 40
     assert hw.telemetry()["battery_pct"] == 87.0
 
 
-def test_measure_before_open_raises():
+def test_scan_before_open_raises():
     hw = Esp32Hardware(FakeTransport([]))
     with pytest.raises(RuntimeError):
-        hw.measure([])
-
-
-def test_frame_point_count_mismatch_raises():
-    t = FakeTransport([_hello(), _hello(), _frame([Measurement(1.0, (0, 4), (2, 6))])])
-    hw = Esp32Hardware(t)
-    hw.open(DeviceConfig(backend="esp32", options={}))
-    with pytest.raises(Esp32Error):
-        hw.measure(sequence.adjacent_drive_plan([1_000.0, 2_000.0]))  # expects more points
+        hw.scan()
 
 
 def test_error_message_surfaces():
@@ -119,7 +104,7 @@ def test_error_message_surfaces():
     hw = Esp32Hardware(t)
     hw.open(DeviceConfig(backend="esp32", options={}))
     with pytest.raises(Esp32Error, match="mux fault"):
-        hw.measure([Measurement(1.0, (0, 4), (2, 6))])
+        hw.scan()
 
 
 def test_bad_json_raises():
@@ -127,7 +112,7 @@ def test_bad_json_raises():
     hw = Esp32Hardware(t)
     hw.open(DeviceConfig(backend="esp32", options={}))
     with pytest.raises(Esp32Error):
-        hw.measure([Measurement(1.0, (0, 4), (2, 6))])
+        hw.scan()
 
 
 def test_close_sends_stop_and_closes():
@@ -139,15 +124,15 @@ def test_close_sends_stop_and_closes():
     assert t.closed
 
 
-def test_pipeline_uses_esp32_backend_and_electrode_count(monkeypatch):
-    """The host builds the plan for the electrode count the hardware reports."""
-    plan = sequence.adjacent_drive_plan([5_000.0], n_electrodes=8)
-    t = FakeTransport([_hello(n_electrodes=8), _hello(n_electrodes=8), _frame(plan)])
+def test_pipeline_uses_esp32_backend(monkeypatch):
+    """The pipeline requests a scan and collects the firmware's frame."""
+    t = FakeTransport([_hello(n_electrodes=8), _hello(n_electrodes=8), _frame(40)])
     hw = Esp32Hardware(t)
     hw.open(DeviceConfig(backend="esp32", options={}))
 
-    frame = pipeline.acquire(hw, [5_000.0])
-    assert len(frame.points) == len(plan)
+    frame = pipeline.acquire(hw)
+    assert len(frame.points) == 40
+    assert frame.n_electrodes == 8
     assert frame.label.startswith("esp32:")
 
 

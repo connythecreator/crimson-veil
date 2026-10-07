@@ -36,7 +36,7 @@ class ScanSession:
         # protects the small state swaps.
         self._scan_lock = threading.Lock()
         self._state_lock = threading.RLock()
-        self._frequencies_hz: list[float] = list(config.DEFAULT_FREQUENCIES_HZ)
+        self._frequency_hz: float = float(config.DEFAULT_FREQUENCY_HZ)
 
     # --- boot -------------------------------------------------------------
 
@@ -76,7 +76,7 @@ class ScanSession:
             "backend": self.identify(),
             "solver": config.SOLVER_BACKEND,
             "n_electrodes": self.n_electrodes,
-            "frequencies_hz": list(self._frequencies_hz),
+            "frequency_hz": self.frequency_hz,
         }
 
     def identify(self) -> str:
@@ -102,16 +102,18 @@ class ScanSession:
 
     # --- configuration ----------------------------------------------------
 
-    def set_frequencies(self, frequencies_hz: list[float]) -> None:
-        if not frequencies_hz:
-            raise ValueError("frequencies_hz must not be empty")
+    def set_frequency(self, frequency_hz: float) -> None:
+        if not frequency_hz > 0:
+            raise ValueError("frequency_hz must be positive")
         with self._state_lock:
-            self._frequencies_hz = [float(f) for f in frequencies_hz]
+            self._frequency_hz = float(frequency_hz)
+            if self._hardware is not None and hasattr(self._hardware, "frequency_hz"):
+                self._hardware.frequency_hz = float(frequency_hz)
 
     @property
-    def frequencies_hz(self) -> list[float]:
+    def frequency_hz(self) -> float:
         with self._state_lock:
-            return list(self._frequencies_hz)
+            return self._frequency_hz
 
     # --- scanning ---------------------------------------------------------
 
@@ -131,16 +133,11 @@ class ScanSession:
             with self._state_lock:
                 hardware = self._hardware
                 solver = self._solver
-                freqs = list(self._frequencies_hz)
 
             if hardware is None or solver is None:
-                return pipeline.run_scan(frequencies_hz=freqs)
+                return pipeline.run_scan()
 
-            return pipeline.run_scan(
-                hardware=hardware,
-                solver=solver,
-                frequencies_hz=freqs,
-            )
+            return pipeline.run_scan(hardware=hardware, solver=solver)
         finally:
             self._scan_lock.release()
 

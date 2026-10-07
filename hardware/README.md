@@ -15,35 +15,35 @@ ESP32  ──USB serial (115200)──  Python host (service/)
 `Esp32Hardware` implements `software.interfaces.hardware.HardwareBackend`:
 
 - **`open`** — opens the serial port and reads the ESP32's `hello`, learning
-  `n_electrodes`, the electrode list, and the firmware version. The **ESP32 owns
-  the hardware configuration** (pin maps, mux wiring, ring size); the host never
-  hardcodes it.
+  `n_electrodes`, the electrode list, the firmware version and the scan
+  frequency. The **ESP32 owns the hardware configuration** (pin maps, mux
+  wiring, ring size); the host never hardcodes it.
 - **`identify`** — `esp32:/dev/ttyACM0` (or whatever port is configured).
-- **`measure`** — sends the **host-owned scan plan** (the full per-measurement
-  list of drive/sense pairs and frequencies) and returns one `RawPoint` per
-  entry. The ESP32 executes **single-shot** scans only; continuous mode is a
-  host concern and lives in `service/`.
+- **`scan`** — sends `{"type":"scan"}` and returns the frame. The **ESP32 owns
+  the scan process** (the electrode pairs and their order) and **calibration**;
+  the host does not send a plan and does not calibrate. Points come back in the
+  front end's standard adjacent order, ready for the solver.
 - **`telemetry`** — returns the most recent battery/temperature reading the
   ESP32 has pushed (used by the kiosk status bar, with a sysfs fallback).
 
-The `CalibrationTable` in `software/acquisition/calibration.py` is applied on
-the host, so the ESP32 returns raw complex impedance.
+The ESP32 runs **single-shot** scans only; continuous mode is a host concern and
+lives in `service/`.
 
 ## Wire protocol (USB CDC, line-delimited JSON)
 
 One JSON object per line. See the module docstring in `esp32.py` for the
-authoritative description; the firmware (Arduino IDE) must match it.
+authoritative description; the firmware must match it.
 
 | host → ESP32 | purpose |
 |---|---|
 | `{"type":"identify"}` | ask the ESP32 to (re-)announce itself |
-| `{"type":"scan","plan":[{"f":Hz,"d":[a,b],"s":[c,d]}, …]}` | execute one single-shot scan |
+| `{"type":"scan"}` | execute one single-shot scan (optional `"f": Hz` to override the frequency) |
 | `{"type":"stop"}` | abort / release |
 
 | ESP32 → host | purpose |
 |---|---|
 | `{"type":"hello","firmware":str,"n_electrodes":int,"electrodes":[…],"sweep_hz":float}` | sent unsolicited on boot, and in reply to `identify` |
-| `{"type":"frame","points":[{"f":Hz,"re":float,"im":float}, …]}` | one frame, one point per plan entry, in order |
+| `{"type":"frame","points":[{"n":int,"f":Hz,"re":float,"im":float}, …]}` | one frame, the firmware's adjacent sequence, `n` = index in that sequence |
 | `{"type":"telemetry","battery_pct":float\|null,"battery_charging":bool,"temp_c":float\|null}` | periodic battery/temperature |
 | `{"type":"error","message":str}` | a fault the host should surface |
 
@@ -54,6 +54,7 @@ authoritative description; the firmware (Arduino IDE) must match it.
 | `CV_BACKEND` | `sim` | set to `esp32` to use this backend |
 | `CV_ESP32_PORT` | `/dev/ttyACM0` | USB serial device |
 | `CV_ESP32_BAUD` | `115200` | serial baud |
+| `CV_FREQUENCY_HZ` | `50000` | fallback scan frequency (the `hello` value wins) |
 
 Install the device dependency with `requirements-pi.txt` (`pyserial`). The
 service account needs access to the serial device (add it to the `dialout`

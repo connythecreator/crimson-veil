@@ -6,34 +6,37 @@ directly, a Pi talking to an ESP32 over serial, or a future network node are all
 just implementations of :class:`HardwareBackend`. Nothing above this layer knows
 which one is in use.
 
-Implementations live elsewhere (``hardware/`` once written; ``software/sim/``
-for the laptop/CI simulated backend). This module imports stdlib typing only.
+The front end owns the scan process: it decides the electrode pairs and their
+order. The host asks for a scan and receives one frame. Implementations live in
+``hardware/`` (the ESP32 over serial) and ``software/sim/`` (laptop/CI). This
+module imports stdlib typing only.
 """
 
 from __future__ import annotations
 
-from collections.abc import Sequence
 from typing import Protocol, runtime_checkable
 
-from ..core.types import DeviceConfig, Measurement, RawPoint
+from ..core.types import DeviceConfig, RawPoint
 
 
 @runtime_checkable
 class HardwareBackend(Protocol):
-    """Acquires raw impedance measurements from the physical front end."""
+    """Acquires one raw impedance frame from the physical front end."""
 
     def open(self, cfg: DeviceConfig) -> None:
         """Initialise the transport and hardware. Raises on failure."""
         ...
 
     def identify(self) -> str:
-        """Human-readable identity, e.g. ``"ad5933@0x0D"`` or ``"esp32:/dev/ttyUSB0"``."""
+        """Human-readable identity, e.g. ``"ad5933@0x0D"`` or ``"esp32:/dev/ttyACM0"``."""
         ...
 
-    def measure(self, plan: Sequence[Measurement]) -> list[RawPoint]:
-        """Execute ``plan`` and return one :class:`RawPoint` per measurement.
+    def scan(self) -> list[RawPoint]:
+        """Run one single-shot scan and return the frame.
 
-        The returned list must align index-for-index with ``plan``.
+        The front end owns the electrode pairing and ordering (the firmware's
+        standard adjacent sequence), so the returned points are in the order the
+        solver expects. ``n_electrodes`` is reported on ``hello``.
         """
         ...
 

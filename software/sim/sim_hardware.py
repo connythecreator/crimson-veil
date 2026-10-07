@@ -3,14 +3,16 @@
 Implements the :class:`~software.interfaces.hardware.HardwareBackend` contract
 without any physical hardware, so the full suite runs on a laptop or in CI. It
 is selected when ``config.HARDWARE_BACKEND == "sim"``.
+
+Like the ESP32, the simulator is the *front end*: it owns the scan sequence and
+generates a full frame itself. The host never sends it a plan.
 """
 
 from __future__ import annotations
 
 import time
-from collections.abc import Sequence
 
-from ..acquisition import electrode
+from ..core import config
 from ..core.types import DeviceConfig, Measurement, RawPoint
 from . import phantom
 
@@ -25,23 +27,37 @@ class SimHardware:
         self.include_bleed = include_bleed
         self._open = False
         # Mirrors the ESP32 contract: the backend reports its electrode count.
-        self.n_electrodes = electrode.N_ELECTRODES
+        self.n_electrodes = config.N_ELECTRODES
+        self.frequency_hz = 50_000.0
 
     def open(self, cfg: DeviceConfig) -> None:
         self._open = True
+        self.frequency_hz = float(cfg.frequency_hz)
 
     def identify(self) -> str:
         return "sim:phantom" + ("" if self.include_bleed else ":baseline")
 
-    def measure(self, plan: Sequence[Measurement]) -> list[RawPoint]:
+    def _measurement_pairs(self) -> list[tuple[tuple[int, int], tuple[int, int]]]:
+        """The simulator's own scan sequence (stand-in for the firmware's)."""
+        n = self.n_electrodes
+        pairs = []
+        for e in range(n):
+            drive = (e, (e + 1) % n)
+            for k in range(n - 3):
+                sense = ((e + 2 + k) % n, (e + 3 + k) % n)
+                pairs.append((drive, sense))
+        return pairs
+
+    def scan(self) -> list[RawPoint]:
         if not self._open:
-            raise RuntimeError("SimHardware.measure called before open()")
+            raise RuntimeError("SimHardware.scan called before open()")
 
         points: list[RawPoint] = []
-        for m in plan:
+        for drive, sense in self._measurement_pairs():
+            m = Measurement(freq_hz=self.frequency_hz, drive=drive, sense=sense)
             z = phantom.impedance_for(m, include_bleed=self.include_bleed)
             time.sleep(PER_MEASUREMENT_SECONDS)
-            points.append(RawPoint(freq_hz=m.freq_hz, real=z.real, imag=z.imag))
+            points.append(RawPoint(freq_hz=self.frequency_hz, real=z.real, imag=z.imag))
         return points
 
     def close(self) -> None:

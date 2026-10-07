@@ -1,9 +1,9 @@
 """Reconstruction solver contract.
 
 Separates "how do we turn measurements into a conductivity image" from the rest
-of the suite. The target engine is deferred (pyEIT in pure Python is the likely
-direction; EIDORS/MATLAB remains possible), so this contract is intentionally
-small and dependency-free.
+of the suite. The target engine is pyEIT (see
+``software/reconstruction/PYEIT_SOLVER.md`` for the implementation brief), so
+this contract is intentionally small and dependency-free.
 
 Implementations live in ``software/reconstruction/`` (real) or
 ``software/sim/stub_solver.py`` (placeholder).
@@ -31,8 +31,11 @@ class SolverBackend(Protocol):
     ) -> ConductivityMap:
         """Reconstruct ``frame``.
 
+        ``frame.points`` are in the front end's standard adjacent order, so the
+        implementation maps them straight onto its protocol (no reordering).
         When ``baseline`` is given, reconstruction is difference-based against
-        it (the intended mode for phantom work: plain saline vs simulated bleed).
+        it (the intended mode for phantom work: plain saline vs simulated
+        bleed).
         """
         ...
 

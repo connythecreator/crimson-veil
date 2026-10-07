@@ -1,41 +1,42 @@
 """ESP32 hardware backend.
 
 The physical front end (AD5933 + mux bank) is driven by an ESP32, wired to the
-host over USB serial. The ESP32 owns the *hardware configuration*: on connect
-it announces how many electrodes there are and which drive/sense pairs it can
-form, so this backend never hardcodes pin maps. The host owns the *scan plan*
-(:func:`software.acquisition.sequence.adjacent_drive_plan`) and sends it down
-for the ESP32 to execute one measurement at a time.
+host over USB serial. The ESP32 owns the *hardware configuration* and the
+*scan process*: it runs its standard adjacent sequence itself, so this backend
+neither builds a plan nor calibrates. It asks for a scan and receives one frame
+of points already in the order the solver expects. Calibration is applied on
+the ESP32.
 
-Only single-shot scans cross the wire: the ESP32 measures exactly the plan it
-is given and returns one frame. Continuous scanning is a host concern and lives
-in the control service, never in the firmware.
+Only single-shot scans cross the wire: the ESP32 measures its full sequence and
+returns one frame. Continuous scanning is a host concern and lives in the
+control service, never in the firmware.
 
 Wire protocol (line-delimited JSON, one object per line, USB CDC at 115200):
 
     host -> esp   {"type": "identify"}
-                  {"type": "scan", "plan": [{"f": <Hz>, "d": [a,b], "s": [c,d]}, ...]}
+                  {"type": "scan"}                 # optional "f": <Hz>
                   {"type": "stop"}
     esp  -> host  {"type": "hello", "firmware": str, "n_electrodes": int,
                    "electrodes": [int, ...], "sweep_hz": float}
-                  {"type": "frame", "points": [{"f": Hz, "re": float, "im": float}, ...]}
+                  {"type": "frame", "points": [{"n": int, "f": Hz,
+                                   "re": float, "im": float}, ...]}
                   {"type": "telemetry", "battery_pct": float|null,
                    "battery_charging": bool, "temp_c": float|null}
                   {"type": "error", "message": str}
 
-`hello` is sent unsolicited on boot and again in reply to `identify`. `frame`
-carries one point per plan entry, in order. `telemetry` is pushed periodically
-by the firmware.
+`hello` is sent unsolicited on boot and again in reply to `identify`; the
+backend learns `n_electrodes` and the scan frequency from it. `frame` carries
+the firmware's adjacent-sequence points (``n * (n - 3)`` of them, tagged with
+their index ``n``). `telemetry` is pushed periodically by the firmware.
 """
 
 from __future__ import annotations
 
 import json
 import time
-from collections.abc import Sequence
 from typing import Protocol, runtime_checkable
 
-from software.core.types import DeviceConfig, Measurement, RawPoint
+from software.core.types import DeviceConfig, RawPoint
 
 DEFAULT_BAUD = 115200
 DEFAULT_TIMEOUT_S = 5.0
@@ -99,6 +100,7 @@ class Esp32Hardware:
         self.n_electrodes = 0
         self.electrodes: list[int] = []
         self.firmware = ""
+        self.frequency_hz = 0.0
         self._telemetry: dict = {}
 
     # --- HardwareBackend --------------------------------------------------
@@ -115,6 +117,9 @@ class Esp32Hardware:
         # The ESP32 announces itself on boot; ask again in case we attached late.
         hello = self._await("hello", self._timeout, send={"type": "identify"})
         self._apply_hello(hello)
+        # Fall back to the configured frequency if the firmware did not report one.
+        if not self.frequency_hz:
+            self.frequency_hz = float(cfg.frequency_hz)
         self._open = True
 
     def identify(self) -> str:
@@ -122,30 +127,30 @@ class Esp32Hardware:
             return f"esp32:{self._port}"
         return f"esp32:{self._port}:not-open"
 
-    def measure(self, plan: Sequence[Measurement]) -> list[RawPoint]:
+    def scan(self) -> list[RawPoint]:
+        """Run one single-shot scan and return the firmware's frame."""
         if not self._open or self._transport is None:
-            raise RuntimeError("Esp32Hardware.measure called before open()")
-        if not plan:
-            return []
+            raise RuntimeError("Esp32Hardware.scan called before open()")
 
-        payload = {
-            "type": "scan",
-            "plan": [
-                {"f": m.freq_hz, "d": list(m.drive), "s": list(m.sense)} for m in plan
-            ],
-        }
-        self._transport.write_line(json.dumps(payload))
+        command = {"type": "scan"}
+        # Echo the (possibly host-overridden) frequency so the firmware scans
+        # where the host expects; it falls back to its own SWEEP_HZ if omitted.
+        if self.frequency_hz:
+            command["f"] = self.frequency_hz
+        self._transport.write_line(json.dumps(command))
 
         # Read until a frame arrives, absorbing any telemetry in between.
-        deadline = time.monotonic() + self._timeout + PER_POINT_TIMEOUT_S * len(plan)
+        # One point per measurement; the firmware owns the sequence length.
+        expected = self.n_electrodes * (self.n_electrodes - 3) or 1
+        deadline = time.monotonic() + self._timeout + PER_POINT_TIMEOUT_S * expected
         while True:
             remaining = deadline - time.monotonic()
             if remaining <= 0:
-                raise Esp32Error(f"timed out waiting for frame ({len(plan)} points)")
+                raise Esp32Error("timed out waiting for frame")
             msg = self._read(timeout=remaining)
             kind = msg.get("type")
             if kind == "frame":
-                return self._parse_frame(msg, len(plan))
+                return self._parse_frame(msg)
             if kind == "telemetry":
                 self._telemetry = msg
                 continue
@@ -187,6 +192,7 @@ class Esp32Hardware:
         self.firmware = str(hello.get("firmware", ""))
         self.n_electrodes = int(hello.get("n_electrodes", 0))
         self.electrodes = [int(e) for e in hello.get("electrodes", [])]
+        self.frequency_hz = float(hello.get("sweep_hz", 0.0) or 0.0)
 
     def _await(self, kind: str, timeout: float, send: dict | None = None) -> dict:
         if send is not None and self._transport is not None:
@@ -218,20 +224,15 @@ class Esp32Hardware:
             raise Esp32Error(f"expected a JSON object with a 'type': {line!r}")
         return msg
 
-    @staticmethod
-    def _parse_frame(msg: dict, expected: int) -> list[RawPoint]:
+    def _parse_frame(self, msg: dict) -> list[RawPoint]:
         points = msg.get("points")
         if not isinstance(points, list):
             raise Esp32Error("frame is missing a 'points' list")
-        if len(points) != expected:
-            raise Esp32Error(
-                f"frame has {len(points)} points, expected {expected}"
-            )
         out: list[RawPoint] = []
         for p in points:
             out.append(
                 RawPoint(
-                    freq_hz=float(p["f"]),
+                    freq_hz=float(p.get("f", self.frequency_hz)),
                     real=float(p["re"]),
                     imag=float(p["im"]),
                 )

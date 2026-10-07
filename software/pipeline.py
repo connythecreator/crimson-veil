@@ -1,17 +1,20 @@
 """Scan pipeline: the suite's top-level operation.
 
-Ties together sequencing, a hardware backend, calibration, and a solver:
+Ties together a hardware backend and a solver:
 
-    plan -> hardware.measure -> calibrate -> solver.reconstruct -> PNG bytes
+    scan -> solver.reconstruct -> PNG bytes
 
 ``run_scan`` is the seam the kiosk app calls; it returns PNG bytes and knows
 nothing about the GUI. It also knows nothing about *which* hardware or solver
 is in use -- those are injected, defaulting to the configured backends.
+
+The front end owns the scan process and calibration: the host requests a scan
+and receives points already in the solver's order, with no plan and no
+host-side calibration step.
 """
 
 from __future__ import annotations
 
-from .acquisition import calibration, sequence
 from .core import config
 from .core.types import ScanData
 from .interfaces.hardware import HardwareBackend
@@ -41,34 +44,40 @@ def default_solver() -> SolverBackend:
         from .sim.stub_solver import StubSolver
 
         return StubSolver()
+    if config.SOLVER_BACKEND == "pyeit":
+        raise NotImplementedError(
+            "pyeit solver not implemented yet; see "
+            "software/reconstruction/PYEIT_SOLVER.md"
+        )
     raise NotImplementedError(
         f"solver backend {config.SOLVER_BACKEND!r} not implemented yet"
     )
 
 
-def acquire(
-    hardware: HardwareBackend,
-    frequencies_hz: list[float] | None = None,
-) -> ScanData:
-    """Run one frame: build the plan, measure, and calibrate.
+def acquire(hardware: HardwareBackend) -> ScanData:
+    """Run one frame: request a scan and collect the points.
 
-    The scan plan (host-owned) is built for the electrode count the hardware
-    reports, so an ESP32 that changes its ring size needs no host change.
+    The scan plan (electrode pairs and order) is owned by the front end, so the
+    host does not build one: it asks for a scan and tags the frame with the
+    electrode count and frequency it was acquired at.
     """
-    freqs = frequencies_hz or list(config.DEFAULT_FREQUENCIES_HZ)
+    points = hardware.scan()
     n_electrodes = int(getattr(hardware, "n_electrodes", 0) or config.N_ELECTRODES)
-    plan = sequence.adjacent_drive_plan(freqs, n_electrodes=n_electrodes)
-    raw = hardware.measure(plan)
-
-    table = calibration.identity_table(freqs)
-    points = [table.apply(p) for p in raw]
-    return ScanData(plan=plan, points=points, label=hardware.identify())
+    frequency_hz = float(
+        getattr(hardware, "frequency_hz", 0.0) or config.DEFAULT_FREQUENCY_HZ
+    )
+    return ScanData(
+        points=points,
+        label=hardware.identify(),
+        n_electrodes=n_electrodes,
+        frequency_hz=frequency_hz,
+    )
 
 
 def run_scan(
     hardware: HardwareBackend | None = None,
     solver: SolverBackend | None = None,
-    frequencies_hz: list[float] | None = None,
+    baseline: ScanData | None = None,
 ) -> bytes:
     """Run a full scan and return the reconstructed image as PNG bytes.
 
@@ -87,8 +96,8 @@ def run_scan(
         solver.setup(config.N_ELECTRODES, config.mesh_config())
 
     try:
-        frame = acquire(hardware, frequencies_hz)
-        cmap = solver.reconstruct(frame, baseline=None)
+        frame = acquire(hardware)
+        cmap = solver.reconstruct(frame, baseline=baseline)
         return conductivity_to_png(cmap)
     finally:
         if owns_solver:
