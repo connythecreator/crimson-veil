@@ -53,7 +53,10 @@ class ScanSession:
                 hardware = pipeline.default_hardware()
                 hardware.open(config.device_config())
                 solver = pipeline.default_solver()
-                solver.setup(config.N_ELECTRODES, config.mesh_config())
+                n_electrodes = int(
+                    getattr(hardware, "n_electrodes", 0) or config.N_ELECTRODES
+                )
+                solver.setup(n_electrodes, config.mesh_config(n_electrodes))
             except Exception as exc:  # noqa: BLE001 - surface anything to the client
                 self._boot_error = f"{type(exc).__name__}: {exc}"
                 raise

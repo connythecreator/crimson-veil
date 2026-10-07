@@ -31,11 +31,11 @@ class SolverBackend(Protocol):
     ) -> ConductivityMap:
         """Reconstruct ``frame``.
 
-        ``frame.points`` are in the front end's standard adjacent order, so the
-        implementation maps them straight onto its protocol (no reordering).
-        When ``baseline`` is given, reconstruction is difference-based against
-        it (the intended mode for phantom work: plain saline vs simulated
-        bleed).
+        ``frame.points`` arrive in the firmware's standard adjacent order. A
+        solver maps that order to its own protocol, including any polarity
+        correction required by the protocol. When ``baseline`` is given,
+        reconstruction is difference-based against it (the intended mode for
+        phantom work: plain saline vs simulated bleed).
         """
         ...
 

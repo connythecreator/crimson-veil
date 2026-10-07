@@ -23,15 +23,15 @@ pytest.importorskip("pyeit")
 pytest.importorskip("matplotlib")
 pytest.importorskip("numpy")
 
-import matplotlib.pyplot as plt
 import numpy as np
-import pyeit.eit.bp as bp
-import pyeit.eit.protocol as protocol
 import pyeit.mesh as mesh
 from pyeit.eit.fem import EITForward
 from pyeit.mesh.wrapper import PyEITAnomaly_Circle
 
-from software.core.types import MeshConfig
+from software import pipeline
+from software.core import config
+from software.core.types import MeshConfig, RawPoint, ScanData
+from software.reconstruction.image import conductivity_to_png
 from software.reconstruction.pyeit_solver import PyEITSolver
 
 
@@ -40,6 +40,8 @@ N_ELECTRODES = 8
 GRID_SIZE = 96
 
 
+# +ve x moves right, -ve x moves left
+# +ve y moves up, -ve y moves down
 ANOMALY_POSITIONS = {
     "upper_right": [0.5, 0.5],
     "upper_left": [-0.5, 0.5],
@@ -48,8 +50,95 @@ ANOMALY_POSITIONS = {
 }
 
 
+def _scan_data(
+    protocol_obj,
+    values: np.ndarray,
+    label: str,
+    frequency_hz: float,
+) -> ScanData:
+    """Convert pyEIT-ordered values into the firmware's frame order."""
+    n_electrodes = N_ELECTRODES
+    firmware_pairs = [
+        (
+            (electrode, (electrode + 1) % n_electrodes),
+            (
+                (electrode + 2 + offset) % n_electrodes,
+                (electrode + 3 + offset) % n_electrodes,
+            ),
+        )
+        for electrode in range(n_electrodes)
+        for offset in range(n_electrodes - 3)
+    ]
+    firmware_indices = {
+        measurement: index for index, measurement in enumerate(firmware_pairs)
+    }
+    firmware_values = np.empty(len(firmware_pairs), dtype=float)
+
+    protocol_index = 0
+    for drive_index, drive in enumerate(protocol_obj.ex_mat):
+        drive_pair = tuple(int(value) for value in drive)
+        for sense in protocol_obj.meas_mat[drive_index]:
+            sense_pair = tuple(int(value) for value in sense)
+            firmware_index = firmware_indices.get((drive_pair, sense_pair))
+            polarity = 1.0
+            if firmware_index is None:
+                firmware_index = firmware_indices[
+                    (drive_pair, (sense_pair[1], sense_pair[0]))
+                ]
+                polarity = -1.0
+            firmware_values[firmware_index] = values[protocol_index] * polarity
+            protocol_index += 1
+
+    assert protocol_index == len(values)
+    return ScanData(
+        points=[
+            RawPoint(
+                freq_hz=frequency_hz,
+                real=float(np.real(value)),
+                imag=float(np.imag(value)),
+            )
+            for value in firmware_values
+        ],
+        label=label,
+        n_electrodes=n_electrodes,
+        frequency_hz=frequency_hz,
+    )
+
+
+class _DigitalHardware:
+    n_electrodes = N_ELECTRODES
+
+    def __init__(
+        self,
+        points: list[RawPoint],
+        frequency_hz: float,
+    ) -> None:
+        self._points = points
+        self.frequency_hz = frequency_hz
+
+    def open(self, _cfg) -> None:
+        pass
+
+    def identify(self) -> str:
+        return "digital:test"
+
+    def scan(self) -> list[RawPoint]:
+        return self._points
+
+    def close(self) -> None:
+        pass
+
+
+def test_default_solver_selects_pyeit(monkeypatch):
+    monkeypatch.setattr(config, "SOLVER_BACKEND", "pyeit")
+    solver = pipeline.default_solver()
+    assert isinstance(solver, PyEITSolver)
+    assert solver.frequency_hz == config.DEFAULT_FREQUENCY_HZ
+    solver.close()
+
+
 def test_pyeit_with_project_protocol():
-    """Test pyEIT's standard adjacent protocol with quadrant anomalies."""
+    """Test digital baseline-to-anomaly reconstruction through the pipeline."""
 
     solver = PyEITSolver(
         grid_size=GRID_SIZE,
@@ -65,14 +154,7 @@ def test_pyeit_with_project_protocol():
     )
 
     mesh_obj = solver.mesh_obj
-    # Use pyEIT's 40-measurement standard protocol for localization testing;
-    # the production project protocol currently contains only 8 measurements.
-    protocol_obj = protocol.create(
-        N_ELECTRODES,
-        dist_exc=1,
-        step_meas=1,
-        parser_meas="std",
-    )
+    protocol_obj = solver.protocol_obj
 
     assert mesh_obj is not None
     assert protocol_obj is not None
@@ -113,14 +195,6 @@ def test_pyeit_with_project_protocol():
     assert len(v0) == 40
     assert len(v0) == protocol_obj.n_meas_tot
 
-    eit = bp.BP(
-        mesh_obj,
-        protocol_obj,
-    )
-    eit.setup(
-        weight="none",
-    )
-
     output_dir = (
         Path(__file__).resolve().parent
         / "pyeit_outputs"
@@ -138,6 +212,7 @@ def test_pyeit_with_project_protocol():
             f"at {center} ---"
         )
 
+        # Determines the anomaly's location in the mesh's coordinate system.
         anomaly = PyEITAnomaly_Circle(
             center=center,
             r=0.15,
@@ -174,13 +249,22 @@ def test_pyeit_with_project_protocol():
 
         assert measurement_change > 1e-12
 
-        ds = eit.solve(
-            v1,
+        baseline = _scan_data(
+            protocol_obj,
             v0,
-            normalize=True,
+            "digital baseline",
+            FREQ_HZ,
         )
-        ds = np.real(ds)
-        conductivity_map = solver._to_conductivity_map(ds)
+        frame = _scan_data(
+            protocol_obj,
+            v1,
+            f"digital {position_name}",
+            FREQ_HZ,
+        )
+        conductivity_map = solver.reconstruct(
+            frame,
+            baseline,
+        )
 
         values = np.asarray(
             conductivity_map.values,
@@ -229,6 +313,18 @@ def test_pyeit_with_project_protocol():
             f"{horizontal_position}"
         )
 
+        assert reconstructed_position == position_name, (
+            f"Expected anomaly in {position_name}, "
+            f"but reconstruction peak was in {reconstructed_position}"
+        )
+
+        if position_name == "upper_right":
+            homogeneous_baseline_map = solver.reconstruct(frame)
+            assert homogeneous_baseline_map.width == GRID_SIZE
+            assert homogeneous_baseline_map.height == GRID_SIZE
+            assert np.all(np.isfinite(homogeneous_baseline_map.values))
+            assert np.max(np.abs(homogeneous_baseline_map.values)) > 1e-12
+
         print(
             "Expected position:",
             position_name,
@@ -254,17 +350,20 @@ def test_pyeit_with_project_protocol():
             np.max(values),
         )
 
+        hardware = _DigitalHardware(frame.points, FREQ_HZ)
+        png = pipeline.run_scan(
+            hardware=hardware,
+            solver=solver,
+            baseline=baseline,
+        )
+        assert png.startswith(b"\x89PNG\r\n\x1a\n")
+        assert png == conductivity_to_png(conductivity_map)
+
         output_path = (
             output_dir
             / f"{position_name}.png"
         )
-
-        # Keep PNG row zero at the top to match the reconstructed map grid.
-        plt.imsave(
-            output_path,
-            values,
-            origin="upper",
-        )
+        output_path.write_bytes(png)
 
         print(
             "Saved image:",

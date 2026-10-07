@@ -10,6 +10,9 @@ __pycache__/
 # Runtime scan output (temp PNGs written by the pipeline)
 crimson_veil/
 
+# Generated pyEIT diagnostic images (so they don't enter merge)
+tests/pyeit_outputs/*.png
+
 # Tool caches
 .pytest_cache/
 .ruff_cache/

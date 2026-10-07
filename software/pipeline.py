@@ -44,11 +44,12 @@ def default_solver() -> SolverBackend:
         from .sim.stub_solver import StubSolver
 
         return StubSolver()
+
     if config.SOLVER_BACKEND == "pyeit":
-        raise NotImplementedError(
-            "pyeit solver not implemented yet; see "
-            "software/reconstruction/PYEIT_SOLVER.md"
-        )
+        from .reconstruction.pyeit_solver import PyEITSolver
+
+        return PyEITSolver(frequency_hz=config.DEFAULT_FREQUENCY_HZ)
+
     raise NotImplementedError(
         f"solver backend {config.SOLVER_BACKEND!r} not implemented yet"
     )
@@ -83,7 +84,8 @@ def run_scan(
 
     If ``hardware``/``solver`` are not supplied, the configured defaults are
     created and closed here. If they are supplied (e.g. by ``main.py`` at boot),
-    their lifecycle is the caller's responsibility.
+    their lifecycle is the caller's responsibility. Difference solvers require
+    a baseline captured separately from the target frame.
     """
     owns_hardware = hardware is None
     owns_solver = solver is None
@@ -93,7 +95,10 @@ def run_scan(
         hardware.open(config.device_config())
     if solver is None:
         solver = default_solver()
-        solver.setup(config.N_ELECTRODES, config.mesh_config())
+        n_electrodes = int(
+            getattr(hardware, "n_electrodes", 0) or config.N_ELECTRODES
+        )
+        solver.setup(n_electrodes, config.mesh_config(n_electrodes))
 
     try:
         frame = acquire(hardware)

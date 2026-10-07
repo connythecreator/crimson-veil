@@ -50,5 +50,8 @@ def device_config(backend: str | None = None) -> DeviceConfig:
     )
 
 
-def mesh_config() -> MeshConfig:
-    return MeshConfig(n_electrodes=N_ELECTRODES, shape="circle")
+def mesh_config(n_electrodes: int | None = None) -> MeshConfig:
+    return MeshConfig(
+        n_electrodes=N_ELECTRODES if n_electrodes is None else n_electrodes,
+        shape="circle",
+    )
