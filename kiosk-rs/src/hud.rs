@@ -1,9 +1,9 @@
 //! Mobile-style HUD, drawn with egui's `Painter` in screen coordinates.
 //!
-//! The 800x480 panel is treated like a phone screen: a rounded app surface
-//! with a status bar (clock + battery/temp), an app bar with the title, a
-//! left navigation rail (scan / settings / calibration), a content area with
-//! the scan disc, a parameters card, and a home-indicator pill.
+//! Tuned for the 3.5" 480x320 SPI panel (CE04868): a rounded app surface with
+//! a status bar (clock + battery/temp), an app bar with the title, a left
+//! navigation rail (scan / settings / calibration), a content area with the
+//! scan disc, a parameters card, and a home-indicator pill.
 //!
 //! Interactive controls use egui `Area`s; everything visual is painted for
 //! pixel control.
@@ -27,12 +27,13 @@ const OK: Color32 = Color32::from_rgb(34, 197, 94);
 const WARN: Color32 = Color32::from_rgb(234, 179, 8);
 const TEXT: Color32 = Color32::from_rgb(236, 239, 243);
 
-const SCREEN_M: f32 = 9.0;
-const SCREEN_R: u8 = 20;
-const STATUS_H: f32 = 26.0;
-const APPBAR_H: f32 = 40.0;
-const RAIL_W: f32 = 72.0;
-const HOME_H: f32 = 18.0;
+// Layout for the 3.5" 480x320 panel (phone-style proportions).
+const SCREEN_M: f32 = 6.0;
+const SCREEN_R: u8 = 14;
+const STATUS_H: f32 = 24.0;
+const APPBAR_H: f32 = 46.0;
+const RAIL_W: f32 = 66.0;
+const HOME_H: f32 = 12.0;
 
 pub fn draw(
     ctx: &egui::Context,
@@ -68,7 +69,7 @@ pub fn draw(
 
     status_bar(&p, status, state);
     app_bar(&p, appbar, state);
-    let body = content.shrink(6.0);
+    let body = content.shrink(4.0);
     match state.page {
         Page::Scan => scan_page(&p, body, state, fx, time_s, image),
         Page::Settings => placeholder(&p, body, "Settings", "scan cadence and hardware options"),
@@ -86,7 +87,7 @@ fn status_bar(painter: &egui::Painter, rect: Rect, state: &AppState) {
     let cy = rect.center().y;
     let clock = chrono::Local::now().format("%H:%M").to_string();
     painter.text(
-        Pos2::new(rect.left() + 20.0, cy),
+        Pos2::new(rect.left() + 16.0, cy),
         Align2::LEFT_CENTER,
         clock,
         FontId::proportional(14.0),
@@ -94,11 +95,11 @@ fn status_bar(painter: &egui::Painter, rect: Rect, state: &AppState) {
     );
 
     // Right cluster: temperature, wifi-ish signal, battery.
-    let mut x = rect.right() - 22.0;
+    let mut x = rect.right() - 16.0;
     battery(painter, Pos2::new(x - 20.0, cy), state);
     x -= 52.0;
     signal(painter, Pos2::new(x - 6.0, cy));
-    x -= 28.0;
+    x -= 26.0;
     if let Some(t) = state.temp_c {
         painter.text(
             Pos2::new(x, cy),
@@ -123,8 +124,8 @@ fn signal(painter: &egui::Painter, at: Pos2) {
 }
 
 fn battery(painter: &egui::Painter, at: Pos2, state: &AppState) {
-    let w = 26.0;
-    let h = 12.0;
+    let w = 22.0;
+    let h = 10.0;
     let body = Rect::from_center_size(at, Vec2::new(w, h));
     painter.rect_stroke(
         body,
@@ -159,12 +160,12 @@ fn battery(painter: &egui::Painter, at: Pos2, state: &AppState) {
                 Pos2::new(body.left() - 4.0, at.y),
                 Align2::RIGHT_CENTER,
                 format!("{pct:.0}%"),
-                FontId::monospace(10.0),
+                FontId::monospace(9.0),
                 STEEL,
             );
         }
         None => {
-            painter.text(body.center(), Align2::CENTER_CENTER, "\u{2013}", FontId::monospace(10.0), STEEL);
+            painter.text(body.center(), Align2::CENTER_CENTER, "\u{2013}", FontId::monospace(9.0), STEEL);
         }
     }
 }
@@ -172,21 +173,26 @@ fn battery(painter: &egui::Painter, at: Pos2, state: &AppState) {
 // --- app bar ---------------------------------------------------------------
 
 fn app_bar(painter: &egui::Painter, rect: Rect, state: &AppState) {
-    painter.circle_stroke(Pos2::new(rect.left() + 24.0, rect.center().y), 10.0, Stroke::new(2.0_f32, CRIM));
-    painter.circle_filled(Pos2::new(rect.left() + 24.0, rect.center().y), 3.5, CRIM);
+    // Crimson brand mark only - no wordmark (the nav rail shows where you are).
+    let cx = rect.left() + 26.0;
+    painter.circle_stroke(Pos2::new(cx, rect.center().y), 12.0, Stroke::new(2.4_f32, CRIM));
+    painter.circle_filled(Pos2::new(cx, rect.center().y), 4.2, CRIM);
+    // Current section, large.
     painter.text(
-        Pos2::new(rect.left() + 42.0, rect.center().y - 8.0),
-        Align2::LEFT_CENTER,
-        "Crimson Veil",
-        FontId::proportional(17.0),
-        TEXT,
-    );
-    painter.text(
-        Pos2::new(rect.left() + 43.0, rect.center().y + 9.0),
+        Pos2::new(rect.left() + 50.0, rect.center().y),
         Align2::LEFT_CENTER,
         page_title(state.page),
-        FontId::proportional(11.0),
-        CRIM2,
+        FontId::proportional(22.0),
+        TEXT,
+    );
+    // A crimson accent down the left edge of the header.
+    painter.rect_filled(
+        Rect::from_min_max(
+            Pos2::new(rect.left(), rect.top() + 6.0),
+            Pos2::new(rect.left() + 2.0, rect.bottom() - 6.0),
+        ),
+        egui::CornerRadius::same(1),
+        CRIMD,
     );
     painter.line_segment(
         [Pos2::new(rect.left(), rect.bottom()), Pos2::new(rect.right(), rect.bottom())],
@@ -207,22 +213,28 @@ fn page_title(page: Page) -> &'static str {
 fn rail_nav(ctx: &egui::Context, rect: Rect, state: &mut AppState) {
     ctx.layer_painter(egui::LayerId::background())
         .rect_filled(rect, egui::CornerRadius::ZERO, RAIL);
+
+    let inner = rect.shrink2(Vec2::new(5.0, 6.0));
+    let items = [
+        (Page::Scan, "Scan"),
+        (Page::Settings, "Settings"),
+        (Page::Calibration, "Calib"),
+    ];
+    // Spread the items evenly so they fill the whole rail height.
+    let item_h = inner.height() / items.len() as f32;
+
     egui::Area::new(egui::Id::new("rail"))
         .fixed_pos(rect.min)
         .order(egui::Order::Middle)
         .show(ctx, |ui| {
             ui.set_min_size(rect.size());
             ui.allocate_new_ui(
-                egui::UiBuilder::new().max_rect(rect.shrink2(Vec2::new(10.0, 10.0))),
+                egui::UiBuilder::new().max_rect(inner),
                 |ui| {
+                    ui.spacing_mut().item_spacing = Vec2::ZERO;
                     ui.vertical(|ui| {
-                        ui.spacing_mut().item_spacing.y = 12.0;
-                        for (page, label) in [
-                            (Page::Scan, "Scan"),
-                            (Page::Settings, "Settings"),
-                            (Page::Calibration, "Calib"),
-                        ] {
-                            if rail_item(ui, page, label, state.page == page) {
+                        for (page, label) in items {
+                            if rail_item(ui, page, label, state.page == page, inner.width(), item_h) {
                                 state.page = page;
                             }
                         }
@@ -232,62 +244,80 @@ fn rail_nav(ctx: &egui::Context, rect: Rect, state: &mut AppState) {
         });
 }
 
-/// A Material-style nav rail item: a rounded pill highlight with an icon and a
-/// small label. Returns true when tapped.
-fn rail_item(ui: &mut egui::Ui, page: Page, label: &str, selected: bool) -> bool {
-    let size = Vec2::new(52.0, 54.0);
-    let (rect, resp) = ui.allocate_exact_size(size, Sense::click());
+/// A Material-style nav rail item that fills its slot: a rounded highlight with
+/// a large icon and a label. Returns true when tapped.
+fn rail_item(
+    ui: &mut egui::Ui,
+    page: Page,
+    label: &str,
+    selected: bool,
+    width: f32,
+    height: f32,
+) -> bool {
+    let (rect, resp) = ui.allocate_exact_size(Vec2::new(width, height), Sense::click());
     let p = ui.painter();
+
+    let icon_c = Pos2::new(rect.center().x, rect.top() + height * 0.40);
+    let icon_r = (height * 0.26).min(width * 0.34).max(9.0);
+
     if selected {
         p.rect_filled(
-            Rect::from_center_size(Pos2::new(rect.center().x, rect.top() + 20.0), Vec2::new(46.0, 30.0)),
-            egui::CornerRadius::same(15),
+            Rect::from_center_size(icon_c, Vec2::splat(icon_r * 2.7)),
+            egui::CornerRadius::same((icon_r * 1.3) as u8),
             CRIMD,
         );
     } else if resp.hovered() {
         p.rect_filled(
-            Rect::from_center_size(Pos2::new(rect.center().x, rect.top() + 20.0), Vec2::new(46.0, 30.0)),
-            egui::CornerRadius::same(15),
+            Rect::from_center_size(icon_c, Vec2::splat(icon_r * 2.7)),
+            egui::CornerRadius::same((icon_r * 1.3) as u8),
             CARD,
         );
     }
+
     let fg = if selected { CRIM2 } else { STEEL };
-    draw_icon(p, Pos2::new(rect.center().x, rect.top() + 20.0), page, fg);
+    draw_icon(p, icon_c, page, fg, icon_r);
     p.text(
-        Pos2::new(rect.center().x, rect.bottom() - 6.0),
+        Pos2::new(rect.center().x, rect.bottom() - height * 0.18),
         Align2::CENTER_CENTER,
         label,
-        FontId::proportional(9.5),
+        FontId::proportional((height * 0.20).clamp(10.0, 15.0)),
         fg,
     );
     resp.clicked()
 }
 
-fn draw_icon(painter: &egui::Painter, c: Pos2, page: Page, color: Color32) {
-    let s = Stroke::new(1.6_f32, color);
+fn draw_icon(painter: &egui::Painter, c: Pos2, page: Page, color: Color32, r: f32) {
+    let s = Stroke::new((r * 0.16).max(1.6), color);
     match page {
         Page::Scan => {
-            painter.circle_stroke(c, 9.0, s);
-            painter.circle_stroke(c, 4.5, s);
-            painter.circle_filled(c, 1.7, color);
+            painter.circle_stroke(c, r, s);
+            painter.circle_stroke(c, r * 0.52, s);
+            painter.circle_filled(c, r * 0.20, color);
         }
         Page::Settings => {
-            painter.circle_stroke(c, 6.0, s);
+            let ring = r * 0.62;
+            painter.circle_stroke(c, ring, s);
             for k in 0..8 {
                 let a = std::f32::consts::TAU * k as f32 / 8.0;
                 let (sn, co) = a.sin_cos();
                 painter.line_segment(
-                    [c + Vec2::new(co * 6.0, sn * 6.0), c + Vec2::new(co * 9.5, sn * 9.5)],
+                    [
+                        c + Vec2::new(co * ring, sn * ring),
+                        c + Vec2::new(co * r, sn * r),
+                    ],
                     s,
                 );
             }
-            painter.circle_filled(c, 1.5, color);
+            painter.circle_filled(c, r * 0.18, color);
         }
         Page::Calibration => {
-            for (i, w) in [6.0_f32, 9.0, 5.5].into_iter().enumerate() {
-                let y = c.y - 6.0 + i as f32 * 6.0;
-                painter.line_segment([Pos2::new(c.x - 9.0, y), Pos2::new(c.x + 9.0, y)], s);
-                painter.circle_filled(Pos2::new(c.x - 9.0 + w * 2.0, y), 2.1, color);
+            for (i, frac) in [0.30_f32, 0.72, 0.48].into_iter().enumerate() {
+                let y = c.y - r * 0.6 + i as f32 * (r * 0.6);
+                painter.line_segment(
+                    [Pos2::new(c.x - r, y), Pos2::new(c.x + r, y)],
+                    s,
+                );
+                painter.circle_filled(Pos2::new(c.x - r + frac * 2.0 * r, y), r * 0.2, color);
             }
         }
     }
@@ -296,10 +326,10 @@ fn draw_icon(painter: &egui::Painter, c: Pos2, page: Page, color: Color32) {
 // --- pages -----------------------------------------------------------------
 
 fn card(painter: &egui::Painter, rect: Rect) {
-    painter.rect_filled(rect, egui::CornerRadius::same(12), CARD);
+    painter.rect_filled(rect, egui::CornerRadius::same(10), CARD);
     painter.rect_stroke(
         rect,
-        egui::CornerRadius::same(12),
+        egui::CornerRadius::same(10),
         Stroke::new(1.0_f32, STEELD),
         egui::StrokeKind::Inside,
     );
@@ -314,37 +344,37 @@ fn scan_page(
     image: Option<&egui::TextureHandle>,
 ) {
     // Parameters card along the bottom; scan disc fills the space above it.
-    let chip_h = 44.0;
-    let disc_area = Rect::from_min_max(body.min, Pos2::new(body.right(), body.bottom() - chip_h - 8.0));
+    let chip_h = 38.0;
+    let disc_area = Rect::from_min_max(body.min, Pos2::new(body.right(), body.bottom() - chip_h - 6.0));
 
     // Disc centred in the available area.
     let cx = disc_area.center().x;
     let cy = disc_area.center().y;
-    let scan_r = (disc_area.height() / 2.0 - 26.0).min(96.0);
+    let scan_r = (disc_area.height() / 2.0 - 20.0).min(62.0);
     let center = Pos2::new(cx, cy);
-    let ring_r = scan_r + 22.0;
+    let ring_r = scan_r + 15.0;
     let img_rect = Rect::from_center_size(center, Vec2::splat(scan_r * 2.0));
 
     painter.text(
-        Pos2::new(body.left() + 6.0, body.top() + 4.0),
+        Pos2::new(body.left() + 6.0, body.top() + 3.0),
         Align2::LEFT_TOP,
         "Live reconstruction",
-        FontId::proportional(13.0),
+        FontId::proportional(11.0),
         STEEL,
     );
     // Status pill (READY / SCANNING / CONTINUOUS ...), top-right of the page.
     let (status, color) = state.connection_label();
     let pill = Rect::from_min_size(
-        Pos2::new(body.right() - 12.0 - 96.0, body.top() + 7.0),
-        Vec2::new(96.0, 18.0),
+        Pos2::new(body.right() - 8.0 - 84.0, body.top() + 5.0),
+        Vec2::new(84.0, 16.0),
     );
-    painter.rect_filled(pill, egui::CornerRadius::same(9), CARD);
-    painter.circle_filled(Pos2::new(pill.left() + 11.0, pill.center().y), 3.0, color);
+    painter.rect_filled(pill, egui::CornerRadius::same(8), CARD);
+    painter.circle_filled(Pos2::new(pill.left() + 9.0, pill.center().y), 2.6, color);
     painter.text(
-        Pos2::new(pill.left() + 20.0, pill.center().y),
+        Pos2::new(pill.left() + 16.0, pill.center().y),
         Align2::LEFT_CENTER,
         status,
-        FontId::monospace(9.5),
+        FontId::monospace(9.0),
         color,
     );
 
@@ -359,7 +389,7 @@ fn scan_page(
         }
         painter.circle_stroke(center, scan_r, Stroke::new(1.5_f32, CRIMD));
     } else {
-        painter.text(center, Align2::CENTER_CENTER, "AWAITING SCAN", FontId::monospace(12.0), STEEL);
+        painter.text(center, Align2::CENTER_CENTER, "AWAITING SCAN", FontId::monospace(10.0), STEEL);
     }
 
     electrode_ring(painter, center, ring_r, state);
@@ -381,23 +411,23 @@ fn scan_page(
     for (i, (k, v)) in items.iter().enumerate() {
         let ccx = chips.left() + cell_w * (i as f32 + 0.5);
         painter.text(
-            Pos2::new(ccx, chips.top() + 10.0),
+            Pos2::new(ccx, chips.top() + 9.0),
             Align2::CENTER_CENTER,
             *k,
-            FontId::proportional(9.5),
+            FontId::proportional(8.5),
             STEEL,
         );
         painter.text(
-            Pos2::new(ccx, chips.top() + 27.0),
+            Pos2::new(ccx, chips.top() + 24.0),
             Align2::CENTER_CENTER,
             v,
-            FontId::proportional(14.0),
+            FontId::proportional(12.0),
             TEXT,
         );
         if i > 0 {
             let x = chips.left() + cell_w * i as f32;
             painter.line_segment(
-                [Pos2::new(x, chips.top() + 9.0), Pos2::new(x, chips.bottom() - 9.0)],
+                [Pos2::new(x, chips.top() + 8.0), Pos2::new(x, chips.bottom() - 8.0)],
                 Stroke::new(1.0_f32, STEELD),
             );
         }
@@ -406,15 +436,15 @@ fn scan_page(
 
 fn placeholder(painter: &egui::Painter, body: Rect, title: &str, sub: &str) {
     card(painter, body);
-    painter.text(body.center() - Vec2::new(0.0, 10.0), Align2::CENTER_CENTER, title, FontId::proportional(20.0), TEXT);
-    painter.text(body.center() + Vec2::new(0.0, 16.0), Align2::CENTER_CENTER, sub, FontId::monospace(11.0), STEEL);
+    painter.text(body.center() - Vec2::new(0.0, 8.0), Align2::CENTER_CENTER, title, FontId::proportional(16.0), TEXT);
+    painter.text(body.center() + Vec2::new(0.0, 12.0), Align2::CENTER_CENTER, sub, FontId::monospace(10.0), STEEL);
 }
 
 fn home_indicator(painter: &egui::Painter, app: Rect) {
-    let w = 96.0;
-    let y = app.bottom() - 8.0;
+    let w = 72.0;
+    let y = app.bottom() - 6.0;
     painter.rect_filled(
-        Rect::from_center_size(Pos2::new(app.center().x, y), Vec2::new(w, 3.5)),
+        Rect::from_center_size(Pos2::new(app.center().x, y), Vec2::new(w, 3.0)),
         egui::CornerRadius::same(2),
         STEELD,
     );
@@ -441,7 +471,7 @@ fn electrode_ring(painter: &egui::Painter, center: Pos2, r: f32, state: &AppStat
 
 fn field_diagram(painter: &egui::Painter, center: Pos2, radius: f32, fx: &ScanFx, t: f32) {
     let step = (radius * 2.0) / GRID as f32;
-    let dot_r = 1.8_f32.max(step * 0.13);
+    let dot_r = 1.4_f32.max(step * 0.12);
     let r2 = radius * radius;
     for gy in 0..GRID {
         for gx in 0..GRID {

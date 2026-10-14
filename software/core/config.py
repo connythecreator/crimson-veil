@@ -35,8 +35,7 @@ N_ELECTRODES = 8
 ESP32_PORT = os.environ.get("CV_ESP32_PORT", "/dev/ttyACM0")
 ESP32_BAUD = int(os.environ.get("CV_ESP32_BAUD", "115200"))
 
-# Kiosk display: typical 3.5" Raspberry Pi panel (unused by the Rust kiosk,
-# which is 800x480; kept for reference/tools).
+# Kiosk display: the 3.5" SPI panel is 480x320; kept for reference/tools.
 KIOSK_WIDTH = 480
 KIOSK_HEIGHT = 320
 

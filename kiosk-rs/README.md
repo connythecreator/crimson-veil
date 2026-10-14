@@ -20,7 +20,7 @@ Start the backend first: `python -m service.server`.
 ## Layout
 
 ```
-src/main.rs       entry point (fullscreen 800x480)
+src/main.rs       entry point (fullscreen 480x320, 3.5" SPI panel)
 src/protocol.rs   serde mirror of service/protocol.py  (unit-tested)
 src/net.rs        ewebsock client, reconnect/backoff, header+binary correlation
 src/hud.rs        full vector HUD via egui Painter

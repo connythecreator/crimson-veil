@@ -43,6 +43,19 @@
 # Python control service over a localhost WebSocket. This script installs:
 #   * the Rust binary (run as the X session's main process), and
 #   * the Python service as `crimson-veil-backend.service`.
+#
+# ---------------------------------------------------------------------------
+# Display: SPI 3.5" panel (CE04868) vs DSI/HDMI
+# ---------------------------------------------------------------------------
+# Two targets, selected with --display:
+#   spi35 (default) - a 3.5" 480x320 SPI panel (ILI9486 class). X runs directly
+#     on the panel's fbtft framebuffer (/dev/fb1) via the fbdev driver at
+#     native 480x320 (software GL) - no mirror. The panel is lit by the
+#     piscreen/fbtft overlay, the kernel console is unbound from it, and touch
+#     comes from ads7846/XPT2046. (A vc4->SPI mirror was tried and abandoned:
+#     under KMS /dev/fb0 does not track X's scanout, and fbcp-ili9341 is
+#     DispmanX/32-bit only and dead on Trixie 64.)
+#   dsi7  - the original 7" 800x480 DSI/HDMI KMS panel (no mirror needed).
 KIOSK_BINARY=""        # path to the crimson-veil-kiosk binary (see --binary)
 BINARY_DEST="/usr/local/bin/crimson-veil-kiosk"
 
@@ -61,6 +74,26 @@ NO_REBOOT=0
 SKIP_PKGS=0
 SKIP_SPLASH=0
 SKIP_VENV=0
+
+# Display target:
+#   spi35 = 3.5" SPI panel (CE04868 / ILI9486 class). vc4 renders the kiosk at
+#           the panel's native 480x320 and a small fb-copy daemon mirrors
+#           /dev/fb0 (vc4) -> /dev/fb1 (fbtft SPI). Hardware GL, self-contained.
+#   dsi7  = the original 7" DSI/HDMI 800x480 KMS panel.
+DISPLAY_MODE="spi35"
+
+# 3.5" SPI panel overlays. Default assumes the common Waveshare-3.5A-class
+# HAT: ILI9486 controller + XPT2046 touch, standard 3.5" pinout (DC=24,
+# RST=25, BL=18, touch IRQ=17, touch CS=1). If the panel shows nothing or is
+# the wrong colours, switch to another controller/preset:
+#   ILI9486 preset   : SPI_PANEL_OVERLAY="piscreen"   (bundles touch; then set
+#                      SPI_TOUCH_OVERLAY="")
+#   alternate 9486   : "fbtft,spi0-0,tontec35_9486,rotate=90,..."
+#   MPI3501 (LCD35)  : not an fbtft preset - needs a dedicated driver; the
+#                      mirror approach may not apply.
+SPI_PANEL_OVERLAY="piscreen"
+SPI_TOUCH_OVERLAY=""
+SPI_PANEL_SIZE="480 320"
 
 # ---------------------------------------------------------------------------
 # Output helpers
@@ -107,6 +140,7 @@ Usage: sudo bash scripts/setup-pi-kiosk.sh [options]
   --splash PATH       custom PNG for the boot splash (required)
   --venv PATH         Python venv directory (default: <repo>/.venv)
   --user NAME         kiosk login user (default: the sudo invoker)
+  --display MODE      spi35 (3.5" SPI panel, default) or dsi7 (7" DSI/HDMI)
   --no-pip            do not create the venv / install requirements
   --skip-packages     do not run apt-get install
   --skip-splash       do not touch Plymouth / boot files
@@ -127,6 +161,7 @@ while (( $# )); do
     --splash)       SPLASH_PNG="$2"; shift 2 ;;
     --venv)         VENV_DIR="$2"; shift 2 ;;
     --user)         KIOSK_USER="$2"; shift 2 ;;
+    --display)      DISPLAY_MODE="$2"; shift 2 ;;
     --no-pip)       INSTALL_PY=0; shift ;;
     --skip-packages) SKIP_PKGS=1; shift ;;
     --skip-splash)  SKIP_SPLASH=1; shift ;;
@@ -182,6 +217,11 @@ esac
 ARCH="$(uname -m)"
 [[ "$ARCH" == "aarch64" || "$ARCH" == "armv7l" ]] \
   || die "unsupported architecture: $ARCH (expected aarch64 or armv7l)"
+
+case "$DISPLAY_MODE" in
+  spi35|dsi7) : ;;
+  *) die "unknown --display '$DISPLAY_MODE' (expected spi35 or dsi7)" ;;
+esac
 
 if [[ -f /boot/firmware/cmdline.txt ]]; then
   BOOT_DIR="/boot/firmware"
@@ -276,6 +316,12 @@ install_packages() {
     # Python venv tooling.
     python3-venv python3-full
   )
+
+  if [[ "$DISPLAY_MODE" == "spi35" ]]; then
+    # fbdev: run X directly on the SPI panel framebuffer. evdev: attach the
+    # resistive XPT2046 touchscreen to X.
+    pkgs+=( xserver-xorg-video-fbdev xserver-xorg-input-evdev )
+  fi
 
   log "installing packages"
   run env DEBIAN_FRONTEND=noninteractive apt-get update
@@ -373,6 +419,67 @@ EOF
 
   run systemctl daemon-reload
   run systemctl enable crimson-veil-backend.service
+}
+
+# ---------------------------------------------------------------------------
+# 2c. SPI display services (3.5" panel): console + touchscreen
+# ---------------------------------------------------------------------------
+# Route A: X runs directly on the panel framebuffer (/dev/fb1) via the fbdev
+# driver, so there is NO mirror. The console and touch are the only services.
+
+# The framebuffer console (fbcon) otherwise paints boot/getty/app output onto
+# the SPI panel on top of the kiosk, causing constant flicker. Unbind it at
+# boot so X exclusively owns /dev/fb1.
+install_fbcon_off() {
+  if [[ "$DISPLAY_MODE" != "spi35" ]]; then
+    return 0
+  fi
+  log "unbinding the framebuffer console from the panel"
+  write_file /etc/systemd/system/veil-fbcon-off.service <<'EOF'
+[Unit]
+Description=Unbind the framebuffer console so the kiosk owns the SPI panel
+After=multi-user.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/bin/sh -c 'for c in /sys/class/vtconsole/vtcon*; do grep -q "frame buffer" "$c/name" 2>/dev/null && echo 0 > "$c/bind"; done; true'
+
+[Install]
+WantedBy=multi-user.target
+EOF
+  run systemctl daemon-reload
+  run systemctl enable veil-fbcon-off.service
+}
+
+# Attach the resistive XPT2046 (ads7846) touchscreen to X and map it to the
+# 480x320 screen. The panel overlay brings up the input device; this InputClass
+# binds it. Fine-tune with the transformation matrix on the bench if X/y are
+# swapped or inverted.
+install_touch_config() {
+  if [[ "$DISPLAY_MODE" != "spi35" ]]; then
+    return 0
+  fi
+
+  local conf=/etc/X11/xorg.conf.d/40-veil-touch.conf
+  log "configuring touchscreen (XPT2046 / ads7846)"
+  backup "$conf"
+  run mkdir -p /etc/X11/xorg.conf.d
+  write_file "$conf" <<'EOF'
+# Crimson Veil 3.5" SPI panel touch (XPT2046 / ads7846) - managed by
+# scripts/setup-pi-kiosk.sh. Scoped to event devices so it does not also try to
+# drive the same device's mouse0 node. If the touch axes are swapped or inverted
+# set SwapAxes / InvertX / InvertY (or a TransformationMatrix) here.
+Section "InputClass"
+    Identifier "veil XPT2046 touchscreen"
+    MatchIsTouchscreen "on"
+    MatchDevicePath "/dev/input/event*"
+    Driver "evdev"
+    Option "SwapAxes" "false"
+    Option "InvertX" "false"
+    Option "InvertY" "false"
+EndSection
+EOF
 }
 
 # ---------------------------------------------------------------------------
@@ -635,6 +742,61 @@ configure_boot_files() {
   ensure_config_line dtoverlay=vc4-kms-v3d
 }
 
+# Light the 3.5" SPI panel and force the vc4 output to its native 480x320 so
+# the fb-copy daemon is a 1:1 mirror (no scaling). Native 480x320 is a hard
+# requirement: we set both the firmware (hdmi_cvt) and KMS (video=) mode hints.
+#
+# Self-contained: independent of the splash (NOT gated on --skip-splash), and
+# it backs up config.txt/cmdline.txt itself before editing.
+configure_spi_display() {
+  [[ "$DISPLAY_MODE" == "spi35" ]] || return 0
+  [[ -n "$BOOT_DIR" ]] || { warn "no boot dir; cannot configure the SPI panel"; return 0; }
+
+  log "configuring 3.5\" SPI panel ($SPI_PANEL_OVERLAY) at $SPI_PANEL_SIZE"
+  backup "$BOOT_DIR/config.txt"
+  backup "$BOOT_DIR/cmdline.txt"
+
+  # SPI bus + the panel overlay (fbtft framebuffer) and the touch overlay.
+  cfg_add "dtparam=spi=on"
+  cfg_add "dtoverlay=$SPI_PANEL_OVERLAY"
+  [[ -n "$SPI_TOUCH_OVERLAY" ]] && cfg_add "dtoverlay=$SPI_TOUCH_OVERLAY"
+  # Force a headless vc4 output at the panel's native mode. Under KMS the
+  # firmware hdmi_force_hotplug is ignored, so the connector must be force-
+  # enabled on the kernel cmdline with the trailing 'e'. The 'M' tells the
+  # kernel to compute a proper CVT modeline - without it vc4 is handed
+  # malformed timings and rejects the mode ("User-defined mode not supported").
+  cfg_add "hdmi_force_hotplug=1"
+  cfg_add "hdmi_group=2"
+  cfg_add "hdmi_mode=87"
+  cfg_add "hdmi_cvt=$SPI_PANEL_SIZE 60 1 0 0 0"
+  cmdline_add "video=HDMI-A-1:${SPI_PANEL_SIZE// /x}M@60e"
+}
+
+# Append LINE to config.txt verbatim if absent (ignores --skip-splash).
+cfg_add() {
+  local line="$1" file="$BOOT_DIR/config.txt"
+  grep -qxF -- "$line" "$file" 2>/dev/null && return 0
+  if (( DRY_RUN )); then
+    printf '   [dry-run] config.txt += %s\n' "$line"
+  else
+    printf '%s\n' "$line" >> "$file"
+    ok "config.txt += $line"
+  fi
+}
+
+# Add TOKEN to the single-line cmdline.txt if absent (ignores --skip-splash).
+cmdline_add() {
+  local token="$1" file="$BOOT_DIR/cmdline.txt" line
+  line="$(tr -d '\n' < "$file")"
+  grep -qw -- "$token" <<<"$line" && return 0
+  if (( DRY_RUN )); then
+    printf '   [dry-run] cmdline.txt += %s\n' "$token"
+  else
+    printf '%s %s\n' "$line" "$token" > "$file"
+    ok "cmdline.txt += $token"
+  fi
+}
+
 # ---------------------------------------------------------------------------
 # 4. Kiosk autostart (console autologin -> startx -> openbox -> app)
 # ---------------------------------------------------------------------------
@@ -660,6 +822,8 @@ setup_autostart() {
     kiosk_cmd="$BINARY_DEST  # NOTE: --binary was not given"
   fi
 
+  # X runs directly on the panel at its native 480x320 (fbdev driver); the
+  # mode is fixed by the panel, nothing to pin.
   log "writing $xinitrc"
   write_file "$xinitrc" <<EOF
 #!/bin/sh
@@ -672,7 +836,8 @@ xset s noblank
 # crimson-veil-backend.service.
 export CV_WS_URL="ws://127.0.0.1:$SERVICE_PORT"
 openbox-session &
-exec $kiosk_cmd
+# Keep the kiosk's log output off the VT (it would otherwise splatter the panel).
+exec $kiosk_cmd >"$KIOSK_HOME/kiosk.log" 2>&1
 EOF
 
   log "writing $profile (startx on tty1 only)"
@@ -690,11 +855,12 @@ EOF
   # an XML comment and makes openbox's parser abort).
   write_file "$rcxml" <<'EOF'
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- Crimson Veil kiosk window rule. If the title match does not apply, the
-     openbox autostart file also forces the active window fullscreen. -->
+<!-- Crimson Veil kiosk window rule. The kiosk has no window title (the nav
+     rail conveys location), so match every window; openbox autostart also
+     forces the active window fullscreen. -->
 <openbox_config xmlns="http://openbox.org/3.4/rc">
   <applications>
-    <application title="Crimson Veil*" class="*">
+    <application class="*">
       <fullscreen>yes</fullscreen>
       <decor>no</decor>
       <maximized>yes</maximized>
@@ -709,7 +875,7 @@ EOF
 # Crimson Veil kiosk (managed by scripts/setup-pi-kiosk.sh).
 # The app requests fullscreen itself; this is a fallback that forces the
 # active window fullscreen shortly after it appears.
-sh -c 'sleep 3; command -v xdotool >/dev/null 2>&1 && xdotool search --sync --onlyvisible --name "Crimson Veil" windowstate --add fullscreen' &
+sh -c 'sleep 3; command -v xdotool >/dev/null 2>&1 && xdotool getactivewindow windowstate --add fullscreen' &
 EOF
 
   if (( ! DRY_RUN )); then
@@ -744,6 +910,7 @@ report() {
     "$( [[ -n "$KIOSK_BINARY" ]] || printf '  (no --binary given!)' )"
   printf '   service    : %s/.venv  ws://127.0.0.1:%s\n' "$REPO_DIR" "$SERVICE_PORT"
   printf '   user       : %s\n' "$KIOSK_USER"
+  printf '   display    : %s\n' "$DISPLAY_MODE"
 
   if (( ! SKIP_SPLASH )) && (( ! DRY_RUN )); then
     printf '   theme      : %s\n' "$(plymouth-set-default-theme 2>/dev/null || echo '?')"
@@ -757,6 +924,17 @@ report() {
     printf '   backend    : %s\n' "$(systemctl is-enabled crimson-veil-backend.service 2>/dev/null || echo '?')"
   fi
 
+  if [[ "$DISPLAY_MODE" == "spi35" ]] && (( ! DRY_RUN )); then
+    # The 3.5" SPI panel bring-up: check the framebuffers, the driver, the
+    # console bind and the touch device.
+    local fbn
+    for fbn in /sys/class/graphics/fb*/name; do
+      [[ -e "$fbn" ]] && printf '   %s : %s\n' "$(basename "$(dirname "$fbn")")" "$(cat "$fbn")"
+    done
+    printf '   console    : %s\n' "$(for c in /sys/class/vtconsole/vtcon*/; do grep -q 'frame buffer' "$c/name" 2>/dev/null && { [ "$(cat "$c/bind")" = 0 ] && echo 'unbound' || echo 'bound (flicker!)'; }; done)"
+    printf '   panel drv  : %s\n' "$(dmesg 2>/dev/null | grep -iE 'fb_ili9486|fbtft|ads7846' | tail -1 || echo '?')"
+  fi
+
   cat <<EOF
 
 Manual revert
@@ -764,9 +942,11 @@ Manual revert
   sudo cp -a ${BOOT_DIR}/config.txt.bak.${STAMP}  ${BOOT_DIR}/config.txt
   sudo plymouth-set-default-theme -R pix
   sudo systemctl disable --now veil-bootlog.service veil-splash-stop.service
-  sudo systemctl disable --now crimson-veil-backend.service
+  sudo systemctl disable --now crimson-veil-backend.service veil-fbcon-off.service
   sudo rm -rf /usr/share/plymouth/themes/${THEME_NAME}
   sudo rm -f ${BINARY_DEST} /etc/systemd/system/crimson-veil-backend.service
+  sudo rm -f /etc/systemd/system/veil-fbcon-off.service
+  sudo rm -f /etc/X11/xorg.conf.d/40-veil-touch.conf /etc/X11/xorg.conf.d/99-veil-fbdev.conf
   sudo raspi-config nonint do_boot_behaviour B1   # console login
   # then: rm ~/.xinitrc ~/.config/openbox/rc.xml  (keep ~/.bash_profile)
 EOF
@@ -777,6 +957,7 @@ main() {
   log "Crimson Veil Pi 3 kiosk setup"
   printf '   distro     : %s %s (%s)\n' "${ID:-?}" "${VERSION_CODENAME:-?}" "$ARCH"
   printf '   boot dir   : %s\n' "${BOOT_DIR:-<skip>}"
+  printf '   display    : %s\n' "$DISPLAY_MODE"
   (( DRY_RUN )) && warn "DRY RUN: no changes will be made"
 
   install_packages
@@ -784,6 +965,9 @@ main() {
   install_kiosk_binary
   setup_venv
   install_backend_service
+  configure_spi_display
+  install_fbcon_off
+  install_touch_config
   setup_splash
   setup_autostart
   report

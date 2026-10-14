@@ -22,13 +22,13 @@ fn main() -> eframe::Result<()> {
         viewport: egui::ViewportBuilder::default()
             .with_fullscreen(true)
             .with_resizable(false)
-            .with_inner_size([800.0, 480.0])
-            .with_title("Crimson Veil - EIT"),
+            .with_inner_size([480.0, 320.0])
+            .with_title(""),
         ..Default::default()
     };
 
     eframe::run_native(
-        "Crimson Veil - EIT",
+        "crimson-veil-kiosk",
         native_options,
         Box::new(move |_cc| Ok(Box::new(KioskApp::new(&url)))),
     )
