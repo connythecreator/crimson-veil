@@ -11,13 +11,15 @@ socket, and so a future companion/web front end can reuse it unchanged.
 
 from __future__ import annotations
 
+import math
 import threading
 from collections.abc import Callable
 
 from software import pipeline
 from software.core import config
+from software.core.types import ScanData
 
-ProgressFn = Callable[[str, str], None]
+ProgressFn = Callable[[str], None]
 
 
 class BusyError(RuntimeError):
@@ -37,6 +39,8 @@ class ScanSession:
         self._scan_lock = threading.Lock()
         self._state_lock = threading.RLock()
         self._frequency_hz: float = float(config.DEFAULT_FREQUENCY_HZ)
+        self._requested_frequency: float | None = None
+        self._baseline: ScanData | None = None
 
     # --- boot -------------------------------------------------------------
 
@@ -49,9 +53,13 @@ class ScanSession:
         with self._state_lock:
             if self._booted:
                 return self.identify()
+            hardware = None
+            solver = None
             try:
                 hardware = pipeline.default_hardware()
                 hardware.open(config.device_config())
+                if self._requested_frequency is not None:
+                    hardware.frequency_hz = self._requested_frequency
                 solver = pipeline.default_solver()
                 n_electrodes = int(
                     getattr(hardware, "n_electrodes", 0) or config.N_ELECTRODES
@@ -59,11 +67,20 @@ class ScanSession:
                 solver.setup(n_electrodes, config.mesh_config(n_electrodes))
             except Exception as exc:  # noqa: BLE001 - surface anything to the client
                 self._boot_error = f"{type(exc).__name__}: {exc}"
+                for backend in (solver, hardware):
+                    if backend is not None:
+                        try:
+                            backend.close()
+                        except Exception:  # noqa: BLE001 - preserve boot failure
+                            pass
                 raise
             self._hardware = hardware
             self._solver = solver
             self._booted = True
             self._boot_error = None
+            self._frequency_hz = float(
+                getattr(hardware, "frequency_hz", 0.0) or config.DEFAULT_FREQUENCY_HZ
+            )
             return hardware.identify()
 
     @property
@@ -80,7 +97,13 @@ class ScanSession:
             "solver": config.SOLVER_BACKEND,
             "n_electrodes": self.n_electrodes,
             "frequency_hz": self.frequency_hz,
+            "baseline_ready": self.baseline_ready,
         }
+
+    @property
+    def baseline_ready(self) -> bool:
+        with self._state_lock:
+            return self._baseline is not None
 
     def identify(self) -> str:
         with self._state_lock:
@@ -106,12 +129,20 @@ class ScanSession:
     # --- configuration ----------------------------------------------------
 
     def set_frequency(self, frequency_hz: float) -> None:
-        if not frequency_hz > 0:
-            raise ValueError("frequency_hz must be positive")
-        with self._state_lock:
-            self._frequency_hz = float(frequency_hz)
-            if self._hardware is not None and hasattr(self._hardware, "frequency_hz"):
-                self._hardware.frequency_hz = float(frequency_hz)
+        if not math.isfinite(frequency_hz) or not frequency_hz > 0:
+            raise ValueError("frequency_hz must be finite and positive")
+        if not self._scan_lock.acquire(blocking=False):
+            raise BusyError("cannot change frequency while a scan is running")
+        try:
+            with self._state_lock:
+                if self._frequency_hz != frequency_hz:
+                    self._baseline = None
+                self._frequency_hz = float(frequency_hz)
+                self._requested_frequency = float(frequency_hz)
+                if self._hardware is not None and hasattr(self._hardware, "frequency_hz"):
+                    self._hardware.frequency_hz = float(frequency_hz)
+        finally:
+            self._scan_lock.release()
 
     @property
     def frequency_hz(self) -> float:
@@ -120,12 +151,32 @@ class ScanSession:
 
     # --- scanning ---------------------------------------------------------
 
+    def capture_baseline(self, on_progress: ProgressFn | None = None) -> None:
+        """Acquire and validate a separate reference with the phantom unchanged."""
+        if not self._scan_lock.acquire(blocking=False):
+            raise BusyError("a scan is already running")
+        try:
+            with self._state_lock:
+                hardware, solver = self._hardware, self._solver
+            if hardware is None or solver is None:
+                raise RuntimeError("ScanSession.boot() must succeed before capturing a baseline.")
+            if on_progress:
+                on_progress("Capturing baseline...")
+            baseline = pipeline.acquire(hardware)
+            # Exercise the solver's actual validation before retaining a bad
+            # reference. Identical frames should reconstruct to zero.
+            solver.reconstruct(baseline, baseline=baseline)
+            with self._state_lock:
+                self._baseline = baseline
+        finally:
+            self._scan_lock.release()
+
     def run_scan(self, on_progress: ProgressFn | None = None) -> bytes:
         """Run a full scan and return PNG bytes.
 
         Serialised: raises :class:`BusyError` if another scan holds the lock.
-        If boot never succeeded, falls back to a self-contained sim scan (the
-        configured defaults), matching the old kiosk's degrade-to-sim behaviour.
+        Boot must succeed before scanning; a failed device must not silently
+        produce a simulated result.
         """
         if not self._scan_lock.acquire(blocking=False):
             raise BusyError("a scan is already running")
@@ -136,16 +187,19 @@ class ScanSession:
             with self._state_lock:
                 hardware = self._hardware
                 solver = self._solver
+                baseline = self._baseline
 
             if hardware is None or solver is None:
-                return pipeline.run_scan()
+                raise RuntimeError("ScanSession.boot() must succeed before scanning.")
 
-            return pipeline.run_scan(hardware=hardware, solver=solver)
+            return pipeline.run_scan(hardware=hardware, solver=solver, baseline=baseline)
         finally:
             self._scan_lock.release()
 
     def close(self) -> None:
-        with self._state_lock:
+        # Cancelling an asyncio worker does not cancel its hardware scan.
+        # Wait for that worker before closing the resources it is still using.
+        with self._scan_lock, self._state_lock:
             if self._solver is not None:
                 try:
                     self._solver.close()
@@ -159,3 +213,4 @@ class ScanSession:
             self._hardware = None
             self._solver = None
             self._booted = False
+            self._baseline = None

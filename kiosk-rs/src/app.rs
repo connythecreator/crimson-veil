@@ -108,6 +108,9 @@ pub struct AppState {
     pub solver: String,
     pub n_electrodes: u32,
     pub frequency_hz: f64,
+    pub baseline_ready: bool,
+    pub capturing_baseline: bool,
+    pub capture_baseline_requested: bool,
     pub active_interval_s: f64,
     pub idle_interval_s: f64,
     pub scanning: bool,
@@ -132,6 +135,9 @@ impl Default for AppState {
             solver: "-".into(),
             n_electrodes: 8,
             frequency_hz: 0.0,
+            baseline_ready: false,
+            capturing_baseline: false,
+            capture_baseline_requested: false,
             active_interval_s: active_interval_s(),
             idle_interval_s: idle_interval_s(),
             scanning: false,
@@ -149,6 +155,10 @@ impl Default for AppState {
 }
 
 impl AppState {
+    fn can_start_scans(&self) -> bool {
+        self.solver != "pyeit" || self.baseline_ready
+    }
+
     pub fn connection_label(&self) -> (String, Color32) {
         if let Some(err) = &self.boot_error {
             return (format!("BOOT ERROR  ({err})"), Color32::from_rgb(255, 59, 74));
@@ -159,7 +169,11 @@ impl AppState {
         let base = match self.connection {
             Connection::Connecting => "CONNECTING".to_string(),
             Connection::Connected => {
-                if self.scanning {
+                if self.capturing_baseline {
+                    "BASELINE".to_string()
+                } else if !self.can_start_scans() {
+                    "SET BASELINE".to_string()
+                } else if self.scanning {
                     "SCANNING".to_string()
                 } else if self.continuous {
                     "CONTINUOUS".to_string()
@@ -181,6 +195,7 @@ pub struct KioskApp {
     state: AppState,
     texture: Option<TextureHandle>,
     pending_image: Option<ColorImage>,
+    pending_baseline_id: Option<String>,
     fx:ScanFx,
     auto_started: bool,
     started: Instant,
@@ -193,20 +208,40 @@ impl KioskApp {
             state: AppState::default(),
             texture: None,
             pending_image: None,
+            pending_baseline_id: None,
             fx: ScanFx::default(),
             auto_started: false,
             started: Instant::now(),
         }
     }
 
+    fn clear_image(&mut self) {
+        self.texture = None;
+        self.pending_image = None;
+        self.fx = ScanFx::default();
+        self.state.last_result = None;
+    }
+
     fn handle(&mut self, event: NetEvent) {
         match event {
             NetEvent::Connected => self.state.connection = Connection::Connected,
             NetEvent::Disconnected => {
+                if self.pending_baseline_id.take().is_some() {
+                    self.state.last_error = Some(
+                        "Connection lost during baseline capture. Reconnect and capture again.".into(),
+                    );
+                }
+                self.clear_image();
                 self.state.connection = Connection::Connecting;
                 self.state.boot_error = None;
+                self.state.baseline_ready = false;
+                self.state.capturing_baseline = false;
+                self.state.scanning = false;
+                self.state.continuous = false;
+                self.auto_started = false;
             }
             NetEvent::Server(msg) => self.handle_server(msg),
+            NetEvent::Image { .. } if self.state.capturing_baseline => {}
             NetEvent::Image { id, width, height, png } => match image::load_from_memory(&png) {
                 Ok(img) => {
                     let rgba = img.to_rgba8();
@@ -227,12 +262,27 @@ impl KioskApp {
     fn handle_server(&mut self, msg: ServerMessage) {
         match msg.kind.as_str() {
             "ready" => {
+                if self.state.frequency_hz != msg.frequency_hz
+                    || self.state.n_electrodes != msg.n_electrodes
+                    || self.state.backend != msg.backend
+                    || self.state.solver != msg.solver
+                    || (self.state.baseline_ready && !msg.baseline_ready)
+                {
+                    self.clear_image();
+                }
                 self.state.backend = msg.backend;
                 self.state.solver = msg.solver;
                 self.state.n_electrodes = msg.n_electrodes;
                 self.state.frequency_hz = msg.frequency_hz;
+                self.state.baseline_ready = msg.baseline_ready;
                 self.state.boot_error = None;
-                if !self.auto_started {
+                if !self.state.can_start_scans() {
+                    self.auto_started = false;
+                    if self.state.continuous {
+                        self.net.send(&ClientMessage::Stop);
+                        self.state.continuous = false;
+                    }
+                } else if !self.auto_started && !self.state.capturing_baseline {
                     self.auto_started = true;
                     self.net.send(&ClientMessage::Continuous {
                         on: true,
@@ -241,6 +291,18 @@ impl KioskApp {
                     });
                 }
             }
+            "baseline_captured" => {
+                if self.pending_baseline_id.as_deref() != Some(msg.id.as_str()) {
+                    return;
+                }
+                self.pending_baseline_id = None;
+                self.clear_image();
+                self.state.baseline_ready = true;
+                self.state.capturing_baseline = false;
+                self.state.frequency_hz = msg.frequency_hz;
+                self.state.n_electrodes = msg.n_electrodes;
+                self.state.last_error = None;
+            }
             "metrics" => {
                 self.state.battery_pct = msg.battery_pct;
                 self.state.battery_charging = msg.battery_charging;
@@ -248,10 +310,23 @@ impl KioskApp {
             }
             "boot_error" => self.state.boot_error = Some(msg.message),
             "scan_error" => {
+                // A cancelled scan can still finish while capture is being
+                // requested; only the matching response completes capture.
+                if self.state.capturing_baseline
+                    && self.pending_baseline_id.as_deref() != Some(msg.id.as_str())
+                {
+                    return;
+                }
+                self.pending_baseline_id = None;
+                self.clear_image();
                 self.state.last_error = Some(msg.message);
                 self.state.scanning = false;
+                self.state.capturing_baseline = false;
             }
             "progress" => {
+                if self.state.capturing_baseline {
+                    return;
+                }
                 self.state.scanning = true;
                 self.fx.start_scan();
             }
@@ -263,6 +338,9 @@ impl KioskApp {
                 }
             }
             "scan_result" => {
+                if self.state.capturing_baseline {
+                    return;
+                }
                 self.state.scanning = true; // animating until the image frame lands
                 self.fx.start_scan();
             }
@@ -300,6 +378,7 @@ impl eframe::App for KioskApp {
             self.state.scan_count += 1;
             self.state.last_result = Some(Instant::now());
             self.state.last_error = None;
+            self.state.scanning = false;
             // Hold the field for its minimum time, then dissolve the image in.
             self.fx.on_result();
             log::info!("scan #{} received ({}x{})", self.state.scan_count, size[0], size[1]);
@@ -309,11 +388,49 @@ impl eframe::App for KioskApp {
         let screen = ctx.screen_rect();
         let time_s = self.started.elapsed().as_secs_f32();
         hud::draw(ctx, screen, &mut self.state, &self.fx, time_s, self.texture.as_ref());
+        if self.state.capture_baseline_requested {
+            self.state.capture_baseline_requested = false;
+            self.net.send(&ClientMessage::Stop);
+            let id = format!("baseline-{}", self.state.frames);
+            if self.net.send(&ClientMessage::CaptureBaseline { id: id.clone() }) {
+                self.pending_baseline_id = Some(id);
+                self.state.capturing_baseline = true;
+                self.state.last_error = None;
+                self.clear_image();
+            } else {
+                self.state.last_error = Some(
+                    "Not connected. Reconnect before capturing a baseline.".into(),
+                );
+            }
+            self.state.continuous = false;
+            self.auto_started = false;
+        }
 
         self.state.frames += 1;
         // Frame pacing: repaint at FPS while idle; a smoother cadence while an
         // effect animates so the field/dissolve do not stutter.
         let cadence = if animating { ANIM_FRAME } else { FRAME };
         ctx.request_repaint_after(cadence);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn pyeit_waits_for_a_measured_baseline() {
+        let mut state = AppState::default();
+        state.solver = "pyeit".into();
+        assert!(!state.can_start_scans());
+        state.baseline_ready = true;
+        assert!(state.can_start_scans());
+    }
+
+    #[test]
+    fn stub_scans_do_not_need_a_baseline() {
+        let mut state = AppState::default();
+        state.solver = "stub".into();
+        assert!(state.can_start_scans());
     }
 }

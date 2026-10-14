@@ -14,6 +14,7 @@ Client -> service messages::
 
     {"type": "hello", "client": str, "protocol": int}
     {"type": "scan", "id": str}
+    {"type": "capture_baseline", "id": str}
     {"type": "continuous", "on": bool,
      "active_interval_s": float, "idle_interval_s": float}
     {"type": "activity"}                      # user interaction; sets active state
@@ -24,7 +25,9 @@ Client -> service messages::
 Service -> client messages::
 
     {"type": "ready", "backend": str, "solver": str,
-     "n_electrodes": int, "frequency_hz": float}
+     "n_electrodes": int, "frequency_hz": float, "baseline_ready": bool}
+    {"type": "baseline_captured", "id": str, "frequency_hz": float,
+     "n_electrodes": int}
     {"type": "boot_error", "message": str}
     {"type": "progress", "id": str, "message": str}
     {"type": "scan_result", "id": str, "width": int, "height": int, "bytes": int}
@@ -66,6 +69,12 @@ class ScanRequest:
 
 
 @dataclass
+class CaptureBaseline:
+    id: str = ""
+    type: str = field(default="capture_baseline", init=False)
+
+
+@dataclass
 class Continuous:
     on: bool = True
     active_interval_s: float = 60.0
@@ -103,7 +112,16 @@ class Ready:
     solver: str
     n_electrodes: int
     frequency_hz: float
+    baseline_ready: bool = False
     type: str = field(default="ready", init=False)
+
+
+@dataclass
+class BaselineCaptured:
+    id: str
+    frequency_hz: float
+    n_electrodes: int
+    type: str = field(default="baseline_captured", init=False)
 
 
 @dataclass

@@ -32,8 +32,8 @@ Two front ends over one core: the Rust kiosk (`kiosk-rs`) and the Python
 control service (`service/`) share `software.pipeline`.
 
 The physical front end is driven by an **ESP32** over USB serial. The ESP32 owns
-the hardware configuration and runs single-shot scans; the host owns the scan
-plan and continuous mode. See [`hardware/README.md`](hardware/README.md).
+the hardware configuration, scan sequence and single-shot scans; the host owns
+continuous mode. See [`hardware/README.md`](hardware/README.md).
 
 ## Setup
 
@@ -51,6 +51,11 @@ On a Raspberry Pi, add the device dependencies:
 uv pip install --python .venv -r requirements.txt -r requirements-pi.txt
 ```
 
+For pyEIT reconstruction, also install `requirements-pyeit.txt` and set
+`CV_SOLVER=pyeit`. Capture a separate reference in the kiosk's **CALIB** page
+before scanning. See the [solver guide](software/reconstruction/PYEIT_SOLVER.md)
+and [validation report](software/reconstruction/PYEIT_VALIDATION.md).
+
 ## Run
 
 Start the control service, then the kiosk (two terminals):
@@ -66,7 +71,8 @@ CV_WS_URL=ws://127.0.0.1:8765 .venv/bin/python -m kiosk  # (see kiosk-rs)
 The kiosk is now the native Rust UI: build/run it from `kiosk-rs/` (see
 [`kiosk-rs/README.md`](kiosk-rs/README.md)). The service opens the
 hardware/solver backends at boot and serves scans over a localhost WebSocket;
-if hardware fails to open it still serves and scans fall back to the sim.
+if hardware fails to open it still serves and reports the boot error; scans
+require a successful boot.
 
 By default the suite uses the **sim** hardware backend and **stub** solver, so
 it runs end-to-end on a laptop with no hardware. Select real backends in

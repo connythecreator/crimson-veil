@@ -28,12 +28,14 @@ mirrors it in `kiosk-rs/src/protocol.rs`.
 | --- | --- | --- |
 | kiosk → service | `hello` | `client`, `protocol` |
 | kiosk → service | `scan` | `id` |
+| kiosk → service | `capture_baseline` | `id` |
 | kiosk → service | `continuous` | `on`, `active_interval_s`, `idle_interval_s` |
 | kiosk → service | `activity` | — (user interaction; keeps the active interval) |
 | kiosk → service | `stop` | — |
-| kiosk → service | `set_freqs` | `frequencies_hz` |
+| kiosk → service | `set_frequency` | `frequency_hz` |
 | kiosk → service | `ping` | — |
-| service → kiosk | `ready` | `backend`, `solver`, `n_electrodes`, `frequencies_hz` |
+| service → kiosk | `ready` | `backend`, `solver`, `n_electrodes`, `frequency_hz`, `baseline_ready` |
+| service → kiosk | `baseline_captured` | `id`, `frequency_hz`, `n_electrodes` |
 | service → kiosk | `boot_error` | `message` |
 | service → kiosk | `progress` | `id`, `message` |
 | service → kiosk | `scan_result` | `id`, `width`, `height`, `bytes` (+ binary PNG) |
@@ -51,8 +53,15 @@ mirrors it in `kiosk-rs/src/protocol.rs`.
   the server scans, then waits `active_interval_s` if the client sent
   `activity` within `ACTIVITY_TIMEOUT_S`, otherwise `idle_interval_s`
   (defaults 60 s active / 120 s idle). It repeats until `stop` or disconnect.
-- If boot fails the server still serves, replying `boot_error`; scans fall back
-  to the configured sim defaults so the UI degrades rather than dies.
+- If boot fails the server still serves, replying `boot_error`; scanning requires
+  a successful boot.
+- A `capture_baseline` request takes a separate reference scan and validates it
+  with the solver. Success returns `baseline_captured` followed by updated
+  `ready` metadata. Subsequent scans reuse that reference. Changing frequency
+  clears it; a frequency change during acquisition returns a busy error.
+- The kiosk waits for a baseline before starting pyEIT continuous scans. Open
+  **CALIB** and select **Capture baseline** with the reference phantom unchanged.
+  This does not perform the AD5933's separate gain/phase calibration.
 - A background task broadcasts `metrics` (battery + SoC temperature) every 5 s
   from `metrics.py`, which reads standard sysfs nodes (best-effort; `null` when
   absent).

@@ -1,0 +1,6 @@
+# Optional reconstruction backend; keep the default stub install lightweight.
+-r requirements.txt
+
+# Validated release. Current GitHub master is tested separately without
+# replacing this environment's installed package.
+pyeit==1.2.4

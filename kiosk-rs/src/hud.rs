@@ -10,7 +10,7 @@
 
 use egui::{Align2, Color32, FontId, Pos2, Rect, Sense, Stroke, Vec2};
 
-use crate::app::{AppState, Page};
+use crate::app::{AppState, Connection, Page};
 use crate::fx::{ScanFx, GRID};
 
 // Phone palette: near-black bezel, dark app surface, raised cards.
@@ -72,9 +72,7 @@ pub fn draw(
     match state.page {
         Page::Scan => scan_page(&p, body, state, fx, time_s, image),
         Page::Settings => placeholder(&p, body, "Settings", "scan cadence and hardware options"),
-        Page::Calibration => {
-            placeholder(&p, body, "Calibration", "gain / phase calibration (deferred)")
-        }
+        Page::Calibration => baseline_page(ctx, &p, body, state),
     }
     rail_nav(ctx, rail, state);
     home_indicator(&p, app);
@@ -359,7 +357,12 @@ fn scan_page(
         }
         painter.circle_stroke(center, scan_r, Stroke::new(1.5_f32, CRIMD));
     } else {
-        painter.text(center, Align2::CENTER_CENTER, "AWAITING SCAN", FontId::monospace(12.0), STEEL);
+        let waiting = if state.solver == "pyeit" && !state.baseline_ready {
+            "CAPTURE BASELINE\nIN CALIB"
+        } else {
+            "AWAITING SCAN"
+        };
+        painter.text(center, Align2::CENTER_CENTER, waiting, FontId::monospace(12.0), STEEL);
     }
 
     electrode_ring(painter, center, ring_r, state);
@@ -402,6 +405,53 @@ fn scan_page(
             );
         }
     }
+}
+
+fn baseline_page(
+    ctx: &egui::Context,
+    painter: &egui::Painter,
+    body: Rect,
+    state: &mut AppState,
+) {
+    card(painter, body);
+    egui::Area::new(egui::Id::new("baseline_controls"))
+        .fixed_pos(body.min + Vec2::new(20.0, 20.0))
+        .order(egui::Order::Middle)
+        .show(ctx, |ui| {
+            ui.set_max_width((body.width() - 40.0).max(100.0));
+            ui.heading("Measured baseline");
+            ui.add_space(10.0);
+            ui.label("Prepare the unchanged reference state, then capture it before introducing the change to image.");
+            ui.label("Keep the electrodes and frequency the same for subsequent scans.");
+            ui.add_space(10.0);
+            ui.label(format!(
+                "{} electrodes at {:.0} kHz",
+                state.n_electrodes,
+                state.frequency_hz / 1000.0,
+            ));
+            let status = if state.capturing_baseline {
+                "Capturing baseline..."
+            } else if state.baseline_ready {
+                "Baseline ready. Scans show changes from this reference."
+            } else {
+                "No baseline captured for the current settings."
+            };
+            ui.label(status);
+            ui.add_space(12.0);
+            let enabled = state.connection == Connection::Connected
+                && state.boot_error.is_none()
+                && !state.scanning
+                && !state.capturing_baseline;
+            if ui.add_enabled(enabled, egui::Button::new("Capture baseline")).clicked() {
+                state.capture_baseline_requested = true;
+            }
+            if state.scanning {
+                ui.label("Wait for the current scan to finish before capturing a baseline.");
+            }
+            if let Some(error) = &state.last_error {
+                ui.colored_label(CRIM2, error);
+            }
+        });
 }
 
 fn placeholder(painter: &egui::Painter, body: Rect, title: &str, sub: &str) {
