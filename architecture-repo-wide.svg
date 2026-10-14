@@ -1,0 +1,227 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2400" height="1750" viewBox="0 0 2400 1750">
+<title>Crimson Veil — repository architecture and scan lifecycle</title>
+<desc>Current source-code architecture, including the Rust kiosk, Python service and scan pipeline, real and simulated acquisition, pyEIT and stub reconstruction, baseline lifecycle, deployment, tests, and incomplete physical hardware.</desc>
+<defs>
+<marker id="crimson" viewBox="0 0 12 12" refX="10" refY="6" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 1 1 L 11 6 L 1 11 Z" fill="#AA3154"/></marker>
+<marker id="teal" viewBox="0 0 12 12" refX="10" refY="6" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 1 1 L 11 6 L 1 11 Z" fill="#087E83"/></marker>
+<marker id="blue" viewBox="0 0 12 12" refX="10" refY="6" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 1 1 L 11 6 L 1 11 Z" fill="#3769A4"/></marker>
+<marker id="muted" viewBox="0 0 12 12" refX="10" refY="6" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 1 1 L 11 6 L 1 11 Z" fill="#52647A"/></marker>
+<marker id="amber" viewBox="0 0 12 12" refX="10" refY="6" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 1 1 L 11 6 L 1 11 Z" fill="#A36316"/></marker>
+</defs>
+<rect x="0" y="0" width="2400" height="1750" rx="0" fill="#F5F7FB" stroke="#F5F7FB" stroke-width="0"/>
+<rect x="48" y="42" width="7" height="77" rx="2" fill="#AA3154" stroke="#AA3154" stroke-width="0"/>
+<text x="73" y="76" font-family="Segoe UI, Arial, sans-serif" font-size="35" font-weight="700" fill="#15283F">CRIMSON VEIL</text>
+<text x="73" y="113" font-family="Segoe UI, Arial, sans-serif" font-size="25" font-weight="400" fill="#52647A">Repository architecture  /  how measurements become an image</text>
+<text x="1913" y="62" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="700" fill="#52647A">CURRENT IMPLEMENTATION · 14 OCT 2026</text>
+<path d="M 1780 99 L 1826 99" fill="none" stroke="#087E83" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#teal)"/>
+<text x="1837" y="105" font-family="Segoe UI, Arial, sans-serif" font-size="15" font-weight="400" fill="#52647A">data / image</text>
+<path d="M 1970 99 L 2016 99" fill="none" stroke="#AA3154" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#crimson)"/>
+<text x="2027" y="105" font-family="Segoe UI, Arial, sans-serif" font-size="15" font-weight="400" fill="#52647A">control</text>
+<path d="M 2160 99 L 2206 99" fill="none" stroke="#3769A4" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#blue)" stroke-dasharray="8 7"/>
+<text x="2217" y="105" font-family="Segoe UI, Arial, sans-serif" font-size="15" font-weight="400" fill="#52647A">simulation</text>
+<rect x="48" y="153" width="448" height="140" rx="18" fill="white" stroke="#CBD5E1" stroke-width="1.5"/>
+<circle cx="79" cy="184" r="16" fill="#AA3154"/>
+<text x="74" y="190" font-family="Segoe UI, Arial, sans-serif" font-size="17" font-weight="700" fill="white">1</text>
+<text x="105" y="191" font-family="Segoe UI, Arial, sans-serif" font-size="21" font-weight="700" fill="#15283F">Capture a baseline</text>
+<text x="70" y="234" font-family="Segoe UI, Arial, sans-serif" font-size="17" font-weight="400" fill="#52647A">Take a separate reference scan.</text>
+<text x="70" y="261" font-family="Segoe UI, Arial, sans-serif" font-size="17" font-weight="400" fill="#52647A">Keep it in session memory.</text>
+<rect x="512" y="153" width="448" height="140" rx="18" fill="white" stroke="#CBD5E1" stroke-width="1.5"/>
+<circle cx="543" cy="184" r="16" fill="#AA3154"/>
+<text x="538" y="190" font-family="Segoe UI, Arial, sans-serif" font-size="17" font-weight="700" fill="white">2</text>
+<text x="569" y="191" font-family="Segoe UI, Arial, sans-serif" font-size="21" font-weight="700" fill="#15283F">Acquire a target frame</text>
+<text x="534" y="234" font-family="Segoe UI, Arial, sans-serif" font-size="17" font-weight="400" fill="#52647A">One frequency per scan; 8 electrodes</text>
+<text x="534" y="261" font-family="Segoe UI, Arial, sans-serif" font-size="17" font-weight="400" fill="#52647A">produce 40 complex measurements.</text>
+<rect x="976" y="153" width="448" height="140" rx="18" fill="white" stroke="#CBD5E1" stroke-width="1.5"/>
+<circle cx="1007" cy="184" r="16" fill="#AA3154"/>
+<text x="1002" y="190" font-family="Segoe UI, Arial, sans-serif" font-size="17" font-weight="700" fill="white">3</text>
+<text x="1033" y="191" font-family="Segoe UI, Arial, sans-serif" font-size="21" font-weight="700" fill="#15283F">Reconstruct the change</text>
+<text x="998" y="234" font-family="Segoe UI, Arial, sans-serif" font-size="17" font-weight="400" fill="#52647A">pyEIT compares target with baseline,</text>
+<text x="998" y="261" font-family="Segoe UI, Arial, sans-serif" font-size="17" font-weight="400" fill="#52647A">correcting measurement order/polarity.</text>
+<rect x="1440" y="153" width="448" height="140" rx="18" fill="white" stroke="#CBD5E1" stroke-width="1.5"/>
+<circle cx="1471" cy="184" r="16" fill="#AA3154"/>
+<text x="1466" y="190" font-family="Segoe UI, Arial, sans-serif" font-size="17" font-weight="700" fill="white">4</text>
+<text x="1497" y="191" font-family="Segoe UI, Arial, sans-serif" font-size="21" font-weight="700" fill="#15283F">Encode and return</text>
+<text x="1462" y="234" font-family="Segoe UI, Arial, sans-serif" font-size="17" font-weight="400" fill="#52647A">Conductivity grid → grayscale PNG.</text>
+<text x="1462" y="261" font-family="Segoe UI, Arial, sans-serif" font-size="17" font-weight="400" fill="#52647A">JSON header, then binary image.</text>
+<rect x="1904" y="153" width="448" height="140" rx="18" fill="white" stroke="#CBD5E1" stroke-width="1.5"/>
+<circle cx="1935" cy="184" r="16" fill="#AA3154"/>
+<text x="1930" y="190" font-family="Segoe UI, Arial, sans-serif" font-size="17" font-weight="700" fill="white">5</text>
+<text x="1961" y="191" font-family="Segoe UI, Arial, sans-serif" font-size="21" font-weight="700" fill="#15283F">Display and repeat</text>
+<text x="1926" y="234" font-family="Segoe UI, Arial, sans-serif" font-size="17" font-weight="400" fill="#52647A">Kiosk shows the scan with a HUD.</text>
+<text x="1926" y="261" font-family="Segoe UI, Arial, sans-serif" font-size="17" font-weight="400" fill="#52647A">The server schedules repeat scans.</text>
+<text x="48" y="341" font-family="Segoe UI, Arial, sans-serif" font-size="18" font-weight="700" fill="#52647A">01   ACQUISITION SOURCES</text>
+<text x="548" y="341" font-family="Segoe UI, Arial, sans-serif" font-size="18" font-weight="700" fill="#52647A">02   PYTHON HOST  ·  LAPTOP OR RASPBERRY PI</text>
+<text x="1880" y="341" font-family="Segoe UI, Arial, sans-serif" font-size="18" font-weight="700" fill="#52647A">03   OPERATOR INTERFACE</text>
+<rect x="520" y="360" width="1320" height="780" rx="22" fill="#EBF0F8" stroke="#D5DFED" stroke-width="1.5"/>
+<rect x="48" y="360" width="430" height="455" rx="16" fill="white" stroke="#CBD5E1" stroke-width="1.5"/>
+<rect x="48" y="360" width="430" height="5" rx="2" fill="#7154A0" stroke="#7154A0" stroke-width="0"/>
+<text x="70" y="397" font-family="Segoe UI, Arial, sans-serif" font-size="22" font-weight="700" fill="#15283F">ESP32 · MicroPython</text>
+<text x="70" y="425" font-family="Segoe UI, Arial, sans-serif" font-size="15" font-weight="400" fill="#52647A">firmware/mp-firm/src/</text>
+<text x="70" y="461" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="400" fill="#15283F">main.py  ·  command loop + scan sequence</text>
+<text x="70" y="490" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="400" fill="#15283F">protocol.py  ·  hello / frame / error JSON</text>
+<text x="70" y="519" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="400" fill="#15283F">ad5933_driver.py  ·  I²C register driver</text>
+<text x="70" y="557" font-family="Segoe UI, Arial, sans-serif" font-size="14" font-weight="700" fill="#52647A">FRONT END  ·  INTENDED PHYSICAL PATH</text>
+<rect x="70" y="575" width="386" height="84" rx="12" fill="#F3EEF9" stroke="#D9CFE8" stroke-width="1.5"/>
+<text x="89" y="607" font-family="Segoe UI, Arial, sans-serif" font-size="18" font-weight="700" fill="#15283F">AD5933 + CD74HC4067 mux bank</text>
+<text x="89" y="635" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="400" fill="#52647A">I²C / GPIO control → electrode phantom</text>
+<text x="70" y="691" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="700" fill="#15283F">8 adjacent drives × 5 sense pairs = 40 points</text>
+<text x="70" y="718" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="400" fill="#52647A">USB serial  ·  JSON lines  ·  115200 baud</text>
+<rect x="70" y="752" width="386" height="29" rx="8" fill="#FFF6E9" stroke="#FFF6E9" stroke-width="0"/>
+<text x="81" y="772" font-family="Segoe UI, Arial, sans-serif" font-size="14" font-weight="700" fill="#A36316">PHYSICAL BRING-UP INCOMPLETE</text>
+<rect x="48" y="850" width="430" height="290" rx="16" fill="white" stroke="#CBD5E1" stroke-width="1.5"/>
+<rect x="48" y="850" width="430" height="5" rx="2" fill="#3769A4" stroke="#3769A4" stroke-width="0"/>
+<text x="70" y="887" font-family="Segoe UI, Arial, sans-serif" font-size="22" font-weight="700" fill="#15283F">Simulated source</text>
+<text x="70" y="915" font-family="Segoe UI, Arial, sans-serif" font-size="15" font-weight="400" fill="#52647A">software/sim/</text>
+<text x="70" y="947" font-family="Segoe UI, Arial, sans-serif" font-size="17" font-weight="400" fill="#15283F">sim_hardware.py → phantom.py</text>
+<text x="70" y="975" font-family="Segoe UI, Arial, sans-serif" font-size="17" font-weight="400" fill="#15283F">Produces synthetic complex readings</text>
+<text x="70" y="1003" font-family="Segoe UI, Arial, sans-serif" font-size="17" font-weight="400" fill="#15283F">with the same adjacent scan order.</text>
+<text x="70" y="1031" font-family="Segoe UI, Arial, sans-serif" font-size="17" font-weight="400" fill="#15283F">No USB connection or ESP32 is used.</text>
+<rect x="70" y="1063" width="198" height="29" rx="8" fill="#EAF0F8" stroke="#EAF0F8" stroke-width="0"/>
+<text x="81" y="1083" font-family="Segoe UI, Arial, sans-serif" font-size="14" font-weight="700" fill="#3769A4">CV_BACKEND=sim</text>
+<text x="70" y="1110" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="400" fill="#52647A">Heuristic demo data, not a FEM model.</text>
+<rect x="548" y="397" width="185" height="203" rx="16" fill="white" stroke="#CBD5E1" stroke-width="1.5"/>
+<rect x="548" y="397" width="185" height="5" rx="2" fill="#AA3154" stroke="#AA3154" stroke-width="0"/>
+<text x="570" y="434" font-family="Segoe UI, Arial, sans-serif" font-size="22" font-weight="700" fill="#15283F">main.py</text>
+<text x="570" y="475" font-family="Segoe UI, Arial, sans-serif" font-size="18" font-weight="400" fill="#15283F">Starts the</text>
+<text x="570" y="503" font-family="Segoe UI, Arial, sans-serif" font-size="18" font-weight="400" fill="#15283F">Python control</text>
+<text x="570" y="531" font-family="Segoe UI, Arial, sans-serif" font-size="18" font-weight="400" fill="#15283F">service.</text>
+<rect x="773" y="397" width="500" height="203" rx="16" fill="white" stroke="#CBD5E1" stroke-width="1.5"/>
+<rect x="773" y="397" width="500" height="5" rx="2" fill="#AA3154" stroke="#AA3154" stroke-width="0"/>
+<text x="795" y="434" font-family="Segoe UI, Arial, sans-serif" font-size="22" font-weight="700" fill="#15283F">Control service</text>
+<text x="795" y="462" font-family="Segoe UI, Arial, sans-serif" font-size="15" font-weight="400" fill="#52647A">service/server.py + protocol.py</text>
+<text x="795" y="488" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="400" fill="#15283F">WebSocket commands, status and scan responses</text>
+<text x="795" y="515" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="400" fill="#15283F">Continuous schedule: 60 s active / 120 s idle</text>
+<text x="795" y="542" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="400" fill="#15283F">Blocking pipeline work runs in a worker thread</text>
+<text x="795" y="569" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="400" fill="#15283F">JSON scan_result header immediately precedes PNG</text>
+<rect x="1313" y="397" width="499" height="203" rx="16" fill="white" stroke="#CBD5E1" stroke-width="1.5"/>
+<rect x="1313" y="397" width="499" height="5" rx="2" fill="#AA3154" stroke="#AA3154" stroke-width="0"/>
+<text x="1335" y="434" font-family="Segoe UI, Arial, sans-serif" font-size="22" font-weight="700" fill="#15283F">ScanSession</text>
+<text x="1335" y="462" font-family="Segoe UI, Arial, sans-serif" font-size="15" font-weight="400" fill="#52647A">service/session.py</text>
+<text x="1335" y="488" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="400" fill="#15283F">Open hardware and set up the solver once</text>
+<text x="1335" y="515" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="400" fill="#15283F">One acquisition at a time; reject concurrent work</text>
+<text x="1335" y="542" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="400" fill="#15283F">Capture reference → validate → retain in RAM</text>
+<text x="1335" y="569" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="400" fill="#15283F">Pass that same baseline to later target scans</text>
+<path d="M 733 499 L 773 499" fill="none" stroke="#AA3154" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#crimson)"/>
+<path d="M 1273 499 L 1313 499" fill="none" stroke="#AA3154" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#crimson)"/>
+<path d="M 1880 405 L 1860 405 L 1860 318 L 1023 318 L 1023 397" fill="none" stroke="#AA3154" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#crimson)" marker-start="url(#crimson)"/>
+<rect x="1155" y="303" width="602" height="29" rx="5" fill="#F5F7FB" stroke="#F5F7FB" stroke-width="0"/>
+<text x="1167" y="323" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="700" fill="#AA3154">WebSocket :8765  ·  JSON commands / ready / state / errors</text>
+<path d="M 1562 600 L 1562 655" fill="none" stroke="#AA3154" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#crimson)"/>
+<text x="1581" y="632" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="700" fill="#AA3154">run_scan + baseline</text>
+<text x="551" y="633" font-family="Segoe UI, Arial, sans-serif" font-size="15" font-weight="400" fill="#52647A">Capture baseline uses acquire → validate → session storage.</text>
+<rect x="548" y="655" width="1264" height="282" rx="17" fill="white" stroke="#AABBD1" stroke-width="2"/>
+<text x="571" y="689" font-family="Segoe UI, Arial, sans-serif" font-size="22" font-weight="700" fill="#15283F">software/pipeline.py</text>
+<text x="829" y="689" font-family="Segoe UI, Arial, sans-serif" font-size="17" font-weight="400" fill="#52647A">acquire → reconstruct → encode  ·  returns PNG bytes</text>
+<rect x="572" y="712" width="302" height="201" rx="16" fill="white" stroke="#CBD5E1" stroke-width="1.5"/>
+<rect x="572" y="712" width="302" height="5" rx="2" fill="#087E83" stroke="#087E83" stroke-width="0"/>
+<text x="594" y="749" font-family="Segoe UI, Arial, sans-serif" font-size="21" font-weight="700" fill="#15283F">Acquire</text>
+<text x="591" y="782" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="400" fill="#15283F">HardwareBackend.scan()</text>
+<text x="591" y="808" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="400" fill="#15283F">hardware/esp32.py</text>
+<text x="591" y="834" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="400" fill="#15283F">or SimHardware</text>
+<text x="591" y="870" font-family="Segoe UI, Arial, sans-serif" font-size="14" font-weight="400" fill="#52647A">Serial: validate, reorder, lock, recover</text>
+<text x="591" y="896" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="700" fill="#087E83">RawPoint[] → ScanData</text>
+<rect x="920" y="712" width="500" height="201" rx="16" fill="white" stroke="#CBD5E1" stroke-width="1.5"/>
+<rect x="920" y="712" width="500" height="5" rx="2" fill="#087E83" stroke="#087E83" stroke-width="0"/>
+<text x="942" y="749" font-family="Segoe UI, Arial, sans-serif" font-size="21" font-weight="700" fill="#15283F">Reconstruct</text>
+<text x="942" y="777" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="700" fill="#15283F">reconstruction/pyeit_solver.py</text>
+<text x="942" y="803" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="400" fill="#52647A">Validate → order/polarity → pyEIT back projection</text>
+<text x="942" y="829" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="400" fill="#52647A">Measured baseline → 96 × 96 relative-change grid</text>
+<path d="M 942 843 L 1398 843" fill="none" stroke="#52647A" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="942" y="866" font-family="Segoe UI, Arial, sans-serif" font-size="15" font-weight="700" fill="#3769A4">Default: software/sim/stub_solver.py</text>
+<text x="942" y="892" font-family="Segoe UI, Arial, sans-serif" font-size="15" font-weight="400" fill="#52647A">Returns phantom ground truth; ignores readings.</text>
+<rect x="1466" y="712" width="322" height="201" rx="16" fill="white" stroke="#CBD5E1" stroke-width="1.5"/>
+<rect x="1466" y="712" width="322" height="5" rx="2" fill="#087E83" stroke="#087E83" stroke-width="0"/>
+<text x="1488" y="749" font-family="Segoe UI, Arial, sans-serif" font-size="21" font-weight="700" fill="#15283F">Encode image</text>
+<text x="1486" y="780" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="400" fill="#15283F">reconstruction/image.py</text>
+<text x="1486" y="809" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="400" fill="#15283F">Per-frame grayscale scaling</text>
+<text x="1486" y="838" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="400" fill="#15283F">ConductivityMap → PNG bytes</text>
+<text x="1486" y="867" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="400" fill="#15283F">PNG returned through server.py</text>
+<path d="M 874 809 L 920 809" fill="none" stroke="#087E83" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#teal)"/>
+<path d="M 1420 809 L 1466 809" fill="none" stroke="#087E83" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#teal)"/>
+<path d="M 478 752 L 572 752" fill="none" stroke="#087E83" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#teal)" marker-start="url(#teal)"/>
+<path d="M 478 1020 L 501 1020 L 501 864 L 572 864" fill="none" stroke="#3769A4" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#blue)" stroke-dasharray="8 7"/>
+<rect x="548" y="971" width="742" height="140" rx="16" fill="white" stroke="#CBD5E1" stroke-width="1.5"/>
+<rect x="548" y="971" width="742" height="5" rx="2" fill="#3769A4" stroke="#3769A4" stroke-width="0"/>
+<text x="570" y="1008" font-family="Segoe UI, Arial, sans-serif" font-size="20" font-weight="700" fill="#15283F">Shared contracts, configuration and data</text>
+<text x="570" y="1040" font-family="Segoe UI, Arial, sans-serif" font-size="15.5" font-weight="400" fill="#15283F">software/core/config.py  ·  CV_BACKEND=sim|esp32; CV_SOLVER=stub|pyeit</text>
+<text x="570" y="1065" font-family="Segoe UI, Arial, sans-serif" font-size="15.5" font-weight="400" fill="#15283F">core/types.py  ·  DeviceConfig, MeshConfig, RawPoint, ScanData, ConductivityMap</text>
+<text x="570" y="1090" font-family="Segoe UI, Arial, sans-serif" font-size="15.5" font-weight="400" fill="#15283F">interfaces/  ·  HardwareBackend and SolverBackend contracts</text>
+<path d="M 720 971 L 720 938" fill="none" stroke="#52647A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#muted)" stroke-dasharray="8 7"/>
+<rect x="1322" y="971" width="490" height="140" rx="16" fill="white" stroke="#CBD5E1" stroke-width="1.5"/>
+<rect x="1322" y="971" width="490" height="5" rx="2" fill="#3769A4" stroke="#3769A4" stroke-width="0"/>
+<text x="1344" y="1008" font-family="Segoe UI, Arial, sans-serif" font-size="20" font-weight="700" fill="#15283F">Telemetry side channel</text>
+<text x="1344" y="1040" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="400" fill="#15283F">service/metrics.py  ·  send metrics every 5 s</text>
+<text x="1344" y="1065" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="400" fill="#15283F">Cached ESP32 telemetry or Linux sysfs fallback</text>
+<text x="1344" y="1090" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="400" fill="#15283F">Missing values → null; feeds the kiosk status bar</text>
+<rect x="1880" y="360" width="472" height="590" rx="16" fill="white" stroke="#CBD5E1" stroke-width="1.5"/>
+<rect x="1880" y="360" width="472" height="5" rx="2" fill="#AA3154" stroke="#AA3154" stroke-width="0"/>
+<text x="1902" y="397" font-family="Segoe UI, Arial, sans-serif" font-size="22" font-weight="700" fill="#15283F">Native Rust kiosk</text>
+<text x="1902" y="425" font-family="Segoe UI, Arial, sans-serif" font-size="15" font-weight="400" fill="#52647A">kiosk-rs/src/  ·  eframe / egui  ·  800 × 480</text>
+<text x="1902" y="463" font-family="Segoe UI, Arial, sans-serif" font-size="18" font-weight="700" fill="#15283F">main.rs</text>
+<text x="1902" y="490" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="400" fill="#52647A">Launches the fullscreen interface</text>
+<text x="1902" y="541" font-family="Segoe UI, Arial, sans-serif" font-size="18" font-weight="700" fill="#15283F">app.rs</text>
+<text x="1902" y="568" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="400" fill="#52647A">Scan/baseline state; PNG → display texture</text>
+<text x="1902" y="619" font-family="Segoe UI, Arial, sans-serif" font-size="18" font-weight="700" fill="#15283F">net.rs + protocol.rs</text>
+<text x="1902" y="646" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="400" fill="#52647A">Reconnect; mirror messages; pair header + PNG</text>
+<text x="1902" y="697" font-family="Segoe UI, Arial, sans-serif" font-size="18" font-weight="700" fill="#15283F">hud.rs + fx.rs</text>
+<text x="1902" y="724" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="400" fill="#52647A">Scan disc, status readouts and reveal animation</text>
+<rect x="1902" y="788" width="428" height="78" rx="12" fill="#FAEDF1" stroke="#EACDD6" stroke-width="1.5"/>
+<text x="1920" y="819" font-family="Segoe UI, Arial, sans-serif" font-size="18" font-weight="700" fill="#AA3154">Operator: CALIB → Capture baseline</text>
+<text x="1920" y="846" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="400" fill="#52647A">Then introduce the change to be imaged.</text>
+<text x="1902" y="903" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="400" fill="#52647A">pyEIT waits for a baseline before auto-scanning.</text>
+<text x="1902" y="929" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="400" fill="#52647A">Settings page remains a placeholder.</text>
+<path d="M 1788 809 L 1880 809" fill="none" stroke="#087E83" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#teal)"/>
+<text x="1806" y="783" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="700" fill="#087E83">PNG</text>
+<path d="M 1812 1040 L 1855 1040 L 1855 925 L 1880 925" fill="none" stroke="#3769A4" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#blue)"/>
+<rect x="1880" y="985" width="472" height="155" rx="16" fill="white" stroke="#CBD5E1" stroke-width="1.5"/>
+<rect x="1880" y="985" width="472" height="5" rx="2" fill="#7154A0" stroke="#7154A0" stroke-width="0"/>
+<text x="1902" y="1022" font-family="Segoe UI, Arial, sans-serif" font-size="20" font-weight="700" fill="#15283F">Session-held reference</text>
+<text x="1902" y="1053" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="400" fill="#15283F">Capture → reuse across scans → invalidate</text>
+<text x="1902" y="1080" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="400" fill="#15283F">Frequency change or session close clears it.</text>
+<text x="1902" y="1107" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="400" fill="#15283F">Kept in RAM; no scan database is implemented.</text>
+<text x="48" y="1205" font-family="Segoe UI, Arial, sans-serif" font-size="18" font-weight="700" fill="#52647A">04   BUILD, OPERATE, TEST AND UNDERSTAND THE REPOSITORY</text>
+<rect x="48" y="1232" width="552" height="261" rx="16" fill="white" stroke="#CBD5E1" stroke-width="1.5"/>
+<rect x="48" y="1232" width="552" height="5" rx="2" fill="#3769A4" stroke="#3769A4" stroke-width="0"/>
+<text x="70" y="1269" font-family="Segoe UI, Arial, sans-serif" font-size="21" font-weight="700" fill="#15283F">Device deployment</text>
+<text x="70" y="1306" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="700" fill="#15283F">scripts/setup-pi-kiosk.sh</text>
+<text x="70" y="1335" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="400" fill="#52647A">systemd → Python control service</text>
+<text x="70" y="1364" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="400" fill="#52647A">Xorg / Openbox → supplied Rust kiosk binary</text>
+<text x="70" y="1393" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="400" fill="#52647A">Plymouth boot splash + console autologin</text>
+<text x="70" y="1422" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="400" fill="#52647A">Backend and pyEIT selection are configured separately.</text>
+<text x="70" y="1451" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="400" fill="#52647A">firmware/mp-firm/base_fm/ · MicroPython binary</text>
+<rect x="632" y="1232" width="552" height="261" rx="16" fill="white" stroke="#CBD5E1" stroke-width="1.5"/>
+<rect x="632" y="1232" width="552" height="5" rx="2" fill="#3769A4" stroke="#3769A4" stroke-width="0"/>
+<text x="654" y="1269" font-family="Segoe UI, Arial, sans-serif" font-size="21" font-weight="700" fill="#15283F">Developer entry points</text>
+<text x="654" y="1306" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="700" fill="#15283F">dev.py · doctor / scan-once / calibrate</text>
+<text x="654" y="1335" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="400" fill="#52647A">scan-once → pipeline → PNG file (default demo)</text>
+<text x="654" y="1364" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="400" fill="#52647A">calibrate is a placeholder, not gain/phase calibration.</text>
+<text x="654" y="1393" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="700" fill="#15283F">scripts/reconstruct_measurements.py</text>
+<text x="654" y="1422" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="400" fill="#52647A">Standalone FEM baseline/anomaly demonstration;</text>
+<text x="654" y="1451" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="400" fill="#52647A">prints measurements and size, outside service runtime.</text>
+<rect x="1216" y="1232" width="552" height="261" rx="16" fill="white" stroke="#CBD5E1" stroke-width="1.5"/>
+<rect x="1216" y="1232" width="552" height="5" rx="2" fill="#3769A4" stroke="#3769A4" stroke-width="0"/>
+<text x="1238" y="1269" font-family="Segoe UI, Arial, sans-serif" font-size="21" font-weight="700" fill="#15283F">Validation and regression tests</text>
+<text x="1238" y="1306" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="700" fill="#15283F">tests/ + Rust module tests</text>
+<text x="1238" y="1335" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="400" fill="#52647A">FEM ordering, polarity and anomaly quadrants</text>
+<text x="1238" y="1364" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="400" fill="#52647A">Baseline lifecycle, serial recovery, firmware doubles</text>
+<text x="1238" y="1393" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="400" fill="#52647A">WebSocket integration and PNG delivery</text>
+<text x="1238" y="1422" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="700" fill="#15283F">118 Python tests pass on release + upstream pyEIT.</text>
+<text x="1238" y="1451" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="400" fill="#52647A">Rust build remains unverified on this host.</text>
+<rect x="1800" y="1232" width="552" height="261" rx="16" fill="white" stroke="#CBD5E1" stroke-width="1.5"/>
+<rect x="1800" y="1232" width="552" height="5" rx="2" fill="#3769A4" stroke="#3769A4" stroke-width="0"/>
+<text x="1822" y="1269" font-family="Segoe UI, Arial, sans-serif" font-size="21" font-weight="700" fill="#15283F">Dependencies, guides and placeholders</text>
+<text x="1822" y="1306" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="400" fill="#52647A">requirements.txt · service; requirements-pi.txt · serial</text>
+<text x="1822" y="1335" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="400" fill="#52647A">requirements-pyeit.txt · optional pyEIT 1.2.4</text>
+<text x="1822" y="1364" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="400" fill="#52647A">kiosk-rs/Cargo.toml · native UI dependencies</text>
+<text x="1822" y="1393" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="400" fill="#52647A">READMEs + PYEIT_SOLVER.md / PYEIT_VALIDATION.md</text>
+<text x="1822" y="1422" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="400" fill="#52647A">reconstruction/anomaly.py · docstring-only placeholder</text>
+<text x="1822" y="1451" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="400" fill="#52647A">conceptui.png · design reference, not a runtime screen</text>
+<rect x="48" y="1531" width="2304" height="145" rx="17" fill="#FFF6E9" stroke="#E3BF8A" stroke-width="1.5"/>
+<text x="72" y="1567" font-family="Segoe UI, Arial, sans-serif" font-size="19" font-weight="700" fill="#A36316">WHAT IS VALIDATED — AND WHAT STILL NEEDS BRING-UP</text>
+<text x="72" y="1604" font-family="Segoe UI, Arial, sans-serif" font-size="18" font-weight="700" fill="#15283F">Software path: synthetic acquisition → solver → PNG → WebSocket is tested.</text>
+<text x="72" y="1635" font-family="Segoe UI, Arial, sans-serif" font-size="17" font-weight="400" fill="#52647A">Default sim + stub is a demo. pyEIT images relative conductivity change.</text>
+<text x="1210" y="1604" font-family="Segoe UI, Arial, sans-serif" font-size="17" font-weight="700" fill="#15283F">Physical path: AD5933.measure() unfinished; mux addressing and calibration unresolved.</text>
+<text x="1210" y="1635" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="400" fill="#52647A">Firmware telemetry helper is not scheduled; the host can fall back to sysfs or null.</text>
+<text x="48" y="1721" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="400" fill="#52647A">Read the numbered strip first. Solid arrows: runtime flow. Dashed blue: simulation. Dashed grey: shared dependencies.</text>
+<text x="1861" y="1721" font-family="Segoe UI, Arial, sans-serif" font-size="15" font-weight="400" fill="#52647A">Source: current crimson-veil implementation</text>
+</svg>
