@@ -33,6 +33,8 @@ their index ``n``). `telemetry` is pushed periodically by the firmware.
 from __future__ import annotations
 
 import json
+import math
+import threading
 import time
 from typing import Protocol, runtime_checkable
 
@@ -67,17 +69,30 @@ class SerialTransport:
         import serial  # imported lazily so the suite does not need pyserial
 
         self._serial = serial.Serial(port=port, baudrate=baud, timeout=timeout)
+        self._read_buffer = bytearray()
 
     def write_line(self, text: str) -> None:
         self._serial.write((text + "\n").encode("utf-8"))
         self._serial.flush()
 
     def read_line(self, timeout: float) -> str | None:
-        self._serial.timeout = timeout
-        raw = self._serial.readline()
-        if not raw:
-            return None
-        return raw.decode("utf-8", "replace").strip()
+        # pyserial returns partial bytes when its timeout expires, especially
+        # during a non-blocking telemetry poll. Retain those bytes until a
+        # newline arrives instead of handing an incomplete JSON object onward.
+        deadline = time.monotonic() + max(0.0, timeout)
+        while True:
+            newline = self._read_buffer.find(b"\n")
+            if newline >= 0:
+                raw = bytes(self._read_buffer[:newline])
+                del self._read_buffer[:newline + 1]
+                return raw.decode("utf-8", "replace").strip()
+            self._serial.timeout = max(0.0, deadline - time.monotonic())
+            raw = self._serial.readline()
+            if not raw:
+                return None
+            self._read_buffer.extend(raw)
+            if b"\n" not in self._read_buffer and time.monotonic() >= deadline:
+                return None
 
     def close(self) -> None:
         self._serial.close()
@@ -96,16 +111,25 @@ class Esp32Hardware:
         self._baud = DEFAULT_BAUD
         self._timeout = DEFAULT_TIMEOUT_S
         self._open = False
+        self._needs_resync = False
         # Learned from the ESP32's `hello`.
         self.n_electrodes = 0
         self.electrodes: list[int] = []
         self.firmware = ""
         self.frequency_hz = 0.0
         self._telemetry: dict = {}
+        # A scan owns the transport until its reply arrives. Metrics are read
+        # from another thread and must never consume that reply or change the
+        # serial timeout while a scan is waiting.
+        self._io_lock = threading.Lock()
 
     # --- HardwareBackend --------------------------------------------------
 
     def open(self, cfg: DeviceConfig) -> None:
+        with self._io_lock:
+            self._open_connection(cfg)
+
+    def _open_connection(self, cfg: DeviceConfig) -> None:
         opts = cfg.options or {}
         self._port = str(opts.get("port", "/dev/ttyACM0"))
         self._baud = int(opts.get("baud", DEFAULT_BAUD))
@@ -121,6 +145,7 @@ class Esp32Hardware:
         if not self.frequency_hz:
             self.frequency_hz = float(cfg.frequency_hz)
         self._open = True
+        self._needs_resync = False
 
     def identify(self) -> str:
         if self._open:
@@ -129,9 +154,37 @@ class Esp32Hardware:
 
     def scan(self) -> list[RawPoint]:
         """Run one single-shot scan and return the firmware's frame."""
-        if not self._open or self._transport is None:
-            raise RuntimeError("Esp32Hardware.scan called before open()")
+        with self._io_lock:
+            if not self._open or self._transport is None:
+                raise RuntimeError("Esp32Hardware.scan called before open()")
+            try:
+                if self._needs_resync:
+                    self._resynchronize()
+                return self._scan()
+            except Esp32Error:
+                # A delayed reply may still arrive after a timeout or malformed
+                # line. Never let it become the next scan's (or baseline's) data.
+                self._needs_resync = True
+                raise
 
+    def _resynchronize(self) -> None:
+        # The firmware processes commands sequentially. Its identify response
+        # therefore follows any outstanding scan reply, including a partial
+        # line retained by SerialTransport. _await drains those older messages.
+        hello = self._await("hello", self._timeout, send={"type": "identify"})
+        if hello.get("n_electrodes") != self.n_electrodes:
+            raise Esp32Error(
+                "electrode count changed during serial recovery; reconnect "
+                "and configure the solver again"
+            )
+        # The hello reports firmware defaults; the next scan must retain a
+        # frequency selected by the host rather than reverting to that default.
+        requested_frequency = self.frequency_hz
+        self._apply_hello(hello)
+        self.frequency_hz = requested_frequency
+        self._needs_resync = False
+
+    def _scan(self) -> list[RawPoint]:
         command = {"type": "scan"}
         # Echo the (possibly host-overridden) frequency so the firmware scans
         # where the host expects; it falls back to its own SWEEP_HZ if omitted.
@@ -159,13 +212,14 @@ class Esp32Hardware:
             # Ignore anything else (e.g. a stray hello).
 
     def close(self) -> None:
-        if self._transport is not None:
-            try:
-                self._transport.write_line(json.dumps({"type": "stop"}))
-            except Exception:  # noqa: BLE001 - best effort on shutdown
-                pass
-            self._transport.close()
-        self._open = False
+        with self._io_lock:
+            if self._transport is not None:
+                try:
+                    self._transport.write_line(json.dumps({"type": "stop"}))
+                except Exception:  # noqa: BLE001 - best effort on shutdown
+                    pass
+                self._transport.close()
+            self._open = False
 
     # --- extras -----------------------------------------------------------
 
@@ -177,14 +231,19 @@ class Esp32Hardware:
         ``battery_pct`` (float|None), ``battery_charging`` (bool) and
         ``temp_c`` (float|None).
         """
-        while self._transport is not None:
-            try:
-                msg = self._read(timeout=0.0)
-            except Esp32Error:
-                break
-            if msg.get("type") == "telemetry":
-                self._telemetry = msg
-        return dict(self._telemetry)
+        if not self._io_lock.acquire(blocking=False):
+            return dict(self._telemetry)
+        try:
+            while self._open and self._transport is not None:
+                try:
+                    msg = self._read(timeout=0.0)
+                except Esp32Error:
+                    break
+                if msg.get("type") == "telemetry":
+                    self._telemetry = msg
+            return dict(self._telemetry)
+        finally:
+            self._io_lock.release()
 
     # --- internals --------------------------------------------------------
 
@@ -228,13 +287,37 @@ class Esp32Hardware:
         points = msg.get("points")
         if not isinstance(points, list):
             raise Esp32Error("frame is missing a 'points' list")
-        out: list[RawPoint] = []
-        for p in points:
-            out.append(
-                RawPoint(
-                    freq_hz=float(p.get("f", self.frequency_hz)),
-                    real=float(p["re"]),
-                    imag=float(p["im"]),
-                )
+        expected = self.n_electrodes * (self.n_electrodes - 3)
+        if self.n_electrodes < 4 or len(points) != expected:
+            raise Esp32Error(
+                f"frame contains {len(points)} points; expected {expected} "
+                f"for {self.n_electrodes} electrodes"
             )
-        return out
+        if any(not isinstance(point, dict) for point in points):
+            raise Esp32Error("every frame point must be a JSON object")
+
+        indexed = ["n" in point for point in points]
+        has_indices = all(indexed)
+        if any(indexed) and not has_indices:
+            raise Esp32Error("frame mixes indexed and unindexed points")
+        # Older firmware may omit every index; those frames retain wire order.
+        # Indexed frames must cover each position exactly once.
+        out: dict[int, RawPoint] = {}
+        for position, point in enumerate(points):
+            index = point["n"] if has_indices else position
+            if isinstance(index, bool) or not isinstance(index, int) or not 0 <= index < expected:
+                raise Esp32Error(f"frame point has invalid index {index!r}")
+            if index in out:
+                raise Esp32Error(f"frame has duplicate point index {index}")
+            try:
+                frequency = float(point.get("f", self.frequency_hz))
+                real = float(point["re"])
+                imag = float(point["im"])
+            except (KeyError, TypeError, ValueError, OverflowError) as exc:
+                raise Esp32Error(f"frame point {index} has invalid numeric data") from exc
+            if not all(math.isfinite(value) for value in (frequency, real, imag)):
+                raise Esp32Error(f"frame point {index} contains non-finite data")
+            if frequency <= 0:
+                raise Esp32Error(f"frame point {index} frequency must be positive")
+            out[index] = RawPoint(freq_hz=frequency, real=real, imag=imag)
+        return [out[index] for index in range(expected)]

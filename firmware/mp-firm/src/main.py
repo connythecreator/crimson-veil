@@ -115,7 +115,7 @@ class Firmware:
         )
 
     def stop(self):
-        self._running = False
+        """Halt acquisition while keeping the command loop ready for scans."""
         if self._mux is not None:
             self._mux.disable_all()
         if self._driver is not None:
@@ -190,6 +190,7 @@ class Firmware:
         while self._running:
             line = protocol.read_line(stream)
             if line is None:
+                self._running = False
                 break
             if not line:
                 continue
