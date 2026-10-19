@@ -25,3 +25,23 @@ kiosk-rs/target/
 .idea/
 .vscode/
 docs/
+
+# Agent / Claude Code worktrees and local config
+.claude/
+
+# Downloaded 3D model packs / vendor snapshots (not authored CAD)
+3Dmodels/**/*.snapshot.*/
+3Dmodels/base/3mm-led/
+
+# Video generation assets and outputs
+3Dmodels/case/marketing/
+3Dmodels/case/trailer/
+3Dmodels/case/trailer.sh
+3Dmodels/case/trailer.ass
+*.mp4
+*.ass
+*.blend
+
+# Scratch / backup copies
+*.bak
+*.bak[0-9]*
