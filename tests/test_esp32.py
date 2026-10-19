@@ -83,14 +83,15 @@ def test_scan_sends_bare_scan_and_parses_frame():
 
 
 def test_scan_absorbs_telemetry_then_reads_frame():
-    tel = {"type": "telemetry", "battery_pct": 87.0, "battery_charging": False, "temp_c": 31.5}
+    tel = {"type": "telemetry", "temp_esp32_c": 52.0, "temp_ad5933_c": 31.5}
     t = FakeTransport([_hello(), _hello(), tel, _frame(40)])
     hw = Esp32Hardware(t)
     hw.open(DeviceConfig(backend="esp32", options={}))
 
     points = hw.scan()
     assert len(points) == 40
-    assert hw.telemetry()["battery_pct"] == 87.0
+    assert hw.telemetry()["temp_esp32_c"] == 52.0
+    assert hw.telemetry()["temp_ad5933_c"] == 31.5
 
 
 def test_scan_before_open_raises():
@@ -140,3 +141,34 @@ def test_esp32_hardware_satisfies_protocol():
     from software.interfaces.hardware import HardwareBackend
 
     assert isinstance(Esp32Hardware(FakeTransport([])), HardwareBackend)
+
+
+def test_probe_reidentifies_the_esp():
+    t = FakeTransport([_hello(), _hello(firmware="2.0.0", n_electrodes=16)])
+    hw = Esp32Hardware(t)
+    hw.open(DeviceConfig(backend="esp32", options={}))
+
+    hello = hw.probe()
+    assert hello["firmware"] == "2.0.0"
+    assert hw.n_electrodes == 16
+    assert t.written[-1] == {"type": "identify"}
+
+
+def test_selftest_reads_result_and_absorbs_telemetry():
+    telemetry = {"type": "telemetry", "temp_esp32_c": 50.0, "temp_ad5933_c": 38.0}
+    result = {
+        "type": "selftest_result",
+        "firmware": "1.0.0",
+        "ad5933": True,
+        "mux": True,
+        "temp_ad5933_c": 38.0,
+        "error": None,
+    }
+    t = FakeTransport([_hello(), telemetry, result])
+    hw = Esp32Hardware(t)
+    hw.open(DeviceConfig(backend="esp32", options={}))
+
+    out = hw.selftest()
+    assert out["ad5933"] is True
+    assert t.written[-1] == {"type": "selftest"}
+    assert hw.telemetry()["temp_esp32_c"] == 50.0

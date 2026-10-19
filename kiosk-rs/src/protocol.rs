@@ -42,7 +42,35 @@ pub struct ServerMessage {
     #[serde(default)]
     pub battery_charging: bool,
     #[serde(default)]
-    pub temp_c: Option<f32>,
+    pub on_battery: bool,
+    #[serde(default)]
+    pub battery_v: Option<f32>,
+    #[serde(default)]
+    pub runtime_s: Option<u32>,
+    #[serde(default)]
+    pub low_v: Option<f32>,
+    #[serde(default)]
+    pub temp_wittypi_c: Option<f32>,
+    #[serde(default)]
+    pub temp_esp32_c: Option<f32>,
+    #[serde(default)]
+    pub temp_ad5933_c: Option<f32>,
+    #[serde(default)]
+    pub temp_pi_c: Option<f32>,
+    #[serde(default)]
+    pub checks: Vec<Check>,
+}
+
+/// One line of the pre-start hardware self-test.
+#[derive(Debug, Clone, Default, Deserialize)]
+pub struct Check {
+    #[serde(default)]
+    pub name: String,
+    /// pass | fail | warn | skip
+    #[serde(default)]
+    pub status: String,
+    #[serde(default)]
+    pub detail: String,
 }
 
 /// Messages the kiosk sends to the service.
@@ -66,6 +94,8 @@ pub enum ClientMessage {
     Stop,
     #[serde(rename = "set_frequency")]
     SetFrequency { frequency_hz: f64 },
+    #[serde(rename = "self_test")]
+    SelfTest,
     #[serde(rename = "ping")]
     Ping,
 }
@@ -128,5 +158,33 @@ mod tests {
     fn encode_activity() {
         let json = ClientMessage::Activity.to_json();
         assert_eq!(json, r#"{"type":"activity"}"#);
+    }
+
+    #[test]
+    fn encode_self_test() {
+        assert_eq!(ClientMessage::SelfTest.to_json(), r#"{"type":"self_test"}"#);
+    }
+
+    #[test]
+    fn parse_self_test_result() {
+        let raw = r#"{"type":"self_test_result","checks":[{"name":"Battery","status":"pass","detail":"83% / 4.00 V"},{"name":"PyEIT","status":"fail","detail":"not installed"}]}"#;
+        let m: ServerMessage = serde_json::from_str(raw).unwrap();
+        assert_eq!(m.kind, "self_test_result");
+        assert_eq!(m.checks.len(), 2);
+        assert_eq!(m.checks[0].name, "Battery");
+        assert_eq!(m.checks[0].status, "pass");
+        assert_eq!(m.checks[1].status, "fail");
+    }
+
+    #[test]
+    fn parse_metrics() {
+        let raw = r#"{"type":"metrics","battery_pct":82.0,"battery_charging":false,"on_battery":true,"battery_v":3.86,"runtime_s":7200,"low_v":3.3,"temp_wittypi_c":31.5,"temp_esp32_c":52.0,"temp_ad5933_c":38.5,"temp_pi_c":44.0}"#;
+        let m: ServerMessage = serde_json::from_str(raw).unwrap();
+        assert_eq!(m.kind, "metrics");
+        assert_eq!(m.battery_pct, Some(82.0));
+        assert!(m.on_battery);
+        assert_eq!(m.runtime_s, Some(7200));
+        assert_eq!(m.temp_esp32_c, Some(52.0));
+        assert_eq!(m.temp_pi_c, Some(44.0));
     }
 }

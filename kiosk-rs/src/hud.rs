@@ -1,17 +1,24 @@
 //! Mobile-style HUD, drawn with egui's `Painter` in screen coordinates.
 //!
 //! Tuned for the 3.5" 480x320 SPI panel (CE04868): a rounded app surface with
-//! a status bar (clock + battery/temp), an app bar with the title, a left
-//! navigation rail (scan / settings / calibration), a content area with the
-//! scan disc, a parameters card, and a home-indicator pill.
+//! a status bar (clock + battery), a left navigation rail (scan / settings /
+//! calibration), and a content area. The app bar was removed: the rail and
+//! content now start directly below the status bar.
 //!
 //! Interactive controls use egui `Area`s; everything visual is painted for
 //! pixel control.
 
 use egui::{Align2, Color32, FontId, Pos2, Rect, Sense, Stroke, Vec2};
 
-use crate::app::{AppState, Page};
+use crate::app::{AppState, Page, Phase};
 use crate::fx::{ScanFx, GRID};
+
+/// A control the user activated on the HUD (applied by `KioskApp`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Action {
+    Scan,
+    ToggleMonitor,
+}
 
 // Phone palette: near-black bezel, dark app surface, raised cards.
 const BEZEL: Color32 = Color32::from_rgb(1, 1, 2);
@@ -31,7 +38,6 @@ const TEXT: Color32 = Color32::from_rgb(236, 239, 243);
 const SCREEN_M: f32 = 6.0;
 const SCREEN_R: u8 = 14;
 const STATUS_H: f32 = 24.0;
-const APPBAR_H: f32 = 46.0;
 const RAIL_W: f32 = 66.0;
 const HOME_H: f32 = 12.0;
 
@@ -42,7 +48,7 @@ pub fn draw(
     fx: &ScanFx,
     time_s: f32,
     image: Option<&egui::TextureHandle>,
-) {
+) -> Option<Action> {
     let p = ctx.layer_painter(egui::LayerId::background());
     p.rect_filled(screen, egui::CornerRadius::ZERO, BEZEL);
 
@@ -53,32 +59,40 @@ pub fn draw(
     );
     p.rect_filled(app, egui::CornerRadius::same(SCREEN_R), SURFACE);
 
+    // Pre-start: a full-screen terminal-style self-test. A tap is handled by
+    // the app (it needs the input state), so no action is returned here.
+    if state.phase == Phase::SelfTest {
+        self_test_page(&p, app, state);
+        return None;
+    }
+
     let status = Rect::from_min_max(app.min, Pos2::new(app.right(), app.top() + STATUS_H));
-    let appbar = Rect::from_min_max(
-        Pos2::new(app.left(), status.bottom()),
-        Pos2::new(app.right(), status.bottom() + APPBAR_H),
-    );
+    // No app bar: the rail and content start right below the status bar.
     let rail = Rect::from_min_max(
-        Pos2::new(app.left(), appbar.bottom()),
+        Pos2::new(app.left(), status.bottom()),
         Pos2::new(app.left() + RAIL_W, app.bottom() - HOME_H),
     );
     let content = Rect::from_min_max(
-        Pos2::new(rail.right(), appbar.bottom()),
+        Pos2::new(rail.right(), status.bottom()),
         Pos2::new(app.right(), app.bottom() - HOME_H),
     );
 
     status_bar(&p, status, state);
-    app_bar(&p, appbar, state);
     let body = content.shrink(4.0);
-    match state.page {
-        Page::Scan => scan_page(&p, body, state, fx, time_s, image),
-        Page::Settings => placeholder(&p, body, "Settings", "scan cadence and hardware options"),
-        Page::Calibration => {
-            placeholder(&p, body, "Calibration", "gain / phase calibration (deferred)")
+    let action = match state.page {
+        Page::Scan => scan_page(ctx, &p, body, state, fx, time_s, image),
+        Page::Settings => {
+            settings_page(&p, body, state);
+            None
         }
-    }
+        Page::Calibration => {
+            placeholder(&p, body, "Calibration", "gain / phase calibration (deferred)");
+            None
+        }
+    };
     rail_nav(ctx, rail, state);
     home_indicator(&p, app);
+    action
 }
 
 // --- status bar ------------------------------------------------------------
@@ -94,23 +108,55 @@ fn status_bar(painter: &egui::Painter, rect: Rect, state: &AppState) {
         TEXT,
     );
 
-    // Right cluster: temperature, wifi-ish signal, battery.
-    let mut x = rect.right() - 16.0;
-    battery(painter, Pos2::new(x - 20.0, cy), state);
-    x -= 52.0;
-    signal(painter, Pos2::new(x - 6.0, cy));
-    x -= 26.0;
-    if let Some(t) = state.temp_c {
+    // Right cluster: fuel-gauge glyph (with a charging bolt when charging),
+    // the state-of-charge percentage immediately left of it, and the undershot
+    // runtime to the left of that. Temperatures are shown only in Settings; the
+    // signal bars are dropped for now (the `signal` fn is kept for later).
+    let glyph_cx = rect.right() - 22.0;
+    battery(painter, Pos2::new(glyph_cx, cy), state);
+
+    let mut cursor = glyph_cx - 15.0; // right edge of the text column
+    if let Some(pct) = state.battery_pct {
+        let label = format!("{pct:.0}%");
         painter.text(
-            Pos2::new(x, cy),
+            Pos2::new(cursor, cy),
             Align2::RIGHT_CENTER,
-            format!("{t:.0}\u{00b0}C"),
+            &label,
+            FontId::monospace(11.0),
+            if state.battery_charging { OK } else { STEEL },
+        );
+        cursor -= mono_width(&label) + 8.0;
+    }
+    if let Some(secs) = state.runtime_s {
+        painter.text(
+            Pos2::new(cursor, cy),
+            Align2::RIGHT_CENTER,
+            fmt_runtime(secs),
             FontId::monospace(11.0),
             STEEL,
         );
     }
 }
 
+/// Approximate advance width of a monospace string at the status-bar size.
+fn mono_width(s: &str) -> f32 {
+    s.chars().count() as f32 * 6.7
+}
+
+/// "2h10m" / "45m" / "3d2h".
+fn fmt_runtime(secs: u32) -> String {
+    let mins = secs / 60;
+    let (h, m) = (mins / 60, mins % 60);
+    if h >= 24 {
+        format!("{}d{}h", h / 24, h % 24)
+    } else if h > 0 {
+        format!("{h}h{m}m")
+    } else {
+        format!("{m}m")
+    }
+}
+
+#[allow(dead_code)] // temporarily removed from the status bar
 fn signal(painter: &egui::Painter, at: Pos2) {
     // Four ascending bars (phone signal style).
     for (i, h) in [4.0_f32, 7.0, 10.0, 13.0].into_iter().enumerate() {
@@ -138,73 +184,24 @@ fn battery(painter: &egui::Painter, at: Pos2, state: &AppState) {
         egui::CornerRadius::same(1),
         STEEL,
     );
-    match state.battery_pct {
-        Some(pct) => {
-            let frac = (pct / 100.0).clamp(0.0, 1.0);
-            let color = if pct <= 15.0 { CRIM2 } else if pct <= 35.0 { WARN } else { OK };
-            painter.rect_filled(
-                Rect::from_min_size(
-                    Pos2::new(body.left() + 2.0, body.top() + 2.0),
-                    Vec2::new((w - 4.0) * frac, h - 4.0),
-                ),
-                egui::CornerRadius::same(2),
-                color,
-            );
-            if state.battery_charging {
-                let b = body.center();
-                painter.line_segment([b + Vec2::new(-2.5, -4.0), b + Vec2::new(0.5, 0.0)], Stroke::new(1.6_f32, TEXT));
-                painter.line_segment([b + Vec2::new(0.5, 0.0), b + Vec2::new(-0.5, 0.0)], Stroke::new(1.6_f32, TEXT));
-                painter.line_segment([b + Vec2::new(-0.5, 0.0), b + Vec2::new(2.5, 4.0)], Stroke::new(1.6_f32, TEXT));
-            }
-            painter.text(
-                Pos2::new(body.left() - 4.0, at.y),
-                Align2::RIGHT_CENTER,
-                format!("{pct:.0}%"),
-                FontId::monospace(9.0),
-                STEEL,
-            );
-        }
-        None => {
-            painter.text(body.center(), Align2::CENTER_CENTER, "\u{2013}", FontId::monospace(9.0), STEEL);
-        }
+    if let Some(pct) = state.battery_pct {
+        let frac = (pct / 100.0).clamp(0.0, 1.0);
+        let color = if pct <= 15.0 { CRIM2 } else if pct <= 35.0 { WARN } else { OK };
+        painter.rect_filled(
+            Rect::from_min_size(
+                Pos2::new(body.left() + 2.0, body.top() + 2.0),
+                Vec2::new((w - 4.0) * frac, h - 4.0),
+            ),
+            egui::CornerRadius::same(2),
+            color,
+        );
     }
-}
-
-// --- app bar ---------------------------------------------------------------
-
-fn app_bar(painter: &egui::Painter, rect: Rect, state: &AppState) {
-    // Crimson brand mark only - no wordmark (the nav rail shows where you are).
-    let cx = rect.left() + 26.0;
-    painter.circle_stroke(Pos2::new(cx, rect.center().y), 12.0, Stroke::new(2.4_f32, CRIM));
-    painter.circle_filled(Pos2::new(cx, rect.center().y), 4.2, CRIM);
-    // Current section, large.
-    painter.text(
-        Pos2::new(rect.left() + 50.0, rect.center().y),
-        Align2::LEFT_CENTER,
-        page_title(state.page),
-        FontId::proportional(22.0),
-        TEXT,
-    );
-    // A crimson accent down the left edge of the header.
-    painter.rect_filled(
-        Rect::from_min_max(
-            Pos2::new(rect.left(), rect.top() + 6.0),
-            Pos2::new(rect.left() + 2.0, rect.bottom() - 6.0),
-        ),
-        egui::CornerRadius::same(1),
-        CRIMD,
-    );
-    painter.line_segment(
-        [Pos2::new(rect.left(), rect.bottom()), Pos2::new(rect.right(), rect.bottom())],
-        Stroke::new(1.0_f32, STEELD),
-    );
-}
-
-fn page_title(page: Page) -> &'static str {
-    match page {
-        Page::Scan => "Scan",
-        Page::Settings => "Settings",
-        Page::Calibration => "Calibration",
+    // Charging is a power lightning bolt on top of the gauge.
+    if state.battery_charging {
+        let b = body.center();
+        painter.line_segment([b + Vec2::new(-2.0, -4.0), b + Vec2::new(0.8, 0.2)], Stroke::new(1.5_f32, TEXT));
+        painter.line_segment([b + Vec2::new(0.8, 0.2), b + Vec2::new(-0.8, 0.2)], Stroke::new(1.5_f32, TEXT));
+        painter.line_segment([b + Vec2::new(-0.8, 0.2), b + Vec2::new(2.0, 4.0)], Stroke::new(1.5_f32, TEXT));
     }
 }
 
@@ -336,47 +333,34 @@ fn card(painter: &egui::Painter, rect: Rect) {
 }
 
 fn scan_page(
+    ctx: &egui::Context,
     painter: &egui::Painter,
     body: Rect,
     state: &AppState,
     fx: &ScanFx,
     time_s: f32,
     image: Option<&egui::TextureHandle>,
-) {
-    // Parameters card along the bottom; scan disc fills the space above it.
-    let chip_h = 38.0;
-    let disc_area = Rect::from_min_max(body.min, Pos2::new(body.right(), body.bottom() - chip_h - 6.0));
-
-    // Disc centred in the available area.
-    let cx = disc_area.center().x;
-    let cy = disc_area.center().y;
-    let scan_r = (disc_area.height() / 2.0 - 20.0).min(62.0);
-    let center = Pos2::new(cx, cy);
-    let ring_r = scan_r + 15.0;
-    let img_rect = Rect::from_center_size(center, Vec2::splat(scan_r * 2.0));
+) -> Option<Action> {
+    // Two columns: the EIT disc on the left, controls/readouts on the right.
+    let split = body.left() + body.width() * 0.58;
+    let stage = Rect::from_min_max(body.min, Pos2::new(split - 6.0, body.bottom()));
+    let column = Rect::from_min_max(Pos2::new(split + 2.0, body.top()), body.max);
 
     painter.text(
-        Pos2::new(body.left() + 6.0, body.top() + 3.0),
+        Pos2::new(stage.left() + 6.0, body.top() + 3.0),
         Align2::LEFT_TOP,
         "Live reconstruction",
         FontId::proportional(11.0),
         STEEL,
     );
-    // Status pill (READY / SCANNING / CONTINUOUS ...), top-right of the page.
-    let (status, color) = state.connection_label();
-    let pill = Rect::from_min_size(
-        Pos2::new(body.right() - 8.0 - 84.0, body.top() + 5.0),
-        Vec2::new(84.0, 16.0),
-    );
-    painter.rect_filled(pill, egui::CornerRadius::same(8), CARD);
-    painter.circle_filled(Pos2::new(pill.left() + 9.0, pill.center().y), 2.6, color);
-    painter.text(
-        Pos2::new(pill.left() + 16.0, pill.center().y),
-        Align2::LEFT_CENTER,
-        status,
-        FontId::monospace(9.0),
-        color,
-    );
+
+    // Disc centred in the left stage (slightly below the label).
+    let center = Pos2::new(stage.center().x, stage.center().y + 4.0);
+    let scan_r = (stage.height() / 2.0 - 26.0)
+        .min(stage.width() / 2.0 - 14.0)
+        .clamp(24.0, 62.0);
+    let ring_r = scan_r + 15.0;
+    let img_rect = Rect::from_center_size(center, Vec2::splat(scan_r * 2.0));
 
     painter.circle_filled(center, scan_r, SURFACE);
     painter.circle_stroke(center, scan_r, Stroke::new(1.5_f32, CRIMD));
@@ -394,50 +378,312 @@ fn scan_page(
 
     electrode_ring(painter, center, ring_r, state);
 
-    // Parameters card (chips) across the bottom.
-    let chips = Rect::from_min_max(
-        Pos2::new(body.left() + 2.0, body.bottom() - chip_h),
-        Pos2::new(body.right() - 2.0, body.bottom()),
+    // --- right control column ---------------------------------------------
+    let (status, color) = state.connection_label();
+    let pill = Rect::from_min_size(
+        Pos2::new(column.left(), column.top() + 2.0),
+        Vec2::new(column.width(), 16.0),
     );
-    card(painter, chips);
-    let items: [(&str, String); 5] = [
-        ("Active", format!("{:.0}s", state.active_interval_s)),
-        ("Idle", format!("{:.0}s", state.idle_interval_s)),
+    painter.rect_filled(pill, egui::CornerRadius::same(8), CARD);
+    painter.circle_filled(Pos2::new(pill.left() + 9.0, pill.center().y), 2.6, color);
+    painter.text(
+        Pos2::new(pill.left() + 16.0, pill.center().y),
+        Align2::LEFT_CENTER,
+        status,
+        FontId::monospace(9.0),
+        color,
+    );
+
+    let mut y = pill.bottom() + 8.0;
+    let btn_h = 34.0;
+    let gap = 7.0;
+
+    let scan_rect = Rect::from_min_size(Pos2::new(column.left(), y), Vec2::new(column.width(), btn_h));
+    let scan_enabled = !state.continuous && !state.scanning;
+    let scan_clicked = painted_button(ctx, painter, scan_rect, "SINGLE SCAN", scan_enabled, false);
+    y += btn_h + gap;
+
+    let monitor_rect = Rect::from_min_size(Pos2::new(column.left(), y), Vec2::new(column.width(), btn_h));
+    let monitor_clicked = painted_button(
+        ctx,
+        painter,
+        monitor_rect,
+        if state.continuous { "STOP" } else { "MONITOR" },
+        true,
+        state.continuous,
+    );
+    y += btn_h + 8.0;
+
+    // Compact readouts (moved out of the old bottom chip card).
+    let rows = [
         ("Electrodes", format!("{}", state.n_electrodes)),
         ("Freq", format!("{:.0} kHz", state.frequency_hz / 1000.0)),
         ("Scans", format!("{}", state.scan_count)),
+        ("Active", format!("{:.0}s", state.active_interval_s)),
+        ("Idle", format!("{:.0}s", state.idle_interval_s)),
     ];
-    let cell_w = chips.width() / items.len() as f32;
-    for (i, (k, v)) in items.iter().enumerate() {
-        let ccx = chips.left() + cell_w * (i as f32 + 0.5);
+    for (key, value) in rows {
+        if y + 11.0 > column.bottom() {
+            break;
+        }
         painter.text(
-            Pos2::new(ccx, chips.top() + 9.0),
-            Align2::CENTER_CENTER,
-            *k,
-            FontId::proportional(8.5),
+            Pos2::new(column.left(), y),
+            Align2::LEFT_TOP,
+            key,
+            FontId::proportional(9.5),
             STEEL,
         );
         painter.text(
-            Pos2::new(ccx, chips.top() + 24.0),
-            Align2::CENTER_CENTER,
-            v,
-            FontId::proportional(12.0),
+            Pos2::new(column.right(), y),
+            Align2::RIGHT_TOP,
+            value,
+            FontId::monospace(9.5),
             TEXT,
         );
-        if i > 0 {
-            let x = chips.left() + cell_w * i as f32;
-            painter.line_segment(
-                [Pos2::new(x, chips.top() + 8.0), Pos2::new(x, chips.bottom() - 8.0)],
-                Stroke::new(1.0_f32, STEELD),
+        y += 13.0;
+    }
+
+    if scan_clicked {
+        Some(Action::Scan)
+    } else if monitor_clicked {
+        Some(Action::ToggleMonitor)
+    } else {
+        None
+    }
+}
+
+/// A painted push-button with an `Area` for hit-testing (mirrors `rail_item`).
+fn painted_button(
+    ctx: &egui::Context,
+    painter: &egui::Painter,
+    rect: Rect,
+    label: &str,
+    enabled: bool,
+    active: bool,
+) -> bool {
+    let id = egui::Id::new(("hud-button", label));
+    let resp = egui::Area::new(id)
+        .fixed_pos(rect.min)
+        .order(egui::Order::Middle)
+        .show(ctx, |ui| {
+            let sense = if enabled { Sense::click() } else { Sense::hover() };
+            ui.allocate_exact_size(rect.size(), sense).1
+        })
+        .inner;
+
+    let (fill, stroke, fg) = if !enabled {
+        (SURFACE, STEELD, STEELD)
+    } else if active {
+        (CRIMD, CRIM2, TEXT)
+    } else if resp.hovered() {
+        (STEELD, STEEL, TEXT)
+    } else {
+        (CARD, STEELD, TEXT)
+    };
+    painter.rect_filled(rect, egui::CornerRadius::same(8), fill);
+    painter.rect_stroke(
+        rect,
+        egui::CornerRadius::same(8),
+        Stroke::new(1.0_f32, stroke),
+        egui::StrokeKind::Inside,
+    );
+    painter.text(
+        rect.center(),
+        Align2::CENTER_CENTER,
+        label,
+        FontId::monospace(10.5),
+        fg,
+    );
+
+    enabled && resp.clicked()
+}
+
+/// Full-screen terminal-style hardware self-test (shown before the HUD).
+fn self_test_page(painter: &egui::Painter, app: Rect, state: &AppState) {
+    let left = app.left() + 14.0;
+    let right = app.right() - 14.0;
+    let mut y = app.top() + 12.0;
+
+    painter.text(
+        Pos2::new(left, y),
+        Align2::LEFT_TOP,
+        "CRIMSON VEIL // HARDWARE SELF-TEST",
+        FontId::monospace(11.0),
+        CRIM2,
+    );
+    y += 17.0;
+    painter.line_segment(
+        [Pos2::new(left, y), Pos2::new(right, y)],
+        Stroke::new(1.0_f32, STEELD),
+    );
+    y += 9.0;
+
+    if state.checks.is_empty() {
+        let msg = if state.self_test_running {
+            "RUNNING CHECKS..."
+        } else {
+            "WAITING FOR CONTROL SERVICE..."
+        };
+        painter.text(
+            Pos2::new(left, y),
+            Align2::LEFT_TOP,
+            msg,
+            FontId::monospace(10.0),
+            WARN,
+        );
+    } else {
+        for check in &state.checks {
+            let (status_color, status_text) = match check.status.as_str() {
+                "pass" => (OK, "PASS"),
+                "fail" => (CRIM2, "FAIL"),
+                "warn" => (WARN, "WARN"),
+                "skip" => (STEEL, "SKIP"),
+                _ => (STEEL, "----"),
+            };
+
+            painter.text(
+                Pos2::new(left, y),
+                Align2::LEFT_TOP,
+                &check.name,
+                FontId::monospace(10.5),
+                TEXT,
             );
+            // Dotted leader between the name and the verdict.
+            let mut x = left + mono_width(&check.name) + 6.0;
+            let dots_end = right - 42.0;
+            while x < dots_end {
+                painter.circle_filled(Pos2::new(x, y + 6.0), 0.9, STEELD);
+                x += 5.0;
+            }
+            painter.text(
+                Pos2::new(right, y),
+                Align2::RIGHT_TOP,
+                status_text,
+                FontId::monospace(10.5),
+                status_color,
+            );
+            y += 15.0;
+
+            if !check.detail.is_empty() && check.status != "pass" {
+                painter.text(
+                    Pos2::new(left + 8.0, y),
+                    Align2::LEFT_TOP,
+                    &check.detail,
+                    FontId::monospace(8.5),
+                    STEEL,
+                );
+                y += 12.0;
+            }
         }
     }
+
+    let (footer, footer_color) = if state.self_test_done {
+        ("TAP TO CONTINUE", OK)
+    } else {
+        ("TAP TO RETRY IF THE SERVICE IS OFFLINE", STEEL)
+    };
+    painter.text(
+        Pos2::new(app.center().x, app.bottom() - 16.0),
+        Align2::CENTER_CENTER,
+        footer,
+        FontId::monospace(10.0),
+        footer_color,
+    );
 }
 
 fn placeholder(painter: &egui::Painter, body: Rect, title: &str, sub: &str) {
     card(painter, body);
     painter.text(body.center() - Vec2::new(0.0, 8.0), Align2::CENTER_CENTER, title, FontId::proportional(16.0), TEXT);
     painter.text(body.center() + Vec2::new(0.0, 12.0), Align2::CENTER_CENTER, sub, FontId::monospace(10.0), STEEL);
+}
+
+/// Settings page: battery detail and every temperature sensor (the status bar
+/// deliberately shows none of these).
+fn settings_page(painter: &egui::Painter, body: Rect, state: &AppState) {
+    card(painter, body);
+    let left = body.left() + 10.0;
+    let right = body.right() - 10.0;
+    let mut y = body.top() + 8.0;
+
+    section(painter, left, &mut y, "Power");
+    row(painter, left, right, y, "Battery", &battery_readout(state));
+    y += 15.0;
+    row(
+        painter,
+        left,
+        right,
+        y,
+        "Source",
+        if state.battery_charging {
+            "external (charging)"
+        } else if state.on_battery {
+            "battery"
+        } else {
+            "--"
+        },
+    );
+    y += 15.0;
+    row(
+        painter,
+        left,
+        right,
+        y,
+        "Low-voltage cutoff",
+        &state.low_v.map(|v| format!("{v:.2} V")).unwrap_or_else(|| "--".into()),
+    );
+    y += 15.0;
+    row(painter, left, right, y, "Runtime left", &fmt_runtime_opt(state.runtime_s));
+    y += 20.0;
+
+    section(painter, left, &mut y, "Temperatures");
+    row(painter, left, right, y, "Witty Pi (LM75B)", &fmt_temp(state.temp_wittypi_c));
+    y += 15.0;
+    row(painter, left, right, y, "ESP32", &fmt_temp(state.temp_esp32_c));
+    y += 15.0;
+    row(painter, left, right, y, "AD5933", &fmt_temp(state.temp_ad5933_c));
+    y += 15.0;
+    row(painter, left, right, y, "Pi SoC", &fmt_temp(state.temp_pi_c));
+}
+
+fn section(painter: &egui::Painter, x: f32, y: &mut f32, title: &str) {
+    painter.text(Pos2::new(x, *y), Align2::LEFT_TOP, title, FontId::proportional(12.0), CRIM2);
+    *y += 15.0;
+}
+
+fn row(painter: &egui::Painter, left: f32, right: f32, y: f32, key: &str, value: &str) {
+    painter.text(Pos2::new(left, y), Align2::LEFT_TOP, key, FontId::proportional(10.5), STEEL);
+    painter.text(Pos2::new(right, y), Align2::RIGHT_TOP, value, FontId::monospace(10.5), TEXT);
+}
+
+fn battery_readout(state: &AppState) -> String {
+    match state.battery_pct {
+        Some(pct) => {
+            let mut s = format!("{pct:.0}%");
+            if let Some(v) = state.battery_v {
+                s += &format!("  {v:.2} V");
+            }
+            if state.battery_charging {
+                s += "  charging";
+            }
+            s
+        }
+        None if state.battery_charging => "charging".to_string(),
+        None => "--".to_string(),
+    }
+}
+
+fn fmt_runtime_opt(secs: Option<u32>) -> String {
+    match secs {
+        Some(s) => format!("~{}", fmt_runtime(s)),
+        None => "--".to_string(),
+    }
+}
+
+fn fmt_temp(t: Option<f32>) -> String {
+    match t {
+        Some(c) => format!("{c:.1}\u{00b0}C"),
+        None => "--".to_string(),
+    }
 }
 
 fn home_indicator(painter: &egui::Painter, app: Rect) {

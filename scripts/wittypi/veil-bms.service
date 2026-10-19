@@ -1,0 +1,22 @@
+[Unit]
+Description=Crimson Veil BMS telemetry (Witty Pi 4 L3V7 -> JSON)
+# Independent of the kiosk and the control service: the BMS must run to manage
+# the battery regardless of what the UI or backend are doing.
+#
+# No ordering on dev-i2c-1.device: that unit can stay inactive and would leave
+# this service stuck "waiting" (never starting). The sampler tolerates a
+# missing bus (writes nulls) and recovers on the next 5 s tick, so it is safe to
+# start unconditionally with multi-user.target.
+ConditionPathExists=/usr/local/bin/veil-bms
+
+[Service]
+Type=simple
+Environment=WITTYPI_DIR=__WITTYPI_DIR__
+Environment=VEIL_BMS_DIR=/run/veil-bms
+ExecStart=/usr/local/bin/veil-bms
+Restart=always
+RestartSec=3
+Nice=10
+
+[Install]
+WantedBy=multi-user.target

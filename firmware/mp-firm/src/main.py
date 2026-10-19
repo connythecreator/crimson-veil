@@ -145,6 +145,8 @@ class Firmware:
             self.boot()
         elif kind == "scan":
             self._scan(message)
+        elif kind == "selftest":
+            self._selftest()
         elif kind == "stop":
             self.stop()
         else:
@@ -172,16 +174,52 @@ class Firmware:
         self.stop()
         protocol.send_frame(points)
 
-    def telemetry(self):
+    def _selftest(self):
+        """Verify the AD5933 responds and the mux bank can be addressed."""
+        temp = None
+        error = None
+        ad5933 = False
+        mux = self._mux is not None
+
         try:
-            temperature = self._driver.temperature_c()
-        except Exception:  # noqa: BLE001
-            temperature = None
-        protocol.send_telemetry(
-            battery_pct=None,
-            battery_charging=False,
-            temp_c=temperature,
+            temp = self._driver.temperature_c()
+            ad5933 = temp is not None
+            if not ad5933:
+                error = "AD5933 temperature read failed"
+        except Exception as exc:  # noqa: BLE001 - report, never crash the loop
+            error = "AD5933: %s" % exc
+
+        if mux:
+            try:
+                self.select_measurement((0, 1), (2, 3))
+            except Exception as exc:  # noqa: BLE001
+                mux = False
+                error = "mux: %s" % exc
+            finally:
+                self._mux.disable_all()
+
+        protocol.send_selftest_result(
+            ad5933=ad5933,
+            mux=mux,
+            temp_ad5933_c=temp,
+            firmware=FIRMWARE_VERSION,
+            error=error,
         )
+
+    def telemetry(self):
+        # Battery is owned by the Witty Pi BMS on the host; the ESP32 reports
+        # only its own die temperature and the AD5933 chip temperature.
+        try:
+            temp_ad5933 = self._driver.temperature_c()
+        except Exception:  # noqa: BLE001
+            temp_ad5933 = None
+        try:
+            import esp32  # MicroPython ESP32 module
+
+            temp_esp32 = esp32.mcu_temperature()
+        except Exception:  # noqa: BLE001
+            temp_esp32 = None
+        protocol.send_telemetry(temp_esp32_c=temp_esp32, temp_ad5933_c=temp_ad5933)
 
     def run(self, stream=None):
         if stream is None:

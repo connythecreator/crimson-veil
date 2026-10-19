@@ -13,9 +13,14 @@ widgets: no overlay, no colours, no frame pacing. egui proper has all three.
 
 ```bash
 CV_WS_URL=ws://127.0.0.1:8765 cargo run --release
+# UI work without hardware (mock visuals):
+python -m service.server --dev &
+cargo run --release -- --dev
 ```
 
-Start the backend first: `python -m service.server`.
+Start the backend first: `python -m service.server`. `--dev` also accepts
+`CV_DEV=1`; it skips the pre-start self-test. Pair it with `service.server
+--dev` (sim hardware + stub solver) to drive the HUD with mock data.
 
 ## Layout
 
@@ -30,19 +35,25 @@ src/app.rs        state machine, networking glue, 15 fps frame pacing
 ## Behaviour
 
 - Connects, retries with capped backoff until the service is up.
-- On `ready` it auto-starts **continuous** scans with a debounce: frequent
-  while the user interacts (`activity`), backing off when idle. Intervals are
-  `CV_ACTIVE_INTERVAL_S` / `CV_IDLE_INTERVAL_S` (default 60 s / 120 s).
+- **Pre-start self-test**: on first connect it asks the service for a hardware
+  self-test and shows a terminal-style screen (`Battery`, `Belt Controller
+  (ESP)`, `Impedance Subsystem`, `PyEIT`, `Control Service`) with PASS/FAIL
+  verdicts. It always waits for a tap to continue; a tap after ~12 s retries
+  when the service is offline. `--dev` skips this screen.
+- **Controls**: `SINGLE SCAN` runs one scan; `MONITOR` toggles continuous mode
+  (debounced: frequent while the user interacts via `activity`, backing off
+  when idle). Intervals are `CV_ACTIVE_INTERVAL_S` / `CV_IDLE_INTERVAL_S`
+  (default 60 s / 120 s). There is no auto-start.
 - **Scan effects** (`src/fx.rs`, `src/hud.rs`): while a scan runs, a fixed
   lattice of points pulses in place (they do not move — only their brightness
   shimmers); when the reconstructed PNG arrives (baked to a circular disc), a
   random cell dissolve reveals it. The field is held for a minimum time so the
   animation is watchable even on fast sim hardware.
-- **Phone-style UI**: a rounded app surface with a status bar (clock +
-  temperature + signal + battery, fed by the `metrics` message), an app bar
-  with the title, a left navigation rail (Scan / Settings / Calibration), a
-  scan disc, a bottom parameters card (intervals, electrodes, frequency,
-  scan count), and a home-indicator pill.
+- **Phone-style UI** (no app bar/title): a rounded app surface with a status
+  bar (clock + battery from `metrics`), a left navigation rail (Scan /
+  Settings / Calibration), and a two-column scan page — the EIT disc on the
+  left, the status pill + `SINGLE SCAN`/`MONITOR` buttons and compact readouts
+  on the right — plus a home-indicator pill.
 - Decodes scan PNGs straight from the binary frame into a texture (no temp
   files).
 - Redraws at **15 fps** when idle, ~30 fps while an effect animates, via

@@ -74,6 +74,13 @@ NO_REBOOT=0
 SKIP_PKGS=0
 SKIP_SPLASH=0
 SKIP_VENV=0
+SKIP_BMS=0
+
+# Witty Pi 4 L3V7 battery management (installed unless --skip-bms).
+# Upstream installer + our overlay (scripts/wittypi/) that moves SYS_UP off
+# GPIO-17 and adds the veil-bms telemetry service.
+WITTYPI_INSTALL_URL="https://www.uugear.com/repo/WittyPi4/install.sh"
+WITTYPI_DIR=""        # set to <kiosk home>/wittypi once the home is resolved
 
 # Display target:
 #   spi35 = 3.5" SPI panel (CE04868 / ILI9486 class). vc4 renders the kiosk at
@@ -144,6 +151,7 @@ Usage: sudo bash scripts/setup-pi-kiosk.sh [options]
   --no-pip            do not create the venv / install requirements
   --skip-packages     do not run apt-get install
   --skip-splash       do not touch Plymouth / boot files
+  --skip-bms          do not install the Witty Pi 4 L3V7 battery management
   --dry-run           print intended changes, change nothing
   --no-reboot         do not prompt to reboot at the end
   -h, --help          this help
@@ -165,6 +173,7 @@ while (( $# )); do
     --no-pip)       INSTALL_PY=0; shift ;;
     --skip-packages) SKIP_PKGS=1; shift ;;
     --skip-splash)  SKIP_SPLASH=1; shift ;;
+    --skip-bms)     SKIP_BMS=1; shift ;;
     --dry-run)      DRY_RUN=1; shift ;;
     --no-reboot)    NO_REBOOT=1; shift ;;
     -h|--help)      usage; exit 0 ;;
@@ -181,6 +190,7 @@ done
 id -u "$KIOSK_USER" >/dev/null 2>&1 || die "no such user: $KIOSK_USER"
 KIOSK_HOME="$(getent passwd "$KIOSK_USER" | cut -d: -f6)"
 [[ -d "$KIOSK_HOME" ]] || die "home directory not found for $KIOSK_USER"
+WITTYPI_DIR="$KIOSK_HOME/wittypi"
 
 # Resolve the repo that the Python service runs from (default: this checkout).
 if [[ -z "$REPO_DIR" ]]; then
@@ -315,6 +325,9 @@ install_packages() {
     plymouth plymouth-themes rpd-plym-splash
     # Python venv tooling.
     python3-venv python3-full
+    # Witty Pi BMS: i2cget/i2cset/i2cdetect (i2c-tools); curl fetches UUGear's
+    # installer (which brings wiringPi for `gpio`).
+    i2c-tools curl
   )
 
   if [[ "$DISPLAY_MODE" == "spi35" ]]; then
@@ -422,6 +435,77 @@ EOF
 }
 
 # ---------------------------------------------------------------------------
+# 2d. Witty Pi 4 L3V7 battery management (BMS)
+# ---------------------------------------------------------------------------
+# We run UUGear's installer to get the wittypi daemon + wiringPi, but UWI (the
+# web UI: websocketd on :8000) is deliberately NOT installed -- it burns CPU
+# and battery for no benefit on a kiosk. The installer's single UWI line is
+# stripped before it runs, then UWI is defensively disabled in case an earlier
+# run installed it.
+#
+# Our overlay (scripts/wittypi/) then replaces utilities.sh -- the one change
+# is SYSUP_PIN 17 -> 16, freeing GPIO-17 for the panel's touch PENIRQ -- and
+# installs veil-bms.service + the veil-bms sampler, which publishes battery
+# rail/temperature as JSON for service/metrics.py to read.
+install_wittypi() {
+  if (( SKIP_BMS )); then
+    warn "--skip-bms: not installing the Witty Pi battery management"
+    return 0
+  fi
+  log "installing Witty Pi 4 L3V7 battery management"
+
+  local overlay_dir="$REPO_DIR/scripts/wittypi"
+  [[ -f "$overlay_dir/utilities.sh" && -f "$overlay_dir/veil-bms.sh" ]] \
+    || die "missing overlay files under $overlay_dir"
+
+  # I2C bus the Witty Pi talks over (it answers at 0x08 on i2c-1). UUGear's
+  # installer also enables i2c-dev; this covers the arm bus consistently.
+  if [[ -n "$BOOT_DIR" ]] && [[ -f "$BOOT_DIR/config.txt" ]]; then
+    cfg_add "dtparam=i2c_arm=on"
+  else
+    warn "no config.txt; cannot enable I2C for the Witty Pi"
+  fi
+
+  # 1) Fetch UUGear's installer, strip the UWI step, run it from the kiosk home
+  #    (the installer resolves its target dir and unzips relative to its CWD).
+  local patched="$KIOSK_HOME/.veil-wittypi-install.$$.sh" rc=0
+  if (( DRY_RUN )); then
+    printf '   [dry-run] fetch %s, strip installUWI, run in %s\n' "$WITTYPI_INSTALL_URL" "$KIOSK_HOME"
+    printf '   [dry-run] overlay utilities.sh -> %s/utilities.sh\n' "$WITTYPI_DIR"
+  else
+    if curl -fsSL "$WITTYPI_INSTALL_URL" -o "$patched"; then
+      sed -i -e '/installUWI\.sh/d' "$patched"
+      ( cd "$KIOSK_HOME" && bash "$patched" ) || rc=$?
+      (( rc == 0 )) || warn "UUGear installer exited $rc; continuing"
+    else
+      warn "could not fetch $WITTYPI_INSTALL_URL (offline?); assuming wittypi already installed"
+    fi
+    rm -f "$patched"
+  fi
+
+  # 2) Defensive suppression in case UWI was installed by a previous run.
+  run systemctl disable --now uwi 2>/dev/null || true
+  run update-rc.d -f uwi remove 2>/dev/null || true
+  run rm -f /etc/init.d/uwi
+  run pkill -f websocketd 2>/dev/null || true
+
+  # 3) Overlay our patched utilities.sh (SYSUP_PIN=16).
+  if [[ -d "$WITTYPI_DIR" ]] || (( DRY_RUN )); then
+    run install -m 0644 "$overlay_dir/utilities.sh" "$WITTYPI_DIR/utilities.sh"
+  else
+    warn "$WITTYPI_DIR not found; skipping utilities.sh overlay"
+  fi
+
+  # 4) BMS telemetry sampler + independent systemd unit.
+  run install -m 0755 "$overlay_dir/veil-bms.sh" /usr/local/bin/veil-bms
+  run mkdir -p /run/veil-bms
+  write_file /etc/systemd/system/veil-bms.service \
+    < <(sed "s|__WITTYPI_DIR__|$WITTYPI_DIR|" "$overlay_dir/veil-bms.service")
+  run systemctl daemon-reload
+  run systemctl enable --now veil-bms.service
+}
+
+# ---------------------------------------------------------------------------
 # 2c. SPI display services (3.5" panel): console + touchscreen
 # ---------------------------------------------------------------------------
 # Route A: X runs directly on the panel framebuffer (/dev/fb1) via the fbdev
@@ -476,8 +560,11 @@ Section "InputClass"
     MatchDevicePath "/dev/input/event*"
     Driver "evdev"
     Option "SwapAxes" "false"
+    # Raw X already increases left->right; raw Y is reversed (top reads high).
+    # Calibration maps the panel's measured raw range onto the full screen.
     Option "InvertX" "false"
-    Option "InvertY" "false"
+    Option "InvertY" "true"
+    Option "Calibration" "280 3905 268 3672"
 EndSection
 EOF
 }
@@ -880,8 +967,9 @@ EOF
 
   if (( ! DRY_RUN )); then
     local g
-    # dialout: serial access to the ESP32.
-    for g in video render input audio gpio dialout; do
+    # dialout: serial access to the ESP32. i2c/gpio: i2c-tools and wiringPi for
+    # the Witty Pi (the BMS service itself runs as root).
+    for g in video render input audio gpio i2c dialout; do
       getent group "$g" >/dev/null 2>&1 && usermod -aG "$g" "$KIOSK_USER"
     done
     chown "$KIOSK_USER":"$KIOSK_USER" "$xinitrc" "$profile" "$rcxml" "$ob_autostart" 2>/dev/null || true
@@ -924,6 +1012,13 @@ report() {
     printf '   backend    : %s\n' "$(systemctl is-enabled crimson-veil-backend.service 2>/dev/null || echo '?')"
   fi
 
+  if (( ! SKIP_BMS )) && (( ! DRY_RUN )); then
+    printf '   bms        : %s\n' "$(systemctl is-enabled veil-bms.service 2>/dev/null || echo '?')"
+    printf '   wittypi    : %s\n' "$([ -d "$WITTYPI_DIR" ] && echo "$WITTYPI_DIR" || echo 'MISSING')"
+    printf '   sysup pin  : %s\n' "$(grep -m1 'SYSUP_PIN=' "$WITTYPI_DIR/utilities.sh" 2>/dev/null | grep -oE 'SYSUP_PIN=[0-9]+' || echo '?')"
+    printf '   uwi        : %s\n' "$(systemctl is-enabled uwi 2>/dev/null || echo 'not installed')"
+  fi
+
   if [[ "$DISPLAY_MODE" == "spi35" ]] && (( ! DRY_RUN )); then
     # The 3.5" SPI panel bring-up: check the framebuffers, the driver, the
     # console bind and the touch device.
@@ -942,10 +1037,13 @@ Manual revert
   sudo cp -a ${BOOT_DIR}/config.txt.bak.${STAMP}  ${BOOT_DIR}/config.txt
   sudo plymouth-set-default-theme -R pix
   sudo systemctl disable --now veil-bootlog.service veil-splash-stop.service
-  sudo systemctl disable --now crimson-veil-backend.service veil-fbcon-off.service
+  sudo systemctl disable --now crimson-veil-backend.service veil-fbcon-off.service veil-bms.service
   sudo rm -rf /usr/share/plymouth/themes/${THEME_NAME}
   sudo rm -f ${BINARY_DEST} /etc/systemd/system/crimson-veil-backend.service
   sudo rm -f /etc/systemd/system/veil-fbcon-off.service
+  sudo rm -f /etc/systemd/system/veil-bms.service /usr/local/bin/veil-bms
+  sudo update-rc.d -f wittypi remove; sudo rm -f /etc/init.d/wittypi
+  rm -rf ${KIOSK_HOME}/wittypi /run/veil-bms
   sudo rm -f /etc/X11/xorg.conf.d/40-veil-touch.conf /etc/X11/xorg.conf.d/99-veil-fbdev.conf
   sudo raspi-config nonint do_boot_behaviour B1   # console login
   # then: rm ~/.xinitrc ~/.config/openbox/rc.xml  (keep ~/.bash_profile)
@@ -968,6 +1066,7 @@ main() {
   configure_spi_display
   install_fbcon_off
   install_touch_config
+  install_wittypi
   setup_splash
   setup_autostart
   report

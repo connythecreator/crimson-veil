@@ -42,13 +42,33 @@ def send_frame(points):
     emit({"type": "frame", "points": out})
 
 
-def send_telemetry(battery_pct, battery_charging, temp_c):
+def send_telemetry(temp_esp32_c=None, temp_ad5933_c=None):
+    # Battery state is owned by the Witty Pi BMS on the host, not the ESP32;
+    # telemetry carries only the on-chip temperatures here.
     emit(
         {
             "type": "telemetry",
-            "battery_pct": battery_pct,
-            "battery_charging": bool(battery_charging),
-            "temp_c": temp_c,
+            "temp_esp32_c": temp_esp32_c,
+            "temp_ad5933_c": temp_ad5933_c,
+        }
+    )
+
+
+def send_selftest_result(
+    ad5933,
+    mux,
+    temp_ad5933_c=None,
+    firmware=None,
+    error=None,
+):
+    emit(
+        {
+            "type": "selftest_result",
+            "firmware": firmware,
+            "ad5933": bool(ad5933),
+            "mux": bool(mux),
+            "temp_ad5933_c": temp_ad5933_c,
+            "error": error,
         }
     )
 

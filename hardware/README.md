@@ -23,8 +23,10 @@ ESP32  ──USB serial (115200)──  Python host (service/)
   the scan process** (the electrode pairs and their order) and **calibration**;
   the host does not send a plan and does not calibrate. Points come back in the
   front end's standard adjacent order, ready for the solver.
-- **`telemetry`** — returns the most recent battery/temperature reading the
-  ESP32 has pushed (used by the kiosk status bar, with a sysfs fallback).
+- **`telemetry`** — returns the most recent on-chip temperature reading the
+  ESP32 has pushed (`temp_esp32_c`, `temp_ad5933_c`). **Battery** state is no
+  longer reported here: it is owned by the **Witty Pi 4 L3V7 BMS** on the host
+  (see below and `service/metrics.py`).
 
 The ESP32 runs **single-shot** scans only; continuous mode is a host concern and
 lives in `service/`.
@@ -38,13 +40,15 @@ authoritative description; the firmware must match it.
 |---|---|
 | `{"type":"identify"}` | ask the ESP32 to (re-)announce itself |
 | `{"type":"scan"}` | execute one single-shot scan (optional `"f": Hz` to override the frequency) |
+| `{"type":"selftest"}` | verify the AD5933 + mux and report `selftest_result` |
 | `{"type":"stop"}` | abort / release |
 
 | ESP32 → host | purpose |
 |---|---|
 | `{"type":"hello","firmware":str,"n_electrodes":int,"electrodes":[…],"sweep_hz":float}` | sent unsolicited on boot, and in reply to `identify` |
 | `{"type":"frame","points":[{"n":int,"f":Hz,"re":float,"im":float}, …]}` | one frame, the firmware's adjacent sequence, `n` = index in that sequence |
-| `{"type":"telemetry","battery_pct":float\|null,"battery_charging":bool,"temp_c":float\|null}` | periodic battery/temperature |
+| `{"type":"telemetry","temp_esp32_c":float\|null,"temp_ad5933_c":float\|null}` | periodic on-chip temperatures |
+| `{"type":"selftest_result","firmware":str,"ad5933":bool,"mux":bool,"temp_ad5933_c":float\|null,"error":str\|null}` | reply to `selftest` |
 | `{"type":"error","message":str}` | a fault the host should surface |
 
 ## Configuration
@@ -59,6 +63,50 @@ authoritative description; the firmware must match it.
 Install the device dependency with `requirements-pi.txt` (`pyserial`). The
 service account needs access to the serial device (add it to the `dialout`
 group).
+
+## Witty Pi 4 L3V7 battery management (BMS)
+
+Power and battery are managed by a **Witty Pi 4 L3V7** HAT (UUGear). It has no
+coulomb-counter fuel gauge: it measures the battery/rail voltage and output
+current, reads an LM75B temperature, and enforces a configurable low-voltage
+shutdown. `scripts/setup-pi-kiosk.sh` (`install_wittypi`) installs UUGear's
+software with our overlay:
+
+- **`scripts/wittypi/`** — a patched `utilities.sh` (**only** change:
+  `SYSUP_PIN` 17 → 16), the `veil-bms.sh` sampler and `veil-bms.service`.
+- **UWI is suppressed.** UUGear's installer normally ends by installing UWI (a
+  `websocketd` web UI on :8000); the setup script strips that step and
+  defensively disables any pre-existing `uwi` unit.
+
+### Pin map (BCM)
+
+| signal | GPIO | notes |
+|---|---|---|
+| HALT | 4 | host shutdown request to the Witty Pi |
+| SYS_UP | **16** | Witty Pi wake pulse — moved off 17 (see below) |
+| CHRG | 5 | charging (active-low input) |
+| STDBY | 6 | charge-complete (active-low input) |
+| I²C (SDA/SCL) | 2 / 3 | Witty Pi answers at **0x08** |
+
+**GPIO-17 is the 3.5" panel's XPT2046 touch PENIRQ**, so SYS_UP must move to 16
+(hardware trace + `SYSUP_PIN` in `utilities.sh`). GPIO-14 (the Witty Pi's
+monitor/TXD) is unused here.
+
+### `veil-bms.service`
+
+An **independent** systemd unit (does not depend on the kiosk or backend, so
+battery management survives a UI crash). `veil-bms.sh` samples every 5 s and
+writes an atomic JSON snapshot to `/run/veil-bms/telemetry.json`:
+
+```
+{ ts, power_mode (0=USB, else battery), vin_v, vout_v (5 V rail), iout_a,
+  temp_c (LM75B), charging, standby, low_v }
+```
+
+`service/metrics.py` reads it, estimates **state-of-charge** and **runtime**
+from voltage + draw (anchored at `low_v` = 0 %), and merges in the ESP32 and
+Pi temperatures. Override the cell with `CV_BATTERY_MAH` (default 6000) /
+`CV_BATTERY_FULL_V` (default 4.20) / `CV_BATTERY_LOW_V` (default 3.30).
 
 ## Cautions
 

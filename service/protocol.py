@@ -19,6 +19,7 @@ Client -> service messages::
     {"type": "activity"}                      # user interaction; sets active state
     {"type": "stop"}
     {"type": "set_frequency", "frequency_hz": float}
+    {"type": "self_test"}
     {"type": "ping"}
 
 Service -> client messages::
@@ -32,7 +33,13 @@ Service -> client messages::
     {"type": "scan_error", "id": str, "message": str}
     {"type": "state", "continuous": bool, "scanning": bool, "interval_s": float}
     {"type": "metrics", "battery_pct": float|null, "battery_charging": bool,
-     "temp_c": float|null}
+     "on_battery": bool, "battery_v": float|null, "runtime_s": int|null,
+     "low_v": float|null, "temp_wittypi_c": float|null,
+     "temp_esp32_c": float|null, "temp_ad5933_c": float|null,
+     "temp_pi_c": float|null}
+    {"type": "self_test_result",
+     "checks": [{"name": str, "status": "pass"|"fail"|"warn"|"skip",
+                 "detail": str}, ...]}
     {"type": "pong"}
 
 Continuous mode debounces between scans: after each scan the service waits
@@ -87,6 +94,11 @@ class Stop:
 class SetFrequency:
     frequency_hz: float = 0.0
     type: str = field(default="set_frequency", init=False)
+
+
+@dataclass
+class SelfTest:
+    type: str = field(default="self_test", init=False)
 
 
 @dataclass
@@ -147,8 +159,28 @@ class State:
 class Metrics:
     battery_pct: float | None = None
     battery_charging: bool = False
-    temp_c: float | None = None
+    on_battery: bool = False
+    battery_v: float | None = None
+    runtime_s: int | None = None
+    low_v: float | None = None
+    temp_wittypi_c: float | None = None
+    temp_esp32_c: float | None = None
+    temp_ad5933_c: float | None = None
+    temp_pi_c: float | None = None
     type: str = field(default="metrics", init=False)
+
+
+@dataclass
+class Check:
+    name: str
+    status: str  # pass | fail | warn | skip
+    detail: str = ""
+
+
+@dataclass
+class SelfTestResult:
+    checks: list[Check] = field(default_factory=list)
+    type: str = field(default="self_test_result", init=False)
 
 
 @dataclass

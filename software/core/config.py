@@ -40,6 +40,15 @@ KIOSK_WIDTH = 480
 KIOSK_HEIGHT = 320
 
 
+def override(*, hardware: str | None = None, solver: str | None = None) -> None:
+    """Override the selected backends at runtime (used by ``server --dev``)."""
+    global HARDWARE_BACKEND, SOLVER_BACKEND
+    if hardware is not None:
+        HARDWARE_BACKEND = hardware
+    if solver is not None:
+        SOLVER_BACKEND = solver
+
+
 def device_config(backend: str | None = None) -> DeviceConfig:
     """Build a :class:`DeviceConfig` from the current suite settings."""
     return DeviceConfig(

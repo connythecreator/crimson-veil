@@ -6,9 +6,9 @@ use eframe::egui;
 use egui::{Color32, ColorImage, TextureHandle, TextureOptions};
 
 use crate::fx::ScanFx;
-use crate::hud;
+use crate::hud::{self, Action};
 use crate::net::{Net, NetEvent};
-use crate::protocol::{ClientMessage, ServerMessage};
+use crate::protocol::{Check, ClientMessage, ServerMessage};
 
 pub const FPS: u64 = 15;
 pub const FRAME: Duration = Duration::from_millis(1000 / FPS);
@@ -101,9 +101,20 @@ pub enum Page {
     Calibration,
 }
 
+/// Pre-start self-test, or the main HUD.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Phase {
+    SelfTest,
+    Main,
+}
+
 pub struct AppState {
     pub connection: Connection,
     pub page: Page,
+    pub phase: Phase,
+    pub checks: Vec<Check>,
+    pub self_test_running: bool,
+    pub self_test_done: bool,
     pub backend: String,
     pub solver: String,
     pub n_electrodes: u32,
@@ -120,7 +131,14 @@ pub struct AppState {
     // Device metrics.
     pub battery_pct: Option<f32>,
     pub battery_charging: bool,
-    pub temp_c: Option<f32>,
+    pub on_battery: bool,
+    pub battery_v: Option<f32>,
+    pub runtime_s: Option<u32>,
+    pub low_v: Option<f32>,
+    pub temp_wittypi_c: Option<f32>,
+    pub temp_esp32_c: Option<f32>,
+    pub temp_ad5933_c: Option<f32>,
+    pub temp_pi_c: Option<f32>,
 }
 
 impl Default for AppState {
@@ -128,6 +146,10 @@ impl Default for AppState {
         Self {
             connection: Connection::Connecting,
             page: Page::Scan,
+            phase: Phase::SelfTest,
+            checks: Vec::new(),
+            self_test_running: false,
+            self_test_done: false,
             backend: "connecting...".into(),
             solver: "-".into(),
             n_electrodes: 8,
@@ -143,7 +165,14 @@ impl Default for AppState {
             frames: 0,
             battery_pct: None,
             battery_charging: false,
-            temp_c: None,
+            on_battery: false,
+            battery_v: None,
+            runtime_s: None,
+            low_v: None,
+            temp_wittypi_c: None,
+            temp_esp32_c: None,
+            temp_ad5933_c: None,
+            temp_pi_c: None,
         }
     }
 }
@@ -181,30 +210,46 @@ pub struct KioskApp {
     state: AppState,
     texture: Option<TextureHandle>,
     pending_image: Option<ColorImage>,
-    fx:ScanFx,
-    auto_started: bool,
+    fx: ScanFx,
+    dev: bool,
+    self_test_requested: bool,
+    self_test_started: Instant,
     started: Instant,
 }
 
 impl KioskApp {
-    pub fn new(url: &str) -> Self {
+    pub fn new(url: &str, dev: bool) -> Self {
+        let mut state = AppState::default();
+        if dev {
+            // Mock visuals: skip the hardware gate entirely.
+            state.phase = Phase::Main;
+        }
         Self {
             net: Net::new(url),
-            state: AppState::default(),
+            state,
             texture: None,
             pending_image: None,
             fx: ScanFx::default(),
-            auto_started: false,
+            dev,
+            self_test_requested: false,
+            self_test_started: Instant::now(),
             started: Instant::now(),
         }
     }
 
     fn handle(&mut self, event: NetEvent) {
         match event {
-            NetEvent::Connected => self.state.connection = Connection::Connected,
+            NetEvent::Connected => {
+                self.state.connection = Connection::Connected;
+                self.request_self_test();
+            }
             NetEvent::Disconnected => {
                 self.state.connection = Connection::Connecting;
                 self.state.boot_error = None;
+                self.state.scanning = false;
+                self.fx.abort();
+                // Allow a fresh request when the service reconnects.
+                self.self_test_requested = false;
             }
             NetEvent::Server(msg) => self.handle_server(msg),
             NetEvent::Image { id, width, height, png } => match image::load_from_memory(&png) {
@@ -232,24 +277,29 @@ impl KioskApp {
                 self.state.n_electrodes = msg.n_electrodes;
                 self.state.frequency_hz = msg.frequency_hz;
                 self.state.boot_error = None;
-                if !self.auto_started {
-                    self.auto_started = true;
-                    self.net.send(&ClientMessage::Continuous {
-                        on: true,
-                        active_interval_s: self.state.active_interval_s,
-                        idle_interval_s: self.state.idle_interval_s,
-                    });
-                }
+            }
+            "self_test_result" => {
+                self.state.checks = msg.checks;
+                self.state.self_test_running = false;
+                self.state.self_test_done = true;
             }
             "metrics" => {
                 self.state.battery_pct = msg.battery_pct;
                 self.state.battery_charging = msg.battery_charging;
-                self.state.temp_c = msg.temp_c;
+                self.state.on_battery = msg.on_battery;
+                self.state.battery_v = msg.battery_v;
+                self.state.runtime_s = msg.runtime_s;
+                self.state.low_v = msg.low_v;
+                self.state.temp_wittypi_c = msg.temp_wittypi_c;
+                self.state.temp_esp32_c = msg.temp_esp32_c;
+                self.state.temp_ad5933_c = msg.temp_ad5933_c;
+                self.state.temp_pi_c = msg.temp_pi_c;
             }
             "boot_error" => self.state.boot_error = Some(msg.message),
             "scan_error" => {
                 self.state.last_error = Some(msg.message);
                 self.state.scanning = false;
+                self.fx.abort();
             }
             "progress" => {
                 self.state.scanning = true;
@@ -260,6 +310,10 @@ impl KioskApp {
                 self.state.scanning = msg.scanning;
                 if msg.scanning {
                     self.fx.start_scan();
+                } else if !msg.continuous {
+                    // Stopped: any cancelled acquisition will never deliver a
+                    // frame, so clear the pulsing field.
+                    self.fx.abort();
                 }
             }
             "scan_result" => {
@@ -268,6 +322,52 @@ impl KioskApp {
             }
             _ => {}
         }
+    }
+
+    fn request_self_test(&mut self) {
+        if self.dev || self.state.phase != Phase::SelfTest || self.self_test_requested {
+            return;
+        }
+        if !self.net.is_connected() {
+            return;
+        }
+        self.self_test_requested = true;
+        self.state.self_test_running = true;
+        self.state.self_test_done = false;
+        self.state.checks.clear();
+        self.self_test_started = Instant::now();
+        self.net.send(&ClientMessage::SelfTest);
+    }
+
+    /// Ask the service for one single-shot scan.
+    fn send_scan(&mut self) {
+        if self.state.continuous || self.state.scanning {
+            return;
+        }
+        self.state.scanning = true;
+        self.state.last_error = None;
+        self.fx.start_scan();
+        self.net.send(&ClientMessage::Scan {
+            id: format!("kiosk-{}", self.state.scan_count + 1),
+        });
+    }
+
+    /// Toggle continuous ("monitor") mode.
+    fn toggle_monitor(&mut self) {
+        let on = !self.state.continuous;
+        self.state.continuous = on;
+        if on {
+            self.state.last_error = None;
+        } else {
+            // Cancelled mid-scan: no result will arrive.
+            self.state.scanning = false;
+            self.fx.abort();
+        }
+        self.net.send(&ClientMessage::Continuous {
+            on,
+            active_interval_s: self.state.active_interval_s,
+            idle_interval_s: self.state.idle_interval_s,
+        });
     }
 }
 
@@ -289,6 +389,20 @@ impl eframe::App for KioskApp {
             self.handle(event);
         }
 
+        // Self-test screen: a tap continues once results are in, or retries the
+        // request if the service has not answered yet.
+        if self.state.phase == Phase::SelfTest {
+            let clicked = ctx.input(|i| i.pointer.any_click());
+            if clicked {
+                if self.state.self_test_done {
+                    self.state.phase = Phase::Main;
+                } else if self.self_test_started.elapsed() > Duration::from_secs(12) {
+                    self.self_test_requested = false;
+                    self.request_self_test();
+                }
+            }
+        }
+
         self.fx.tick();
         // Keep repainting faster than the pacing cadence while an effect runs,
         // so the field/dissolve animate smoothly.
@@ -298,6 +412,7 @@ impl eframe::App for KioskApp {
             let size = color.size;
             self.texture = Some(ctx.load_texture("scan", color, TextureOptions::LINEAR));
             self.state.scan_count += 1;
+            self.state.scanning = false;
             self.state.last_result = Some(Instant::now());
             self.state.last_error = None;
             // Hold the field for its minimum time, then dissolve the image in.
@@ -308,7 +423,14 @@ impl eframe::App for KioskApp {
         ctx.set_visuals(egui::Visuals::dark());
         let screen = ctx.screen_rect();
         let time_s = self.started.elapsed().as_secs_f32();
-        hud::draw(ctx, screen, &mut self.state, &self.fx, time_s, self.texture.as_ref());
+        if let Some(action) =
+            hud::draw(ctx, screen, &mut self.state, &self.fx, time_s, self.texture.as_ref())
+        {
+            match action {
+                Action::Scan => self.send_scan(),
+                Action::ToggleMonitor => self.toggle_monitor(),
+            }
+        }
 
         self.state.frames += 1;
         // Frame pacing: repaint at FPS while idle; a smoother cadence while an

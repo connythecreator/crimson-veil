@@ -20,7 +20,7 @@ software/               Python suite
 service/                WebSocket control surface over software.pipeline
   server.py             asyncio ws server (owns the backends)
   session.py            boot + single-flight scan session
-  metrics.py            battery/temperature (ESP32 telemetry + sysfs fallback)
+  metrics.py            battery (Witty Pi BMS) + temps (ESP32/Pi sysfs)
   protocol.py           wire protocol (mirrored by kiosk-rs/src/protocol.rs)
 kiosk-rs/               native Rust/eframe kiosk UI (full vector HUD)
 hardware/               ESP32 hardware backend (USB serial)

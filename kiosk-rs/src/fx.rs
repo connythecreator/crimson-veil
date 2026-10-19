@@ -16,6 +16,9 @@ const CELLS: usize = GRID * GRID;
 const MIN_ACQUIRE_SECS: f32 = 3.0; // minimum time to show the field
 const REVEAL_SECS: f32 = 1.4; // duration of the dissolve
 const DOT_SPEED: f32 = 3.0; // radians/second for the pulse
+// Safety net: if a scan result never arrives (cancelled/stopped), never leave
+// the red acquisition lattice pulsing forever.
+const MAX_ACQUIRE_SECS: f32 = 20.0;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 enum Phase {
@@ -29,6 +32,7 @@ pub struct ScanFx {
     phase: Phase,
     since: Instant,
     reveal_pending: bool,
+    has_image: bool,
     order: Vec<u16>,
     seed: u32,
 }
@@ -39,6 +43,7 @@ impl Default for ScanFx {
             phase: Phase::Idle,
             since: Instant::now(),
             reveal_pending: false,
+            has_image: false,
             order: (0..CELLS as u16).collect(),
             seed: 0x1234_5678,
         };
@@ -90,6 +95,25 @@ impl ScanFx {
         self.phase = Phase::Revealing;
         self.since = Instant::now();
         self.reveal_pending = false;
+        self.has_image = true;
+    }
+
+    /// Abandon an in-flight acquisition that will not produce a result (a
+    /// cancelled/stopped scan). Returns to the last image if one exists, or to
+    /// idle, so the red lattice stops pulsing.
+    pub fn abort(&mut self) {
+        match self.phase {
+            Phase::Acquiring => {
+                self.phase = if self.has_image {
+                    Phase::Revealed
+                } else {
+                    Phase::Idle
+                };
+            }
+            Phase::Revealing => self.phase = Phase::Revealed,
+            _ => {}
+        }
+        self.reveal_pending = false;
     }
 
     /// Advance phase transitions; call once per frame.
@@ -98,6 +122,9 @@ impl ScanFx {
             Phase::Acquiring if self.reveal_pending && self.elapsed() >= MIN_ACQUIRE_SECS => {
                 self.begin_reveal();
             }
+            // Never leave the acquisition animation running forever if the
+            // result is dropped (e.g. the continuous task was cancelled).
+            Phase::Acquiring if self.elapsed() >= MAX_ACQUIRE_SECS => self.abort(),
             Phase::Revealing if self.reveal_progress() >= 1.0 => {
                 self.phase = Phase::Revealed;
             }
@@ -173,6 +200,16 @@ mod tests {
         // Held in acquiring until the minimum time elapses (no fake clock, so
         // immediately after on_result the reveal has not begun).
         assert!(fx.is_scanning());
+    }
+
+    #[test]
+    fn abort_clears_a_stuck_acquire() {
+        let mut fx = ScanFx::default();
+        fx.start_scan();
+        assert!(fx.is_scanning());
+        fx.abort();
+        assert!(!fx.is_scanning());
+        assert!(!fx.image_available());
     }
 
     #[test]
