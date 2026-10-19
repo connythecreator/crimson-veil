@@ -11,7 +11,8 @@ The ESP32 is the primary interface between the hardware and the Python suite:
   the plan the host sends and returns one frame. It does **not** loop —
   continuous scanning is implemented by the host.
 
-It also reports **battery** and **temperature** telemetry.
+It also reports **temperature** telemetry (its own die and the AD5933). Battery
+state is owned by the Witty Pi BMS on the host, not by the ESP32.
 
 ## Protocol
 
@@ -24,7 +25,10 @@ The sketch must speak the line-delimited JSON protocol documented in
 - On `{"type":"scan"}`: run the fixed adjacent scan once, then send
   `{"type":"frame","points":[{"n":…,"f":…,"re":…,"im":…}, …]}` (one point per
   measurement, in pyEIT's standard adjacent order).
-- Periodically: send `{"type":"telemetry", …}` with battery/temperature.
+- Periodically: send `{"type":"telemetry","temp_esp32_c":…,"temp_ad5933_c":…}`.
+- On `{"type":"selftest"}`: verify the AD5933 responds (temperature) and the mux
+  bank can be addressed, then send
+  `{"type":"selftest_result","firmware":…,"ad5933":bool,"mux":bool,"temp_ad5933_c":…,"error":…}`.
 - On any fault: send `{"type":"error","message":…}`.
 
 The host (`hardware/esp32.py`) is the reference implementation of the other

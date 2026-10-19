@@ -164,3 +164,21 @@ def test_activity_keeps_active_interval(session):
                 await ws.send(protocol.encode(protocol.Stop()))
 
     asyncio.run(run())
+
+
+def test_self_test_result_shape(session):
+    async def run():
+        server = ControlServer(session)
+        port = _free_port()
+        async with serve(server.handler, "127.0.0.1", port, max_size=None):
+            async with connect(f"ws://127.0.0.1:{port}") as ws:
+                await _recv_type(ws, "ready")
+                await ws.send(protocol.encode(protocol.SelfTest()))
+                msg = await _recv_type(ws, "self_test_result")
+                checks = {c["name"]: c for c in msg["checks"]}
+                assert checks["Belt Controller (ESP)"]["status"] == "skip"
+                assert checks["Impedance Subsystem"]["status"] == "skip"
+                assert checks["PyEIT"]["status"] == "fail"
+                assert checks["Control Service"]["status"] == "pass"
+
+    asyncio.run(run())

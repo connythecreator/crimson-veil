@@ -15,14 +15,18 @@ Wire protocol (line-delimited JSON, one object per line, USB CDC at 115200):
 
     host -> esp   {"type": "identify"}
                   {"type": "scan"}                 # optional "f": <Hz>
+                  {"type": "selftest"}
                   {"type": "stop"}
     esp  -> host  {"type": "hello", "firmware": str, "n_electrodes": int,
                    "electrodes": [int, ...], "sweep_hz": float}
-                  {"type": "frame", "points": [{"n": int, "f": Hz,
-                                   "re": float, "im": float}, ...]}
-                  {"type": "telemetry", "battery_pct": float|null,
-                   "battery_charging": bool, "temp_c": float|null}
-                  {"type": "error", "message": str}
+                   {"type": "frame", "points": [{"n": int, "f": Hz,
+                                    "re": float, "im": float}, ...]}
+                   {"type": "telemetry", "temp_esp32_c": float|null,
+                    "temp_ad5933_c": float|null}
+                   {"type": "selftest_result", "firmware": str,
+                    "ad5933": bool, "mux": bool,
+                    "temp_ad5933_c": float|null, "error": str|null}
+                   {"type": "error", "message": str}
 
 `hello` is sent unsolicited on boot and again in reply to `identify`; the
 backend learns `n_electrodes` and the scan frequency from it. `frame` carries
@@ -174,8 +178,8 @@ class Esp32Hardware:
 
         Reads any lines already buffered (non-blocking) so periodic telemetry
         frames update the cache without delaying a scan. Fields are
-        ``battery_pct`` (float|None), ``battery_charging`` (bool) and
-        ``temp_c`` (float|None).
+        ``temp_esp32_c`` (float|None) and ``temp_ad5933_c`` (float|None).
+        Battery state is owned by the Witty Pi BMS on the host, not here.
         """
         while self._transport is not None:
             try:
@@ -185,6 +189,36 @@ class Esp32Hardware:
             if msg.get("type") == "telemetry":
                 self._telemetry = msg
         return dict(self._telemetry)
+
+    def probe(self) -> dict:
+        """Ask the ESP32 to re-announce itself (a live connectivity check)."""
+        if not self._open or self._transport is None:
+            raise Esp32Error("ESP32 is not open")
+        hello = self._await("hello", self._timeout, send={"type": "identify"})
+        self._apply_hello(hello)
+        return hello
+
+    def selftest(self) -> dict:
+        """Ask the firmware to verify the AD5933 and mux bank."""
+        if not self._open or self._transport is None:
+            raise Esp32Error("ESP32 is not open")
+        self._transport.write_line(json.dumps({"type": "selftest"}))
+
+        deadline = time.monotonic() + self._timeout
+        while True:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                raise Esp32Error("timed out waiting for selftest result")
+            msg = self._read(timeout=remaining)
+            kind = msg.get("type")
+            if kind == "selftest_result":
+                return msg
+            if kind == "telemetry":
+                self._telemetry = msg
+                continue
+            if kind == "error":
+                raise Esp32Error(str(msg.get("message", "unknown ESP32 error")))
+            # Ignore anything else (e.g. a stray hello).
 
     # --- internals --------------------------------------------------------
 

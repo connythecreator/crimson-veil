@@ -35,10 +35,18 @@ N_ELECTRODES = 8
 ESP32_PORT = os.environ.get("CV_ESP32_PORT", "/dev/ttyACM0")
 ESP32_BAUD = int(os.environ.get("CV_ESP32_BAUD", "115200"))
 
-# Kiosk display: typical 3.5" Raspberry Pi panel (unused by the Rust kiosk,
-# which is 800x480; kept for reference/tools).
+# Kiosk display: the 3.5" SPI panel is 480x320; kept for reference/tools.
 KIOSK_WIDTH = 480
 KIOSK_HEIGHT = 320
+
+
+def override(*, hardware: str | None = None, solver: str | None = None) -> None:
+    """Override the selected backends at runtime (used by ``server --dev``)."""
+    global HARDWARE_BACKEND, SOLVER_BACKEND
+    if hardware is not None:
+        HARDWARE_BACKEND = hardware
+    if solver is not None:
+        SOLVER_BACKEND = solver
 
 
 def device_config(backend: str | None = None) -> DeviceConfig:

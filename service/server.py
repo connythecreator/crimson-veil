@@ -27,7 +27,9 @@ import uuid
 from websockets.asyncio.server import ServerConnection, serve
 from websockets.exceptions import ConnectionClosed
 
-from . import metrics, protocol
+from software.core import config
+
+from . import metrics, protocol, selftest
 from .session import BusyError, ScanSession
 
 log = logging.getLogger("crimson-veil.service")
@@ -118,6 +120,16 @@ class ControlServer:
                 # Debounced: run a scan, wait active/idle interval, repeat.
                 while True:
                     if self._session.booted:
+                        # Announce the acquisition *before* it runs so the
+                        # kiosk starts its field animation at the right time.
+                        await self._send_json(
+                            ws,
+                            protocol.State(
+                                continuous=True,
+                                scanning=True,
+                                interval_s=active_interval_s,
+                            ),
+                        )
                         await self._run_scan(ws, uuid.uuid4().hex)
                     recent = (time.monotonic() - last_activity) < ACTIVITY_TIMEOUT_S
                     interval = active_interval_s if recent else idle_interval_s
@@ -171,7 +183,7 @@ class ControlServer:
                         ws,
                         protocol.State(
                             continuous=continuous,
-                            scanning=bool(scan_task),
+                            scanning=False,
                             interval_s=active_interval_s,
                         ),
                     )
@@ -191,6 +203,15 @@ class ControlServer:
                         await self._send_json(ws, protocol.Ready(**self._session.ready_payload()))
                     except ValueError as exc:
                         await self._send_json(ws, protocol.ScanError(id="", message=str(exc)))
+                elif kind == "self_test":
+                    checks = await asyncio.to_thread(selftest.run_self_test, self._session)
+                    await self._send_json(ws, protocol.SelfTestResult(checks=checks))
+                    # The retry inside the self-test may have booted hardware
+                    # that was absent when this client connected.
+                    if self._session.booted:
+                        await self._send_json(
+                            ws, protocol.Ready(**self._session.ready_payload())
+                        )
                 elif kind == "ping":
                     await self._send_json(ws, protocol.Pong())
                 else:
@@ -233,7 +254,15 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="service.server", description=__doc__)
     parser.add_argument("--host", default=DEFAULT_HOST)
     parser.add_argument("--port", type=int, default=DEFAULT_PORT)
+    parser.add_argument(
+        "--dev",
+        action="store_true",
+        help="force the sim hardware + stub solver (mock visuals, no devices)",
+    )
     args = parser.parse_args(argv)
+    if args.dev:
+        config.override(hardware="sim", solver="stub")
+        log.warning("--dev: using the sim hardware and stub solver")
     with contextlib.suppress(KeyboardInterrupt):
         asyncio.run(_amain(args.host, args.port))
     return 0

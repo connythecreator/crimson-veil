@@ -20,7 +20,7 @@ software/               Python suite
 service/                WebSocket control surface over software.pipeline
   server.py             asyncio ws server (owns the backends)
   session.py            boot + single-flight scan session
-  metrics.py            battery/temperature (ESP32 telemetry + sysfs fallback)
+  metrics.py            battery (Witty Pi BMS) + temps (ESP32/Pi sysfs)
   protocol.py           wire protocol (mirrored by kiosk-rs/src/protocol.rs)
 kiosk-rs/               native Rust/eframe kiosk UI (full vector HUD)
 hardware/               ESP32 hardware backend (USB serial)
@@ -92,7 +92,18 @@ splash is retained (`plymouth quit --retain-splash`) right up to the X
 handover. It also installs the Python control service as
 `crimson-veil-backend.service`. It is idempotent and backs up every file it
 touches; see `--help` for flags (`--dry-run`, `--skip-splash`, `--no-pip`,
-...).
+`--display`, ...).
+
+### Display: 3.5" SPI panel (default) or 7" DSI/HDMI
+
+`--display spi35` (default) lights the **3.5" 480x320 SPI panel (CE04868 /
+ILI9486 class)**. The vc4 GPU renders the kiosk at native 480x320 with hardware
+GL and `veil-fbcp` (a small, self-contained fb-copy daemon; source in
+`scripts/veil-fbcp.c`) mirrors `/dev/fb0` (vc4) to `/dev/fb1` (fbtft SPI). The
+resistive XPT2046 touchscreen is bound for input. This does **not** use
+fbcp-ili9341, which is DispmanX/32-bit-only and dead on Trixie 64-bit.
+
+`--display dsi7` keeps the original 7" 800x480 DSI/HDMI KMS panel (no mirror).
 
 > Plymouth can only show one surface, so a stock theme cannot show a logo and
 > scrolling console text together. The custom theme instead draws the PNG and

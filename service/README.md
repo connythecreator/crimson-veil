@@ -31,7 +31,8 @@ mirrors it in `kiosk-rs/src/protocol.rs`.
 | kiosk → service | `continuous` | `on`, `active_interval_s`, `idle_interval_s` |
 | kiosk → service | `activity` | — (user interaction; keeps the active interval) |
 | kiosk → service | `stop` | — |
-| kiosk → service | `set_freqs` | `frequencies_hz` |
+| kiosk → service | `set_frequency` | `frequency_hz` |
+| kiosk → service | `self_test` | — (runs the pre-start hardware checks) |
 | kiosk → service | `ping` | — |
 | service → kiosk | `ready` | `backend`, `solver`, `n_electrodes`, `frequencies_hz` |
 | service → kiosk | `boot_error` | `message` |
@@ -39,7 +40,8 @@ mirrors it in `kiosk-rs/src/protocol.rs`.
 | service → kiosk | `scan_result` | `id`, `width`, `height`, `bytes` (+ binary PNG) |
 | service → kiosk | `scan_error` | `id`, `message` |
 | service → kiosk | `state` | `continuous`, `scanning`, `interval_s` |
-| service → kiosk | `metrics` | `battery_pct`, `battery_charging`, `temp_c` (every 5 s) |
+| service → kiosk | `metrics` | `battery_pct`, `battery_charging`, `on_battery`, `battery_v`, `runtime_s`, `low_v`, `temp_wittypi_c`, `temp_esp32_c`, `temp_ad5933_c`, `temp_pi_c` (every 5 s) |
+| service → kiosk | `self_test_result` | `checks: [{name, status, detail}, …]` |
 | service → kiosk | `pong` | — |
 
 ## Design
@@ -53,9 +55,23 @@ mirrors it in `kiosk-rs/src/protocol.rs`.
   (defaults 60 s active / 120 s idle). It repeats until `stop` or disconnect.
 - If boot fails the server still serves, replying `boot_error`; scans fall back
   to the configured sim defaults so the UI degrades rather than dies.
-- A background task broadcasts `metrics` (battery + SoC temperature) every 5 s
-  from `metrics.py`, which reads standard sysfs nodes (best-effort; `null` when
-  absent).
+- **Self-test** (`selftest.py`) runs on `self_test`: it retries `session.boot()`
+  once (so hot-plugged hardware can come up), then reports `Battery` (Witty Pi
+  BMS freshness), `Belt Controller (ESP)` (ESP `identify`/`hello`),
+  `Impedance Subsystem` (firmware `selftest`: AD5933 + mux), `PyEIT`
+  (installed/selected) and `Control Service`. Failures are reported, not raised.
+- `python -m service.server --dev` forces the **sim** hardware + **stub** solver
+  for mock visuals (pair with `crimson-veil-kiosk --dev`).
+- A background task broadcasts `metrics` every 5 s from `metrics.py`. Battery
+  comes from the **Witty Pi BMS** snapshot (`/run/veil-bms/telemetry.json`),
+  with state-of-charge and runtime *estimated* from voltage + draw (the L3V7 has
+  no fuel gauge); 0 % is anchored at the configured low-voltage threshold.
+  Temperatures come from the Witty Pi LM75B, the ESP32 and AD5933 (via ESP32
+  telemetry) and the Pi SoC sysfs zone. All values are best-effort (`null` when
+  absent); a sysfs battery fallback keeps a bare laptop/dev host working.
+- Runtime **undershoots**: it reports the *lowest* estimate seen in the last
+  `CV_RUNTIME_WINDOW_S` (default 300 s) so the indicator never overpromises. A
+  boot-time voltage sag can therefore pin it low until that sample ages out.
 
 ## Test
 
