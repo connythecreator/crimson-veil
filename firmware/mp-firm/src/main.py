@@ -15,19 +15,20 @@ from ad5933_driver import AD5933, OUTPUT_RANGE_2VPP, PGA_GAIN_1, AD5933Error
 # configuration
 FIRMWARE_VERSION = "1.0.0"
 
-# On-device flag written by the uploader; --mock also works under CPython.
+# On-device configuration written by the uploader; --mock also works under CPython.
 try:
-    from board_config import USE_MOCK
+    from board_config import N_ELECTRODES, USE_MOCK
 except ImportError:  # host/CI without board_config.py
     USE_MOCK = False
+    N_ELECTRODES = 8
 
 
 def _mock_mode():
     return USE_MOCK or "--mock" in getattr(sys, "argv", [])
 
-#eletrode defaults
-N_ELECTRODES = 8
 SUPPORTED_ELECTRODE_COUNTS = (4, 8, 16)
+if N_ELECTRODES not in SUPPORTED_ELECTRODE_COUNTS:
+    raise ValueError(f"unsupported N_ELECTRODES: {N_ELECTRODES!r}")
 
 SWEEP_HZ = 50_000.0
 
@@ -271,7 +272,9 @@ def main():
     if _mock_mode():
         from mock_ad5933 import MockAD5933, MockMux
 
-        firmware = Firmware(MockAD5933(), mux=MockMux())
+        firmware = Firmware(
+            MockAD5933(n_electrodes=N_ELECTRODES), mux=MockMux()
+        )
         firmware.boot()
         firmware.run()
         return

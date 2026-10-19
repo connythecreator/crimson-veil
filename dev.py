@@ -75,12 +75,15 @@ def cmd_upload_firmware(args: argparse.Namespace) -> int:
     from hardware.firmware_upload import upload_firmware
 
     try:
-        result = upload_firmware(port=args.port, mock=args.mock)
+        result = upload_firmware(
+            port=args.port, mock=args.mock, electrodes=args.electrodes
+        )
     except Exception as exc:  # noqa: BLE001
         print(f"upload failed: {type(exc).__name__}: {exc}")
         return 1
     print(
-        f"uploaded to {result['port']} (mock={result['mock']}): "
+        f"uploaded to {result['port']} "
+        f"(mock={result['mock']}, electrodes={result['electrodes']}): "
         f"{', '.join(result['files'])}"
     )
     print("ESP32 reset; it should announce itself with 'hello'.")
@@ -128,6 +131,13 @@ def build_parser() -> argparse.ArgumentParser:
     p_upload.add_argument("--port", help="serial port (default: first ttyACM*/ttyUSB*)")
     p_upload.add_argument(
         "--mock", action="store_true", help="run the synthetic AD5933/mux driver"
+    )
+    p_upload.add_argument(
+        "--electrodes",
+        type=int,
+        choices=(4, 8, 16),
+        default=8,
+        help="electrode count reported by the firmware (default 8)",
     )
     p_upload.set_defaults(func=cmd_upload_firmware)
     return parser

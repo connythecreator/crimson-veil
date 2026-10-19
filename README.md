@@ -88,13 +88,18 @@ With an ESP32 connected (CP210x `/dev/ttyUSB0`, native USB `/dev/ttyACM0`):
 
 ```bash
 python dev.py upload-firmware --mock   # copy firmware + hard reset (mock front end)
+python dev.py upload-firmware --mock --electrodes 16   # 4 / 8 / 16
 python dev.py upload-firmware          # upload the real front-end mode
 python dev.py mock-firmware            # or run the firmware on a local pty
 ```
 
 `--mock` selects the synthetic AD5933/mux tables, so the full 8-electrode
 40-point scan and pyEIT reconstruction work without hardware acquisition.
-Without an ESP32, `dev.py mock-firmware` exposes a pty and prints the
+The first scan is the baseline; after that the mock cycles the anomaly through
+eight positions, so **MONITOR** mode shows it moving once per scan (lower
+`CV_ACTIVE_INTERVAL_S` / `CV_IDLE_INTERVAL_S` for a faster demo). The kiosk's
+electrode ring renders exactly the count the firmware reports (`--electrodes`,
+4/8/16). Without an ESP32, `dev.py mock-firmware` exposes a pty and prints the
 `CV_ESP32_PORT` to use.
 
 ## Kiosk (Raspberry Pi)

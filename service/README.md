@@ -34,7 +34,7 @@ mirrors it in `kiosk-rs/src/protocol.rs`.
 | kiosk → service | `stop` | — |
 | kiosk → service | `set_frequency` | `frequency_hz` |
 | kiosk → service | `self_test` | — (runs the pre-start hardware checks) |
-| kiosk → service | `upload_firmware` | `mock` (copy firmware to the ESP, reset, reboot) |
+| kiosk → service | `upload_firmware` | `mock`, `electrodes` (copy firmware to the ESP, reset, reboot) |
 | kiosk → service | `ping` | — |
 | service → kiosk | `ready` | `backend`, `solver`, `n_electrodes`, `frequency_hz`, `baseline_ready` |
 | service → kiosk | `baseline_captured` | `id`, `frequency_hz`, `n_electrodes` |
@@ -45,7 +45,7 @@ mirrors it in `kiosk-rs/src/protocol.rs`.
 | service → kiosk | `state` | `continuous`, `scanning`, `interval_s` |
 | service → kiosk | `metrics` | `battery_pct`, `battery_charging`, `on_battery`, `battery_v`, `runtime_s`, `low_v`, `temp_wittypi_c`, `temp_esp32_c`, `temp_ad5933_c`, `temp_pi_c` (every 5 s) |
 | service → kiosk | `self_test_result` | `checks: [{name, status, detail}, …]` |
-| service → kiosk | `firmware_uploaded` | `port`, `files`, `mock` |
+| service → kiosk | `firmware_uploaded` | `port`, `files`, `mock`, `electrodes` |
 | service → kiosk | `pong` | — |
 
 ## Design

@@ -41,9 +41,13 @@ process and calibration; the host sends no plan and applies no calibration.
 the files in `firmware/mp-firm/src/` to the ESP32, writes `board_config.py`,
 and hard-resets it so `main.py` runs. Pass `--mock` to make
 `board_config.USE_MOCK = True`: the firmware then uses `mock_ad5933.py`
-(FEM-generated 8-electrode tables) instead of the unfinished AD5933/mux path.
+(FEM-generated tables for 4, 8 or 16 electrodes) instead of the unfinished
+AD5933/mux path. `--electrodes N` sets `board_config.N_ELECTRODES`, which is
+reported in `hello`; the mock tables and the kiosk electrode ring follow it.
 `python dev.py mock-firmware` runs the same firmware under CPython on a pty.
 
-`{"type":"mock_mode","mode":"baseline"|"target"|"auto"}` switches the mock
-tables at runtime (mock mode only). The first full scan is the baseline; later
-scans serve the anomaly, which matches the kiosk's capture-then-scan flow.
+`{"type":"mock_mode","mode":"baseline"|"target"|"continuous"|"auto"}` switches
+the mock tables at runtime (mock mode only). The first full scan is the
+baseline; in the default `continuous`/`auto` mode each later scan cycles through
+eight anomaly positions, so monitor mode shows a moving anomaly. `target` forces
+one static anomaly; `baseline` restarts the capture sequence.

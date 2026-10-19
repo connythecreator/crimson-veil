@@ -340,7 +340,9 @@ fn scan_page(
     image: Option<&egui::TextureHandle>,
 ) -> Option<Action> {
     // Two columns: the EIT disc on the left, controls/readouts on the right.
-    let split = body.left() + body.width() * 0.58;
+    // Give the EIT disc/ring as much room as possible while leaving the
+    // control column wide enough for the two buttons.
+    let split = body.left() + body.width() * 0.72;
     let stage = Rect::from_min_max(body.min, Pos2::new(split - 6.0, body.bottom()));
     let column = Rect::from_min_max(Pos2::new(split + 2.0, body.top()), body.max);
 
@@ -354,9 +356,9 @@ fn scan_page(
 
     // Disc centred in the left stage (slightly below the label).
     let center = Pos2::new(stage.center().x, stage.center().y + 4.0);
-    let scan_r = (stage.height() / 2.0 - 26.0)
-        .min(stage.width() / 2.0 - 14.0)
-        .clamp(24.0, 62.0);
+    let scan_r = (stage.height() / 2.0 - 30.0)
+        .min(stage.width() / 2.0 - 18.0)
+        .clamp(24.0, 104.0);
     let ring_r = scan_r + 15.0;
     let img_rect = Rect::from_center_size(center, Vec2::splat(scan_r * 2.0));
 
@@ -417,7 +419,7 @@ fn scan_page(
         painter.text(
             Pos2::new(column.left(), y),
             Align2::LEFT_TOP,
-            "CAPTURE BASELINE IN CALIB",
+            "CAPTURE BASELINE",
             FontId::monospace(8.5),
             WARN,
         );

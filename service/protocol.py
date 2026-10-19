@@ -21,7 +21,7 @@ Client -> service messages::
     {"type": "stop"}
     {"type": "set_frequency", "frequency_hz": float}
     {"type": "self_test"}
-    {"type": "upload_firmware", "mock": bool}
+    {"type": "upload_firmware", "mock": bool, "electrodes": int}
     {"type": "ping"}
 
 Service -> client messages::
@@ -45,7 +45,7 @@ Service -> client messages::
      "checks": [{"name": str, "status": "pass"|"fail"|"warn"|"skip",
                  "detail": str}, ...]}
     {"type": "firmware_uploaded", "port": str, "files": [str, ...],
-     "mock": bool}
+     "mock": bool, "electrodes": int}
     {"type": "pong"}
 
 Continuous mode debounces between scans: after each scan the service waits
@@ -116,6 +116,7 @@ class SelfTest:
 @dataclass
 class UploadFirmware:
     mock: bool = False
+    electrodes: int = 8
     type: str = field(default="upload_firmware", init=False)
 
 
@@ -215,6 +216,7 @@ class FirmwareUploaded:
     port: str
     files: list[str]
     mock: bool
+    electrodes: int = 8
     type: str = field(default="firmware_uploaded", init=False)
 
 

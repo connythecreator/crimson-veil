@@ -1,17 +1,18 @@
 """Mock front end for host/pipeline bring-up without an AD5933 or mux bank.
 
-`MockAD5933` returns pre-computed FEM boundary voltages for a circular
-8-electrode array at 50 kHz, in the firmware's adjacent drive/sense order
-(`8 * (8 - 3) = 40` points). The tables were generated with pyEIT's forward
-solver:
+`MockAD5933` returns pre-computed FEM boundary voltages for circular electrode
+arrays at 50 kHz, in the firmware's adjacent drive/sense order (`N * (N - 3)`
+points). Tables exist for 4, 8 and 16 electrodes in separate modules so the
+ESP32 only imports the set for the configured `N_ELECTRODES`.
 
   baseline = homogeneous unit-conductivity mesh
-  target   = the same mesh with a `PyEITAnomaly_Circle` (centre [0.5, 0.5],
-             r 0.18, perm 2.0)
+  targets  = eight anomalies (`PyEITAnomaly_Circle`, r 0.18, perm 2.0) around
+             the unit disk; see `mock_tables_N.py`
 
 The first full scan serves the baseline (so the host can capture it as the
-pyEIT reference); subsequent scans serve the target. `set_mode("baseline")`
-resets that behaviour, which is useful after a re-capture.
+pyEIT reference). In the default ``continuous``/``auto`` mode each following
+scan cycles to the next anomaly position, so monitor mode shows a moving
+anomaly. ``set_mode("baseline")`` / ``set_mode("target")`` force a table.
 
 `MockMux` is a no-op implementation of the mux interface so `select_measurement`
 and the firmware self-test run unchanged.
@@ -19,131 +20,81 @@ and the firmware self-test run unchanged.
 This is a host/solver validation tool, not a physical acquisition model.
 """
 
-# (real, imag) values in the firmware's adjacent order, 8 electrodes @ 50 kHz.
-_BASELINE = [
-    (-0.110581707, 0),
-    (-0.0599305835, 0),
-    (-0.0503823652, 0),
-    (-0.0599610632, 0),
-    (-0.110300096, 0),
-    (-0.110590551, 0),
-    (-0.0599199617, 0),
-    (-0.0504527884, 0),
-    (-0.0599733634, 0),
-    (-0.110336774, 0),
-    (-0.110341396, 0),
-    (-0.0599652459, 0),
-    (-0.0504519344, 0),
-    (-0.059900058, 0),
-    (-0.110581707, 0),
-    (-0.110249202, 0),
-    (-0.0599429419, 0),
-    (-0.0503594962, 0),
-    (-0.0599305835, 0),
-    (-0.110590551, 0),
-    (-0.110507297, 0),
-    (-0.0598492531, 0),
-    (-0.0503823652, 0),
-    (-0.0599199617, 0),
-    (-0.110341396, 0),
-    (-0.11048977, 0),
-    (-0.0599610632, 0),
-    (-0.0504527884, 0),
-    (-0.0599652459, 0),
-    (-0.110249202, 0),
-    (-0.110300096, 0),
-    (-0.0599733634, 0),
-    (-0.0504519344, 0),
-    (-0.0599429419, 0),
-    (-0.110507297, 0),
-    (-0.110336774, 0),
-    (-0.059900058, 0),
-    (-0.0503594962, 0),
-    (-0.0598492531, 0),
-    (-0.11048977, 0),
-]
 
-_TARGET = [
-    (-0.108909373, 0),
-    (-0.054487508, 0),
-    (-0.0518063529, 0),
-    (-0.0608498234, 0),
-    (-0.111005018, 0),
-    (-0.0948397542, 0),
-    (-0.0617649223, 0),
-    (-0.0519481932, 0),
-    (-0.0612790337, 0),
-    (-0.111811321, 0),
-    (-0.095284726, 0),
-    (-0.0551057208, 0),
-    (-0.0477377739, 0),
-    (-0.0578622119, 0),
-    (-0.108909373, 0),
-    (-0.10791242, 0),
-    (-0.0573840534, 0),
-    (-0.0471532672, 0),
-    (-0.054487508, 0),
-    (-0.0948397542, 0),
-    (-0.111948482, 0),
-    (-0.0611021137, 0),
-    (-0.0518063529, 0),
-    (-0.0617649223, 0),
-    (-0.095284726, 0),
-    (-0.111193605, 0),
-    (-0.0608498234, 0),
-    (-0.0519481932, 0),
-    (-0.0551057208, 0),
-    (-0.10791242, 0),
-    (-0.111005018, 0),
-    (-0.0612790337, 0),
-    (-0.0477377739, 0),
-    (-0.0573840534, 0),
-    (-0.111948482, 0),
-    (-0.111811321, 0),
-    (-0.0578622119, 0),
-    (-0.0471532672, 0),
-    (-0.0611021137, 0),
-    (-0.111193605, 0),
-]
-
-_POINTS_PER_SCAN = len(_BASELINE)
+def _tables(n_electrodes):
+    n = int(n_electrodes)
+    if n == 4:
+        import mock_tables_4 as tables
+    elif n == 8:
+        import mock_tables_8 as tables
+    elif n == 16:
+        import mock_tables_16 as tables
+    else:
+        raise ValueError("mock supports 4, 8 or 16 electrodes")
+    return tables
 
 
 class MockAD5933:
     """Drop-in stand-in for :class:`ad5933_driver.AD5933`."""
 
-    def __init__(self, baseline=None, target=None):
-        self._baseline = list(baseline or _BASELINE)
-        self._target = list(target or _TARGET)
+    def __init__(self, n_electrodes=8, baseline=None, targets=None):
+        n = int(n_electrodes)
+        self.n_electrodes = n
+        self._points_per_scan = n * (n - 3)
+        if baseline is None or targets is None:
+            tables = _tables(n)
+            if baseline is None:
+                baseline = tables.BASELINE
+            if targets is None:
+                targets = tables.TARGETS
+        self._baseline = baseline
+        self._targets = targets
         self._index = 0
         self._scan_number = 0
         self._forced = None
+
+    def _target_table(self):
+        index = (max(self._scan_number, 1) - 1) % len(self._targets)
+        return self._targets[index]
 
     def measure(self, freq_hz):
         if self._forced == "baseline":
             table = self._baseline
         elif self._forced == "target":
-            table = self._target
+            table = self._targets[0]
+        elif self._scan_number == 0:
+            table = self._baseline
         else:
-            table = self._baseline if self._scan_number == 0 else self._target
+            table = self._target_table()
 
-        value = table[self._index]
+        offset = 2 * self._index
+        value = (table[offset], table[offset + 1])
         self._index += 1
-        if self._index >= _POINTS_PER_SCAN:
+        if self._index >= self._points_per_scan:
             self._index = 0
             self._scan_number += 1
         return value
 
     def set_mode(self, mode):
-        """``baseline``/``target`` force a table; ``auto`` restarts the cycle."""
+        """baseline | target | continuous/auto (cycle the anomaly positions)."""
         mode = str(mode).lower()
-        if mode not in ("baseline", "target", "auto"):
-            raise ValueError("mock mode must be baseline, target or auto")
-        self._forced = None if mode == "auto" else mode
-        if mode in ("baseline", "auto"):
+        if mode == "baseline":
+            self._forced = "baseline"
             self._index = 0
             self._scan_number = 0
-        return self._forced or "auto"
+        elif mode == "target":
+            self._forced = "target"
+            self._index = 0
+            self._scan_number = 1
+        elif mode in ("continuous", "auto"):
+            self._forced = None
+            self._index = 0
+            self._scan_number = 0
+        else:
+            raise ValueError(
+                "mock mode must be baseline, target, continuous or auto"
+            )
+        return self._forced or "continuous"
 
     def halt(self):
         pass

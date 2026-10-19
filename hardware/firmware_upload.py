@@ -20,7 +20,15 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_SOURCE = ROOT / "firmware" / "mp-firm" / "src"
-FIRMWARE_FILES = ("main.py", "protocol.py", "ad5933_driver.py", "mock_ad5933.py")
+FIRMWARE_FILES = (
+    "main.py",
+    "protocol.py",
+    "ad5933_driver.py",
+    "mock_ad5933.py",
+    "mock_tables_4.py",
+    "mock_tables_8.py",
+    "mock_tables_16.py",
+)
 
 
 def find_port(preferred: str | None = None) -> str:
@@ -55,24 +63,29 @@ def upload_firmware(
     port: str | None = None,
     *,
     mock: bool = False,
+    electrodes: int = 8,
     source_dir: str | Path | None = None,
 ) -> dict:
     """Copy the firmware files to the ESP32 and reset it.
 
-    Returns ``{"port", "files", "mock"}``. Raises on a missing port/file or an
-    ``mpremote`` failure.
+    Returns ``{"port", "files", "mock", "electrodes"}``. Raises on a missing
+    port/file or an ``mpremote`` failure.
     """
     source = Path(source_dir) if source_dir else DEFAULT_SOURCE
     missing = [name for name in FIRMWARE_FILES if not (source / name).is_file()]
     if missing:
         raise RuntimeError(f"firmware files missing under {source}: {', '.join(missing)}")
+    if electrodes not in (4, 8, 16):
+        raise ValueError("electrodes must be 4, 8 or 16")
 
     target_port = find_port(port)
     mpremote = _mpremote_command()
 
     with tempfile.TemporaryDirectory(prefix="cv-firmware-") as tmp:
         config = Path(tmp) / "board_config.py"
-        config.write_text(f"USE_MOCK = {bool(mock)!r}\n")
+        config.write_text(
+            f"USE_MOCK = {bool(mock)!r}\nN_ELECTRODES = {int(electrodes)}\n"
+        )
 
         files = list(FIRMWARE_FILES) + ["board_config.py"]
         for name in files:
@@ -96,4 +109,9 @@ def upload_firmware(
         )
     except subprocess.TimeoutExpired:
         pass
-    return {"port": target_port, "files": files, "mock": bool(mock)}
+    return {
+        "port": target_port,
+        "files": files,
+        "mock": bool(mock),
+        "electrodes": int(electrodes),
+    }

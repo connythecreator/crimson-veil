@@ -271,7 +271,9 @@ class ControlServer:
                         # Release the serial port before mpremote takes it.
                         await asyncio.to_thread(self._session.close)
                         result = await asyncio.to_thread(
-                            upload_firmware, mock=bool(msg.get("mock", False))
+                            upload_firmware,
+                            mock=bool(msg.get("mock", False)),
+                            electrodes=int(msg.get("electrodes", 8)),
                         )
                         await self._send_json(
                             ws, protocol.FirmwareUploaded(**result)

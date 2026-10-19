@@ -6,3 +6,6 @@ import on MicroPython.
 """
 
 USE_MOCK = False
+# Reported to the host in `hello`; the kiosk ring renders this many electrodes.
+# Supported by the mock tables: 4, 8 or 16.
+N_ELECTRODES = 8
