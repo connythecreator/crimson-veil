@@ -14,18 +14,22 @@ Client -> service messages::
 
     {"type": "hello", "client": str, "protocol": int}
     {"type": "scan", "id": str}
+    {"type": "capture_baseline", "id": str}
     {"type": "continuous", "on": bool,
      "active_interval_s": float, "idle_interval_s": float}
     {"type": "activity"}                      # user interaction; sets active state
     {"type": "stop"}
     {"type": "set_frequency", "frequency_hz": float}
     {"type": "self_test"}
+    {"type": "upload_firmware", "mock": bool}
     {"type": "ping"}
 
 Service -> client messages::
 
     {"type": "ready", "backend": str, "solver": str,
-     "n_electrodes": int, "frequency_hz": float}
+     "n_electrodes": int, "frequency_hz": float, "baseline_ready": bool}
+    {"type": "baseline_captured", "id": str, "frequency_hz": float,
+     "n_electrodes": int}
     {"type": "boot_error", "message": str}
     {"type": "progress", "id": str, "message": str}
     {"type": "scan_result", "id": str, "width": int, "height": int, "bytes": int}
@@ -40,6 +44,8 @@ Service -> client messages::
     {"type": "self_test_result",
      "checks": [{"name": str, "status": "pass"|"fail"|"warn"|"skip",
                  "detail": str}, ...]}
+    {"type": "firmware_uploaded", "port": str, "files": [str, ...],
+     "mock": bool}
     {"type": "pong"}
 
 Continuous mode debounces between scans: after each scan the service waits
@@ -73,6 +79,12 @@ class ScanRequest:
 
 
 @dataclass
+class CaptureBaseline:
+    id: str = ""
+    type: str = field(default="capture_baseline", init=False)
+
+
+@dataclass
 class Continuous:
     on: bool = True
     active_interval_s: float = 60.0
@@ -102,6 +114,12 @@ class SelfTest:
 
 
 @dataclass
+class UploadFirmware:
+    mock: bool = False
+    type: str = field(default="upload_firmware", init=False)
+
+
+@dataclass
 class Ping:
     type: str = field(default="ping", init=False)
 
@@ -115,7 +133,16 @@ class Ready:
     solver: str
     n_electrodes: int
     frequency_hz: float
+    baseline_ready: bool = False
     type: str = field(default="ready", init=False)
+
+
+@dataclass
+class BaselineCaptured:
+    id: str
+    frequency_hz: float
+    n_electrodes: int
+    type: str = field(default="baseline_captured", init=False)
 
 
 @dataclass
@@ -181,6 +208,14 @@ class Check:
 class SelfTestResult:
     checks: list[Check] = field(default_factory=list)
     type: str = field(default="self_test_result", init=False)
+
+
+@dataclass
+class FirmwareUploaded:
+    port: str
+    files: list[str]
+    mock: bool
+    type: str = field(default="firmware_uploaded", init=False)
 
 
 @dataclass

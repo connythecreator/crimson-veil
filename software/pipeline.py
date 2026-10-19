@@ -90,22 +90,23 @@ def run_scan(
     owns_hardware = hardware is None
     owns_solver = solver is None
 
-    if hardware is None:
-        hardware = default_hardware()
-        hardware.open(config.device_config())
-    if solver is None:
-        solver = default_solver()
-        n_electrodes = int(
-            getattr(hardware, "n_electrodes", 0) or config.N_ELECTRODES
-        )
-        solver.setup(n_electrodes, config.mesh_config(n_electrodes))
-
     try:
+        if hardware is None:
+            hardware = default_hardware()
+            hardware.open(config.device_config())
+        if solver is None:
+            solver = default_solver()
+            n_electrodes = int(
+                getattr(hardware, "n_electrodes", 0) or config.N_ELECTRODES
+            )
+            solver.setup(n_electrodes, config.mesh_config(n_electrodes))
         frame = acquire(hardware)
         cmap = solver.reconstruct(frame, baseline=baseline)
         return conductivity_to_png(cmap)
     finally:
-        if owns_solver:
-            solver.close()
-        if owns_hardware:
-            hardware.close()
+        try:
+            if owns_solver and solver is not None:
+                solver.close()
+        finally:
+            if owns_hardware and hardware is not None:
+                hardware.close()

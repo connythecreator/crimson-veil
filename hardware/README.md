@@ -108,6 +108,18 @@ from voltage + draw (anchored at `low_v` = 0 %), and merges in the ESP32 and
 Pi temperatures. Override the cell with `CV_BATTERY_MAH` (default 6000) /
 `CV_BATTERY_FULL_V` (default 4.20) / `CV_BATTERY_LOW_V` (default 3.30).
 
+## Firmware upload
+
+`hardware/firmware_upload.py` copies the MicroPython sources to the ESP32 with
+`mpremote`, writes `board_config.py` (`USE_MOCK`), and hard-resets the board so
+`main.py` runs. Use `python dev.py upload-firmware [--mock] [--port PATH]`; the
+backend also exposes a WebSocket `upload_firmware` command, which closes the
+session, uploads, and re-boots it.
+
+The serial port is auto-detected (`/dev/ttyACM*`, then `/dev/ttyUSB*`) when the
+configured path is absent, so CP210x/CH340 boards work without overriding
+`CV_ESP32_PORT`. Non-JSON MicroPython boot/REPL lines are skipped.
+
 ## Cautions
 
 - **Logic levels:** a CD74HC4067 powered at 5 V wants V_IH ≈ 3.5 V. Run the mux

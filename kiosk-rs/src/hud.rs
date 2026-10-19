@@ -18,6 +18,7 @@ use crate::fx::{ScanFx, GRID};
 pub enum Action {
     Scan,
     ToggleMonitor,
+    CaptureBaseline,
 }
 
 // Phone palette: near-black bezel, dark app surface, raised cards.
@@ -85,10 +86,7 @@ pub fn draw(
             settings_page(&p, body, state);
             None
         }
-        Page::Calibration => {
-            placeholder(&p, body, "Calibration", "gain / phase calibration (deferred)");
-            None
-        }
+        Page::Calibration => calibration_page(ctx, &p, body, state),
     };
     rail_nav(ctx, rail, state);
     home_indicator(&p, app);
@@ -399,7 +397,8 @@ fn scan_page(
     let gap = 7.0;
 
     let scan_rect = Rect::from_min_size(Pos2::new(column.left(), y), Vec2::new(column.width(), btn_h));
-    let scan_enabled = !state.continuous && !state.scanning;
+    let can_scan = state.can_scan();
+    let scan_enabled = can_scan && !state.continuous && !state.scanning;
     let scan_clicked = painted_button(ctx, painter, scan_rect, "SINGLE SCAN", scan_enabled, false);
     y += btn_h + gap;
 
@@ -409,10 +408,21 @@ fn scan_page(
         painter,
         monitor_rect,
         if state.continuous { "STOP" } else { "MONITOR" },
-        true,
+        can_scan,
         state.continuous,
     );
     y += btn_h + 8.0;
+
+    if !can_scan {
+        painter.text(
+            Pos2::new(column.left(), y),
+            Align2::LEFT_TOP,
+            "CAPTURE BASELINE IN CALIB",
+            FontId::monospace(8.5),
+            WARN,
+        );
+        y += 12.0;
+    }
 
     // Compact readouts (moved out of the old bottom chip card).
     let rows = [
@@ -591,6 +601,70 @@ fn self_test_page(painter: &egui::Painter, app: Rect, state: &AppState) {
     );
 }
 
+/// Calibration page: capture the measured reference pyEIT differences against.
+fn calibration_page(
+    ctx: &egui::Context,
+    painter: &egui::Painter,
+    body: Rect,
+    state: &AppState,
+) -> Option<Action> {
+    card(painter, body);
+    let left = body.left() + 10.0;
+    let right = body.right() - 10.0;
+    let mut y = body.top() + 8.0;
+
+    section(painter, left, &mut y, "Reconstruction reference");
+    row(painter, left, right, y, "Solver", &state.solver);
+    y += 15.0;
+
+    let status = if state.capturing_baseline {
+        "capturing..."
+    } else if state.baseline_ready {
+        "ready"
+    } else if state.solver == "pyeit" {
+        "not captured"
+    } else {
+        "not required"
+    };
+    row(painter, left, right, y, "Baseline", status);
+    y += 15.0;
+    row(
+        painter,
+        left,
+        right,
+        y,
+        "Frequency",
+        &format!("{:.0} kHz", state.frequency_hz / 1000.0),
+    );
+    y += 18.0;
+
+    painter.text(
+        Pos2::new(left, y),
+        Align2::LEFT_TOP,
+        "Capture with the phantom unchanged;\nscans then show changes from it.",
+        FontId::monospace(8.5),
+        STEEL,
+    );
+    y += 26.0;
+
+    let enabled = state.solver == "pyeit"
+        && !state.capturing_baseline
+        && !state.scanning
+        && !state.continuous;
+    let rect = Rect::from_min_size(Pos2::new(left, y), Vec2::new(right - left, 32.0));
+    let label = if state.baseline_ready {
+        "RECAPTURE BASELINE"
+    } else {
+        "CAPTURE BASELINE"
+    };
+    if painted_button(ctx, painter, rect, label, enabled, state.capturing_baseline) {
+        Some(Action::CaptureBaseline)
+    } else {
+        None
+    }
+}
+
+#[allow(dead_code)] // kept for any future placeholder pages
 fn placeholder(painter: &egui::Painter, body: Rect, title: &str, sub: &str) {
     card(painter, body);
     painter.text(body.center() - Vec2::new(0.0, 8.0), Align2::CENTER_CENTER, title, FontId::proportional(16.0), TEXT);

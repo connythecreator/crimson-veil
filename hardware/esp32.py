@@ -19,14 +19,14 @@ Wire protocol (line-delimited JSON, one object per line, USB CDC at 115200):
                   {"type": "stop"}
     esp  -> host  {"type": "hello", "firmware": str, "n_electrodes": int,
                    "electrodes": [int, ...], "sweep_hz": float}
-                   {"type": "frame", "points": [{"n": int, "f": Hz,
-                                    "re": float, "im": float}, ...]}
-                   {"type": "telemetry", "temp_esp32_c": float|null,
-                    "temp_ad5933_c": float|null}
-                   {"type": "selftest_result", "firmware": str,
-                    "ad5933": bool, "mux": bool,
-                    "temp_ad5933_c": float|null, "error": str|null}
-                   {"type": "error", "message": str}
+                  {"type": "frame", "points": [{"n": int, "f": Hz,
+                                   "re": float, "im": float}, ...]}
+                  {"type": "telemetry", "temp_esp32_c": float|null,
+                   "temp_ad5933_c": float|null}
+                  {"type": "selftest_result", "firmware": str,
+                   "ad5933": bool, "mux": bool,
+                   "temp_ad5933_c": float|null, "error": str|null}
+                  {"type": "error", "message": str}
 
 `hello` is sent unsolicited on boot and again in reply to `identify`; the
 backend learns `n_electrodes` and the scan frequency from it. `frame` carries
@@ -36,7 +36,11 @@ their index ``n``). `telemetry` is pushed periodically by the firmware.
 
 from __future__ import annotations
 
+import glob
 import json
+import math
+import os
+import threading
 import time
 from typing import Protocol, runtime_checkable
 
@@ -71,17 +75,30 @@ class SerialTransport:
         import serial  # imported lazily so the suite does not need pyserial
 
         self._serial = serial.Serial(port=port, baudrate=baud, timeout=timeout)
+        self._read_buffer = bytearray()
 
     def write_line(self, text: str) -> None:
         self._serial.write((text + "\n").encode("utf-8"))
         self._serial.flush()
 
     def read_line(self, timeout: float) -> str | None:
-        self._serial.timeout = timeout
-        raw = self._serial.readline()
-        if not raw:
-            return None
-        return raw.decode("utf-8", "replace").strip()
+        # pyserial returns partial bytes when its timeout expires, especially
+        # during a non-blocking telemetry poll. Retain those bytes until a
+        # newline arrives instead of handing an incomplete JSON object onward.
+        deadline = time.monotonic() + max(0.0, timeout)
+        while True:
+            newline = self._read_buffer.find(b"\n")
+            if newline >= 0:
+                raw = bytes(self._read_buffer[:newline])
+                del self._read_buffer[:newline + 1]
+                return raw.decode("utf-8", "replace").strip()
+            self._serial.timeout = max(0.0, deadline - time.monotonic())
+            raw = self._serial.readline()
+            if not raw:
+                return None
+            self._read_buffer.extend(raw)
+            if b"\n" not in self._read_buffer and time.monotonic() >= deadline:
+                return None
 
     def close(self) -> None:
         self._serial.close()
@@ -100,20 +117,37 @@ class Esp32Hardware:
         self._baud = DEFAULT_BAUD
         self._timeout = DEFAULT_TIMEOUT_S
         self._open = False
+        self._needs_resync = False
         # Learned from the ESP32's `hello`.
         self.n_electrodes = 0
         self.electrodes: list[int] = []
         self.firmware = ""
         self.frequency_hz = 0.0
         self._telemetry: dict = {}
+        # A scan owns the transport until its reply arrives. Metrics are read
+        # from another thread and must never consume that reply or change the
+        # serial timeout while a scan is waiting.
+        self._io_lock = threading.Lock()
 
     # --- HardwareBackend --------------------------------------------------
 
     def open(self, cfg: DeviceConfig) -> None:
+        with self._io_lock:
+            self._open_connection(cfg)
+
+    def _open_connection(self, cfg: DeviceConfig) -> None:
         opts = cfg.options or {}
         self._port = str(opts.get("port", "/dev/ttyACM0"))
         self._baud = int(opts.get("baud", DEFAULT_BAUD))
         self._timeout = float(opts.get("timeout_s", DEFAULT_TIMEOUT_S))
+
+        # The CP210x/CH340 bridges commonly appear as ttyUSB*, while native USB
+        # CDC is ttyACM*. If the configured path is absent, use whichever
+        # Espressif-style adapter is present.
+        if not os.path.exists(self._port):
+            candidates = sorted(glob.glob("/dev/ttyACM*") + glob.glob("/dev/ttyUSB*"))
+            if candidates:
+                self._port = candidates[0]
 
         if self._transport is None:
             self._transport = SerialTransport(self._port, self._baud, self._timeout)
@@ -125,6 +159,7 @@ class Esp32Hardware:
         if not self.frequency_hz:
             self.frequency_hz = float(cfg.frequency_hz)
         self._open = True
+        self._needs_resync = False
 
     def identify(self) -> str:
         if self._open:
@@ -133,9 +168,37 @@ class Esp32Hardware:
 
     def scan(self) -> list[RawPoint]:
         """Run one single-shot scan and return the firmware's frame."""
-        if not self._open or self._transport is None:
-            raise RuntimeError("Esp32Hardware.scan called before open()")
+        with self._io_lock:
+            if not self._open or self._transport is None:
+                raise RuntimeError("Esp32Hardware.scan called before open()")
+            try:
+                if self._needs_resync:
+                    self._resynchronize()
+                return self._scan()
+            except Esp32Error:
+                # A delayed reply may still arrive after a timeout or malformed
+                # line. Never let it become the next scan's (or baseline's) data.
+                self._needs_resync = True
+                raise
 
+    def _resynchronize(self) -> None:
+        # The firmware processes commands sequentially. Its identify response
+        # therefore follows any outstanding scan reply, including a partial
+        # line retained by SerialTransport. _await drains those older messages.
+        hello = self._await("hello", self._timeout, send={"type": "identify"})
+        if hello.get("n_electrodes") != self.n_electrodes:
+            raise Esp32Error(
+                "electrode count changed during serial recovery; reconnect "
+                "and configure the solver again"
+            )
+        # The hello reports firmware defaults; the next scan must retain a
+        # frequency selected by the host rather than reverting to that default.
+        requested_frequency = self.frequency_hz
+        self._apply_hello(hello)
+        self.frequency_hz = requested_frequency
+        self._needs_resync = False
+
+    def _scan(self) -> list[RawPoint]:
         command = {"type": "scan"}
         # Echo the (possibly host-overridden) frequency so the firmware scans
         # where the host expects; it falls back to its own SWEEP_HZ if omitted.
@@ -152,6 +215,8 @@ class Esp32Hardware:
             if remaining <= 0:
                 raise Esp32Error("timed out waiting for frame")
             msg = self._read(timeout=remaining)
+            if msg is None:
+                continue
             kind = msg.get("type")
             if kind == "frame":
                 return self._parse_frame(msg)
@@ -163,13 +228,14 @@ class Esp32Hardware:
             # Ignore anything else (e.g. a stray hello).
 
     def close(self) -> None:
-        if self._transport is not None:
-            try:
-                self._transport.write_line(json.dumps({"type": "stop"}))
-            except Exception:  # noqa: BLE001 - best effort on shutdown
-                pass
-            self._transport.close()
-        self._open = False
+        with self._io_lock:
+            if self._transport is not None:
+                try:
+                    self._transport.write_line(json.dumps({"type": "stop"}))
+                except Exception:  # noqa: BLE001 - best effort on shutdown
+                    pass
+                self._transport.close()
+            self._open = False
 
     # --- extras -----------------------------------------------------------
 
@@ -181,44 +247,55 @@ class Esp32Hardware:
         ``temp_esp32_c`` (float|None) and ``temp_ad5933_c`` (float|None).
         Battery state is owned by the Witty Pi BMS on the host, not here.
         """
-        while self._transport is not None:
-            try:
-                msg = self._read(timeout=0.0)
-            except Esp32Error:
-                break
-            if msg.get("type") == "telemetry":
-                self._telemetry = msg
-        return dict(self._telemetry)
+        if not self._io_lock.acquire(blocking=False):
+            return dict(self._telemetry)
+        try:
+            while self._open and self._transport is not None:
+                try:
+                    msg = self._read(timeout=0.0)
+                except Esp32Error:
+                    break
+                if msg is None:
+                    continue
+                if msg.get("type") == "telemetry":
+                    self._telemetry = msg
+            return dict(self._telemetry)
+        finally:
+            self._io_lock.release()
 
     def probe(self) -> dict:
         """Ask the ESP32 to re-announce itself (a live connectivity check)."""
-        if not self._open or self._transport is None:
-            raise Esp32Error("ESP32 is not open")
-        hello = self._await("hello", self._timeout, send={"type": "identify"})
-        self._apply_hello(hello)
-        return hello
+        with self._io_lock:
+            if not self._open or self._transport is None:
+                raise Esp32Error("ESP32 is not open")
+            hello = self._await("hello", self._timeout, send={"type": "identify"})
+            self._apply_hello(hello)
+            return hello
 
     def selftest(self) -> dict:
         """Ask the firmware to verify the AD5933 and mux bank."""
-        if not self._open or self._transport is None:
-            raise Esp32Error("ESP32 is not open")
-        self._transport.write_line(json.dumps({"type": "selftest"}))
+        with self._io_lock:
+            if not self._open or self._transport is None:
+                raise Esp32Error("ESP32 is not open")
+            self._transport.write_line(json.dumps({"type": "selftest"}))
 
-        deadline = time.monotonic() + self._timeout
-        while True:
-            remaining = deadline - time.monotonic()
-            if remaining <= 0:
-                raise Esp32Error("timed out waiting for selftest result")
-            msg = self._read(timeout=remaining)
-            kind = msg.get("type")
-            if kind == "selftest_result":
-                return msg
-            if kind == "telemetry":
-                self._telemetry = msg
-                continue
-            if kind == "error":
-                raise Esp32Error(str(msg.get("message", "unknown ESP32 error")))
-            # Ignore anything else (e.g. a stray hello).
+            deadline = time.monotonic() + self._timeout
+            while True:
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    raise Esp32Error("timed out waiting for selftest result")
+                msg = self._read(timeout=remaining)
+                if msg is None:
+                    continue
+                kind = msg.get("type")
+                if kind == "selftest_result":
+                    return msg
+                if kind == "telemetry":
+                    self._telemetry = msg
+                    continue
+                if kind == "error":
+                    raise Esp32Error(str(msg.get("message", "unknown ESP32 error")))
+                # Ignore anything else (e.g. a stray hello).
 
     # --- internals --------------------------------------------------------
 
@@ -237,6 +314,8 @@ class Esp32Hardware:
             if remaining <= 0:
                 raise Esp32Error(f"timed out waiting for '{kind}' from ESP32")
             msg = self._read(timeout=remaining)
+            if msg is None:
+                continue
             if msg.get("type") == kind:
                 return msg
             if msg.get("type") == "telemetry":
@@ -244,14 +323,19 @@ class Esp32Hardware:
             elif msg.get("type") == "error":
                 raise Esp32Error(str(msg.get("message", "unknown ESP32 error")))
 
-    def _read(self, timeout: float) -> dict:
+    def _read(self, timeout: float) -> dict | None:
         if self._transport is None:
             raise Esp32Error("no transport")
         line = self._transport.read_line(timeout)
         if line is None:
             raise Esp32Error("serial read timed out")
+        text = line.strip()
+        if not text.startswith("{"):
+            # MicroPython prints its boot banner / REPL prompts on the same
+            # UART. Skip non-JSON noise rather than failing the link.
+            return None
         try:
-            msg = json.loads(line)
+            msg = json.loads(text)
         except json.JSONDecodeError as exc:
             raise Esp32Error(f"bad line from ESP32: {line!r}") from exc
         if not isinstance(msg, dict) or "type" not in msg:
@@ -262,13 +346,37 @@ class Esp32Hardware:
         points = msg.get("points")
         if not isinstance(points, list):
             raise Esp32Error("frame is missing a 'points' list")
-        out: list[RawPoint] = []
-        for p in points:
-            out.append(
-                RawPoint(
-                    freq_hz=float(p.get("f", self.frequency_hz)),
-                    real=float(p["re"]),
-                    imag=float(p["im"]),
-                )
+        expected = self.n_electrodes * (self.n_electrodes - 3)
+        if self.n_electrodes < 4 or len(points) != expected:
+            raise Esp32Error(
+                f"frame contains {len(points)} points; expected {expected} "
+                f"for {self.n_electrodes} electrodes"
             )
-        return out
+        if any(not isinstance(point, dict) for point in points):
+            raise Esp32Error("every frame point must be a JSON object")
+
+        indexed = ["n" in point for point in points]
+        has_indices = all(indexed)
+        if any(indexed) and not has_indices:
+            raise Esp32Error("frame mixes indexed and unindexed points")
+        # Older firmware may omit every index; those frames retain wire order.
+        # Indexed frames must cover each position exactly once.
+        out: dict[int, RawPoint] = {}
+        for position, point in enumerate(points):
+            index = point["n"] if has_indices else position
+            if isinstance(index, bool) or not isinstance(index, int) or not 0 <= index < expected:
+                raise Esp32Error(f"frame point has invalid index {index!r}")
+            if index in out:
+                raise Esp32Error(f"frame has duplicate point index {index}")
+            try:
+                frequency = float(point.get("f", self.frequency_hz))
+                real = float(point["re"])
+                imag = float(point["im"])
+            except (KeyError, TypeError, ValueError, OverflowError) as exc:
+                raise Esp32Error(f"frame point {index} has invalid numeric data") from exc
+            if not all(math.isfinite(value) for value in (frequency, real, imag)):
+                raise Esp32Error(f"frame point {index} contains non-finite data")
+            if frequency <= 0:
+                raise Esp32Error(f"frame point {index} frequency must be positive")
+            out[index] = RawPoint(freq_hz=frequency, real=real, imag=imag)
+        return [out[index] for index in range(expected)]

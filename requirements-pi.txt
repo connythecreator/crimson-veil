@@ -7,3 +7,4 @@
 -r requirements.txt
 
 pyserial>=3.5   # USB serial link to the ESP32
+mpremote>=1.22  # upload the MicroPython firmware files to the ESP32

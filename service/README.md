@@ -28,13 +28,16 @@ mirrors it in `kiosk-rs/src/protocol.rs`.
 | --- | --- | --- |
 | kiosk → service | `hello` | `client`, `protocol` |
 | kiosk → service | `scan` | `id` |
+| kiosk → service | `capture_baseline` | `id` (pyEIT reference) |
 | kiosk → service | `continuous` | `on`, `active_interval_s`, `idle_interval_s` |
 | kiosk → service | `activity` | — (user interaction; keeps the active interval) |
 | kiosk → service | `stop` | — |
 | kiosk → service | `set_frequency` | `frequency_hz` |
 | kiosk → service | `self_test` | — (runs the pre-start hardware checks) |
+| kiosk → service | `upload_firmware` | `mock` (copy firmware to the ESP, reset, reboot) |
 | kiosk → service | `ping` | — |
-| service → kiosk | `ready` | `backend`, `solver`, `n_electrodes`, `frequencies_hz` |
+| service → kiosk | `ready` | `backend`, `solver`, `n_electrodes`, `frequency_hz`, `baseline_ready` |
+| service → kiosk | `baseline_captured` | `id`, `frequency_hz`, `n_electrodes` |
 | service → kiosk | `boot_error` | `message` |
 | service → kiosk | `progress` | `id`, `message` |
 | service → kiosk | `scan_result` | `id`, `width`, `height`, `bytes` (+ binary PNG) |
@@ -42,6 +45,7 @@ mirrors it in `kiosk-rs/src/protocol.rs`.
 | service → kiosk | `state` | `continuous`, `scanning`, `interval_s` |
 | service → kiosk | `metrics` | `battery_pct`, `battery_charging`, `on_battery`, `battery_v`, `runtime_s`, `low_v`, `temp_wittypi_c`, `temp_esp32_c`, `temp_ad5933_c`, `temp_pi_c` (every 5 s) |
 | service → kiosk | `self_test_result` | `checks: [{name, status, detail}, …]` |
+| service → kiosk | `firmware_uploaded` | `port`, `files`, `mock` |
 | service → kiosk | `pong` | — |
 
 ## Design
@@ -60,6 +64,9 @@ mirrors it in `kiosk-rs/src/protocol.rs`.
   BMS freshness), `Belt Controller (ESP)` (ESP `identify`/`hello`),
   `Impedance Subsystem` (firmware `selftest`: AD5933 + mux), `PyEIT`
   (installed/selected) and `Control Service`. Failures are reported, not raised.
+- **Firmware upload** (`upload_firmware`): closes the session to free the serial
+  port, copies the MicroPython files with `mpremote`, hard-resets the ESP, and
+  re-boots the session. `mock=true` selects the synthetic AD5933/mux tables.
 - `python -m service.server --dev` forces the **sim** hardware + **stub** solver
   for mock visuals (pair with `crimson-veil-kiosk --dev`).
 - A background task broadcasts `metrics` every 5 s from `metrics.py`. Battery

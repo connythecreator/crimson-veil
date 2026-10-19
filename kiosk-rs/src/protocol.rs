@@ -28,6 +28,8 @@ pub struct ServerMessage {
     #[serde(default)]
     pub frequency_hz: f64,
     #[serde(default)]
+    pub baseline_ready: bool,
+    #[serde(default)]
     pub width: u32,
     #[serde(default)]
     pub height: u32,
@@ -82,6 +84,8 @@ pub enum ClientMessage {
     Hello { client: String, protocol: u32 },
     #[serde(rename = "scan")]
     Scan { id: String },
+    #[serde(rename = "capture_baseline")]
+    CaptureBaseline { id: String },
     #[serde(rename = "continuous")]
     Continuous {
         on: bool,
@@ -158,6 +162,25 @@ mod tests {
     fn encode_activity() {
         let json = ClientMessage::Activity.to_json();
         assert_eq!(json, r#"{"type":"activity"}"#);
+    }
+
+    #[test]
+    fn encode_capture_baseline() {
+        let json = ClientMessage::CaptureBaseline { id: "b1".into() }.to_json();
+        assert_eq!(json, r#"{"type":"capture_baseline","id":"b1"}"#);
+    }
+
+    #[test]
+    fn parse_baseline_metadata() {
+        let ready: ServerMessage =
+            serde_json::from_str(r#"{"type":"ready","baseline_ready":true}"#).unwrap();
+        assert!(ready.baseline_ready);
+        let captured: ServerMessage = serde_json::from_str(
+            r#"{"type":"baseline_captured","id":"b1","frequency_hz":50000.0,"n_electrodes":8}"#,
+        )
+        .unwrap();
+        assert_eq!(captured.kind, "baseline_captured");
+        assert_eq!(captured.id, "b1");
     }
 
     #[test]

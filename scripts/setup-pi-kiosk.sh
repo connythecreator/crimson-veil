@@ -422,6 +422,11 @@ User=$KIOSK_USER
 WorkingDirectory=$REPO_DIR
 Environment=PYTHONUNBUFFERED=1
 Environment=PYTHONPATH=$REPO_DIR
+# Real front end + pyEIT reconstruction. The ESP port is auto-detected
+# (/dev/ttyACM* or /dev/ttyUSB*) unless CV_ESP32_PORT is set. Use
+# `service.server --dev` for sim/stub visuals without hardware.
+Environment=CV_BACKEND=esp32
+Environment=CV_SOLVER=pyeit
 ExecStart=$VENV_DIR/bin/python -m service.server --host 127.0.0.1 --port $SERVICE_PORT
 Restart=on-failure
 RestartSec=2

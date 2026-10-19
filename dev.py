@@ -3,9 +3,11 @@
 
 Separate from the device boot (main.py). Subcommands:
 
-    python dev.py doctor        # report configured backends and dependency status
-    python dev.py scan-once     # run one scan via the pipeline -> a PNG file
-    python dev.py calibrate     # gain/phase calibration (stub until hardware exists)
+    python dev.py doctor            # report configured backends and dependency status
+    python dev.py scan-once         # run one scan via the pipeline -> a PNG file
+    python dev.py calibrate         # gain/phase calibration (stub until hardware exists)
+    python dev.py mock-firmware     # mock ESP32 firmware on a pty (JSON protocol)
+    python dev.py upload-firmware   # copy MicroPython firmware to the ESP32
 
 On real hardware the bring-up order is: doctor -> calibrate -> scan-once.
 """
@@ -63,6 +65,28 @@ def cmd_scan_once(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_mock_firmware(args: argparse.Namespace) -> int:
+    script = os.path.join(_HERE, "tools", "run_mock_firmware.py")
+    os.execv(sys.executable, [sys.executable, script, "--link", args.link])
+    return 0  # unreachable
+
+
+def cmd_upload_firmware(args: argparse.Namespace) -> int:
+    from hardware.firmware_upload import upload_firmware
+
+    try:
+        result = upload_firmware(port=args.port, mock=args.mock)
+    except Exception as exc:  # noqa: BLE001
+        print(f"upload failed: {type(exc).__name__}: {exc}")
+        return 1
+    print(
+        f"uploaded to {result['port']} (mock={result['mock']}): "
+        f"{', '.join(result['files'])}"
+    )
+    print("ESP32 reset; it should announce itself with 'hello'.")
+    return 0
+
+
 def cmd_calibrate(_args: argparse.Namespace) -> int:
     print("calibrate: not implemented yet (needs known-resistor measurements).")
     print("See docs/eit-bioimpedance/eit-netlist.md section 8 step 7.")
@@ -89,6 +113,23 @@ def build_parser() -> argparse.ArgumentParser:
     p_scan.set_defaults(func=cmd_scan_once)
 
     sub.add_parser("calibrate", help="gain/phase calibration").set_defaults(func=cmd_calibrate)
+
+    p_mock = sub.add_parser(
+        "mock-firmware", help="run the mock ESP32 firmware on a pseudo-terminal"
+    )
+    p_mock.add_argument(
+        "--link", default="/tmp/cv-mock-tty", help="host-visible serial symlink"
+    )
+    p_mock.set_defaults(func=cmd_mock_firmware)
+
+    p_upload = sub.add_parser(
+        "upload-firmware", help="copy the MicroPython firmware to the ESP32"
+    )
+    p_upload.add_argument("--port", help="serial port (default: first ttyACM*/ttyUSB*)")
+    p_upload.add_argument(
+        "--mock", action="store_true", help="run the synthetic AD5933/mux driver"
+    )
+    p_upload.set_defaults(func=cmd_upload_firmware)
     return parser
 
 

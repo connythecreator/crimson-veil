@@ -15,6 +15,16 @@ from ad5933_driver import AD5933, OUTPUT_RANGE_2VPP, PGA_GAIN_1, AD5933Error
 # configuration
 FIRMWARE_VERSION = "1.0.0"
 
+# On-device flag written by the uploader; --mock also works under CPython.
+try:
+    from board_config import USE_MOCK
+except ImportError:  # host/CI without board_config.py
+    USE_MOCK = False
+
+
+def _mock_mode():
+    return USE_MOCK or "--mock" in getattr(sys, "argv", [])
+
 #eletrode defaults
 N_ELECTRODES = 8
 SUPPORTED_ELECTRODE_COUNTS = (4, 8, 16)
@@ -115,7 +125,7 @@ class Firmware:
         )
 
     def stop(self):
-        self._running = False
+        """Halt acquisition while keeping the command loop ready for scans."""
         if self._mux is not None:
             self._mux.disable_all()
         if self._driver is not None:
@@ -125,7 +135,7 @@ class Firmware:
         """Configure the mux bank for one tetrapolar drive/sense pair."""
         if self._mux is None:
             return
-        for electrode in (*drive, *sense):
+        for electrode in drive + sense:
             if not 0 <= electrode < N_ELECTRODES:
                 raise ValueError(f"electrode pair out of range: {drive} / {sense}")
 
@@ -147,6 +157,8 @@ class Firmware:
             self._scan(message)
         elif kind == "selftest":
             self._selftest()
+        elif kind == "mock_mode":
+            self._mock_mode(message)
         elif kind == "stop":
             self.stop()
         else:
@@ -174,6 +186,18 @@ class Firmware:
         self.stop()
         protocol.send_frame(points)
 
+    def _mock_mode(self, message):
+        setter = getattr(self._driver, "set_mode", None)
+        if setter is None:
+            protocol.send_error("mock_mode is only available with the mock driver")
+            return
+        try:
+            mode = setter(message.get("mode", "auto"))
+        except Exception as exc:  # noqa: BLE001
+            protocol.send_error(f"bad mock mode: {exc}")
+            return
+        protocol.emit({"type": "mock_mode_result", "mode": mode})
+
     def _selftest(self):
         """Verify the AD5933 responds and the mux bank can be addressed."""
         temp = None
@@ -187,14 +211,14 @@ class Firmware:
             if not ad5933:
                 error = "AD5933 temperature read failed"
         except Exception as exc:  # noqa: BLE001 - report, never crash the loop
-            error = "AD5933: %s" % exc
+            error = f"AD5933: {exc}"
 
         if mux:
             try:
                 self.select_measurement((0, 1), (2, 3))
             except Exception as exc:  # noqa: BLE001
                 mux = False
-                error = "mux: %s" % exc
+                error = f"mux: {exc}"
             finally:
                 self._mux.disable_all()
 
@@ -228,6 +252,7 @@ class Firmware:
         while self._running:
             line = protocol.read_line(stream)
             if line is None:
+                self._running = False
                 break
             if not line:
                 continue
@@ -243,6 +268,14 @@ class Firmware:
 
 
 def main():
+    if _mock_mode():
+        from mock_ad5933 import MockAD5933, MockMux
+
+        firmware = Firmware(MockAD5933(), mux=MockMux())
+        firmware.boot()
+        firmware.run()
+        return
+
     i2c = I2C(I2C_ID, scl=Pin(I2C_SCL), sda=Pin(I2C_SDA), freq=I2C_FREQ)
     driver = AD5933(
         i2c,

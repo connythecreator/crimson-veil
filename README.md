@@ -51,6 +51,15 @@ On a Raspberry Pi, add the device dependencies:
 uv pip install --python .venv -r requirements.txt -r requirements-pi.txt
 ```
 
+For pyEIT reconstruction, also install the optional solver (pyeit/numpy/scipy):
+
+```bash
+uv pip install --python .venv -r requirements-pyeit.txt
+```
+
+Capture a baseline in the kiosk's **CALIB** page before scanning; pyEIT
+differences each frame against that measured reference.
+
 ## Run
 
 Start the control service, then the kiosk (two terminals):
@@ -66,11 +75,27 @@ CV_WS_URL=ws://127.0.0.1:8765 .venv/bin/python -m kiosk  # (see kiosk-rs)
 The kiosk is now the native Rust UI: build/run it from `kiosk-rs/` (see
 [`kiosk-rs/README.md`](kiosk-rs/README.md)). The service opens the
 hardware/solver backends at boot and serves scans over a localhost WebSocket;
-if hardware fails to open it still serves and scans fall back to the sim.
+if hardware fails to open it still serves and reports the boot error, but
+scans require a successful boot. Use `service.server --dev` for sim/stub.
 
 By default the suite uses the **sim** hardware backend and **stub** solver, so
 it runs end-to-end on a laptop with no hardware. Select real backends in
 `software/core/config.py` (or via `CV_BACKEND` / `CV_SOLVER`).
+
+### Mock ESP32 / firmware upload
+
+With an ESP32 connected (CP210x `/dev/ttyUSB0`, native USB `/dev/ttyACM0`):
+
+```bash
+python dev.py upload-firmware --mock   # copy firmware + hard reset (mock front end)
+python dev.py upload-firmware          # upload the real front-end mode
+python dev.py mock-firmware            # or run the firmware on a local pty
+```
+
+`--mock` selects the synthetic AD5933/mux tables, so the full 8-electrode
+40-point scan and pyEIT reconstruction work without hardware acquisition.
+Without an ESP32, `dev.py mock-firmware` exposes a pty and prints the
+`CV_ESP32_PORT` to use.
 
 ## Kiosk (Raspberry Pi)
 

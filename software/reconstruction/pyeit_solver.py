@@ -22,6 +22,26 @@ if TYPE_CHECKING:
 DEFAULT_RECONSTRUCTION_FREQUENCY_HZ = 50_000.0
 
 
+def _protocol_measurements(protocol_obj: PyEITProtocol):
+    """Yield (drive, sense) in forward-solver order for both upstream layouts.
+
+    pyEIT 1.2.4 groups sense pairs by excitation. Current upstream stores
+    flat [N, M, excitation_index] rows, potentially interleaved.
+    """
+    measurements = protocol_obj.meas_mat
+    if measurements.ndim == 3 and measurements.shape[2] == 2:
+        for drive, senses in zip(protocol_obj.ex_mat, measurements, strict=True):
+            for sense in senses:
+                yield tuple(map(int, drive)), tuple(map(int, sense))
+    elif measurements.ndim == 2 and measurements.shape[1] == 3:
+        for n, m, excitation in measurements:
+            if not 0 <= excitation < len(protocol_obj.ex_mat):
+                raise ValueError("Invalid excitation index in pyEIT measurement matrix.")
+            yield tuple(map(int, protocol_obj.ex_mat[int(excitation)])), (int(n), int(m))
+    else:
+        raise ValueError(f"Unsupported pyEIT measurement matrix shape: {measurements.shape}")
+
+
 def _build_project_protocol(
     n_electrodes: int,
 ) -> tuple[PyEITProtocol, list[tuple[int, float]]]:
@@ -44,11 +64,12 @@ def _build_project_protocol(
         )
 
     expected_count = n_electrodes * (n_electrodes - 3)
-    if protocol_obj.n_meas_tot != expected_count:
+    measurements = list(_protocol_measurements(protocol_obj))
+    if len(measurements) != expected_count:
         raise RuntimeError(
             f"Expected {expected_count} measurements for the "
             f"{n_electrodes}-electrode protocol, "
-            f"got {protocol_obj.n_meas_tot}."
+            f"got {len(measurements)}."
         )
 
     firmware_pairs = [
@@ -67,26 +88,22 @@ def _build_project_protocol(
     }
     protocol_mapping: list[tuple[int, float]] = []
 
-    for exc_index, drive_pair in enumerate(protocol_obj.ex_mat):
-        for sense_pair in protocol_obj.meas_mat[exc_index]:
-            pyeit_drive = tuple(int(value) for value in drive_pair)
-            pyeit_sense = tuple(int(value) for value in sense_pair)
+    for pyeit_drive, pyeit_sense in measurements:
+        firmware_index = firmware_indices.get((pyeit_drive, pyeit_sense))
+        polarity = 1.0
+        if firmware_index is None:
+            firmware_index = firmware_indices.get(
+                (pyeit_drive, (pyeit_sense[1], pyeit_sense[0]))
+            )
+            polarity = -1.0
 
-            firmware_index = firmware_indices.get((pyeit_drive, pyeit_sense))
-            polarity = 1.0
-            if firmware_index is None:
-                firmware_index = firmware_indices.get(
-                    (pyeit_drive, (pyeit_sense[1], pyeit_sense[0]))
-                )
-                polarity = -1.0
-
-            if firmware_index is None:
-                raise RuntimeError(
-                    "Firmware scan sequence does not match pyEIT: "
-                    f"no firmware measurement corresponds to drive="
-                    f"{pyeit_drive}, sense={pyeit_sense}."
-                )
-            protocol_mapping.append((firmware_index, polarity))
+        if firmware_index is None:
+            raise RuntimeError(
+                "Firmware scan sequence does not match pyEIT: "
+                f"no firmware measurement corresponds to drive="
+                f"{pyeit_drive}, sense={pyeit_sense}."
+            )
+        protocol_mapping.append((firmware_index, polarity))
 
     if len({index for index, _ in protocol_mapping}) != len(firmware_pairs):
         raise RuntimeError(
@@ -103,9 +120,14 @@ class PyEITSolver:
         self,
         grid_size: int = 96,
         frequency_hz: float = DEFAULT_RECONSTRUCTION_FREQUENCY_HZ,
+        *,
+        allow_homogeneous_reference: bool = False,
     ) -> None:
+        if not isinstance(grid_size, int) or isinstance(grid_size, bool) or grid_size < 2:
+            raise ValueError("grid_size must be an integer of at least 2.")
         self.grid_size = grid_size
         self.frequency_hz = float(frequency_hz)
+        self.allow_homogeneous_reference = allow_homogeneous_reference
 
         self.mesh_obj = None
         self.protocol_obj: PyEITProtocol | None = None
@@ -167,7 +189,8 @@ class PyEITSolver:
 
         Each frame contains one frequency. Firmware measurements are reordered
         into pyEIT order, including correcting reversed sense-pair polarity.
-        Without a captured baseline, use pyEIT's homogeneous forward solution.
+        A captured baseline is required. Model-consistent simulations may
+        explicitly opt into the homogeneous unit-current forward reference.
         """
 
         if self.eit is None or self.protocol_obj is None or self.forward is None:
@@ -180,10 +203,13 @@ class PyEITSolver:
             frame,
             scan_name="frame",
         )
-        self.frequency_hz = frame_frequency
-
         if baseline is None:
-            v0 = np.asarray(self.forward.solve_eit(), dtype=float)
+            if not self.allow_homogeneous_reference:
+                raise ValueError(
+                    "Capture a baseline before pyEIT reconstruction. "
+                    "The homogeneous reference is only valid for model-consistent simulations."
+                )
+            v0 = np.asarray(self.forward.solve_eit().real, dtype=float)
         else:
             v0, baseline_frequency = self._values_for_scan(
                 baseline,
@@ -206,7 +232,7 @@ class PyEITSolver:
                 f"{frame_frequency:g} Hz measurements."
             )
 
-        expected_count = self.protocol_obj.n_meas_tot
+        expected_count = len(self._protocol_mapping)
 
         if len(v1) != expected_count:
             raise ValueError(
@@ -216,12 +242,20 @@ class PyEITSolver:
                 f"protocol expects {expected_count}."
             )
 
+        # BP divides by sign(v0.real), not by its magnitude. A zero real
+        # reference is undefined; do not turn it into a plausible-looking PNG.
+        if not np.all(np.isfinite(v0)) or np.any(v0 == 0):
+            raise ValueError("Baseline real measurements must be finite and non-zero.")
+
         ds = self.eit.solve(
             v1,
             v0,
             normalize=True,
         )
         ds = np.real(ds)
+        if not np.all(np.isfinite(ds)):
+            raise ValueError("pyEIT returned non-finite conductivity changes.")
+        self.frequency_hz = frame_frequency
 
         return self._to_conductivity_map(ds)
 
@@ -244,7 +278,7 @@ class PyEITSolver:
                 f"{self.n_electrodes}."
             )
 
-        expected_count = self.protocol_obj.n_meas_tot
+        expected_count = len(self._protocol_mapping)
         if len(scan.points) != expected_count:
             raise ValueError(
                 f"{scan_name} contains {len(scan.points)} measurements; "
@@ -252,7 +286,7 @@ class PyEITSolver:
             )
 
         scan_frequency = scan.frequency_hz
-        if not np.isfinite(scan_frequency) or scan_frequency <= 0:
+        if scan_frequency == 0:
             scan_frequency = scan.points[0].freq_hz
         if not np.isfinite(scan_frequency) or scan_frequency <= 0:
             raise ValueError(
@@ -260,6 +294,10 @@ class PyEITSolver:
             )
 
         for index, point in enumerate(scan.points):
+            if not np.isfinite(point.real) or not np.isfinite(point.imag):
+                raise ValueError(
+                    f"{scan_name} point {index} must have finite real and imaginary values."
+                )
             if not np.isclose(
                 point.freq_hz,
                 scan_frequency,

@@ -115,6 +115,8 @@ pub struct AppState {
     pub checks: Vec<Check>,
     pub self_test_running: bool,
     pub self_test_done: bool,
+    pub baseline_ready: bool,
+    pub capturing_baseline: bool,
     pub backend: String,
     pub solver: String,
     pub n_electrodes: u32,
@@ -150,6 +152,8 @@ impl Default for AppState {
             checks: Vec::new(),
             self_test_running: false,
             self_test_done: false,
+            baseline_ready: false,
+            capturing_baseline: false,
             backend: "connecting...".into(),
             solver: "-".into(),
             n_electrodes: 8,
@@ -203,6 +207,15 @@ impl AppState {
         };
         (base, color)
     }
+
+    /// pyEIT reconstruction needs a measured reference before scans.
+    pub fn needs_baseline(&self) -> bool {
+        self.solver == "pyeit" && !self.baseline_ready
+    }
+
+    pub fn can_scan(&self) -> bool {
+        !self.needs_baseline()
+    }
 }
 
 pub struct KioskApp {
@@ -247,6 +260,7 @@ impl KioskApp {
                 self.state.connection = Connection::Connecting;
                 self.state.boot_error = None;
                 self.state.scanning = false;
+                self.state.capturing_baseline = false;
                 self.fx.abort();
                 // Allow a fresh request when the service reconnects.
                 self.self_test_requested = false;
@@ -276,7 +290,15 @@ impl KioskApp {
                 self.state.solver = msg.solver;
                 self.state.n_electrodes = msg.n_electrodes;
                 self.state.frequency_hz = msg.frequency_hz;
+                self.state.baseline_ready = msg.baseline_ready;
                 self.state.boot_error = None;
+            }
+            "baseline_captured" => {
+                self.state.baseline_ready = true;
+                self.state.capturing_baseline = false;
+                self.state.frequency_hz = msg.frequency_hz;
+                self.state.n_electrodes = msg.n_electrodes;
+                self.state.last_error = None;
             }
             "self_test_result" => {
                 self.state.checks = msg.checks;
@@ -299,6 +321,7 @@ impl KioskApp {
             "scan_error" => {
                 self.state.last_error = Some(msg.message);
                 self.state.scanning = false;
+                self.state.capturing_baseline = false;
                 self.fx.abort();
             }
             "progress" => {
@@ -339,9 +362,25 @@ impl KioskApp {
         self.net.send(&ClientMessage::SelfTest);
     }
 
+    /// Capture the measured reference required by pyEIT.
+    fn request_baseline(&mut self) {
+        if self.state.scanning
+            || self.state.continuous
+            || self.state.capturing_baseline
+            || self.state.solver != "pyeit"
+        {
+            return;
+        }
+        self.state.capturing_baseline = true;
+        self.state.last_error = None;
+        self.net.send(&ClientMessage::CaptureBaseline {
+            id: "kiosk-baseline".into(),
+        });
+    }
+
     /// Ask the service for one single-shot scan.
     fn send_scan(&mut self) {
-        if self.state.continuous || self.state.scanning {
+        if self.state.continuous || self.state.scanning || !self.state.can_scan() {
             return;
         }
         self.state.scanning = true;
@@ -354,6 +393,9 @@ impl KioskApp {
 
     /// Toggle continuous ("monitor") mode.
     fn toggle_monitor(&mut self) {
+        if self.state.capturing_baseline || !self.state.can_scan() {
+            return;
+        }
         let on = !self.state.continuous;
         self.state.continuous = on;
         if on {
@@ -429,6 +471,7 @@ impl eframe::App for KioskApp {
             match action {
                 Action::Scan => self.send_scan(),
                 Action::ToggleMonitor => self.toggle_monitor(),
+                Action::CaptureBaseline => self.request_baseline(),
             }
         }
 

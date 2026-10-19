@@ -32,7 +32,7 @@ from software import pipeline
 from software.core import config
 from software.core.types import MeshConfig, RawPoint, ScanData
 from software.reconstruction.image import conductivity_to_png
-from software.reconstruction.pyeit_solver import PyEITSolver
+from software.reconstruction.pyeit_solver import PyEITSolver, _protocol_measurements
 
 
 FREQ_HZ = 50_000.0
@@ -72,22 +72,19 @@ def _scan_data(
     firmware_indices = {
         measurement: index for index, measurement in enumerate(firmware_pairs)
     }
-    firmware_values = np.empty(len(firmware_pairs), dtype=float)
+    firmware_values = np.empty(len(firmware_pairs), dtype=values.dtype)
 
     protocol_index = 0
-    for drive_index, drive in enumerate(protocol_obj.ex_mat):
-        drive_pair = tuple(int(value) for value in drive)
-        for sense in protocol_obj.meas_mat[drive_index]:
-            sense_pair = tuple(int(value) for value in sense)
-            firmware_index = firmware_indices.get((drive_pair, sense_pair))
-            polarity = 1.0
-            if firmware_index is None:
-                firmware_index = firmware_indices[
-                    (drive_pair, (sense_pair[1], sense_pair[0]))
-                ]
-                polarity = -1.0
-            firmware_values[firmware_index] = values[protocol_index] * polarity
-            protocol_index += 1
+    for drive_pair, sense_pair in _protocol_measurements(protocol_obj):
+        firmware_index = firmware_indices.get((drive_pair, sense_pair))
+        polarity = 1.0
+        if firmware_index is None:
+            firmware_index = firmware_indices[
+                (drive_pair, (sense_pair[1], sense_pair[0]))
+            ]
+            polarity = -1.0
+        firmware_values[firmware_index] = values[protocol_index] * polarity
+        protocol_index += 1
 
     assert protocol_index == len(values)
     return ScanData(
@@ -137,12 +134,13 @@ def test_default_solver_selects_pyeit(monkeypatch):
     solver.close()
 
 
-def test_pyeit_with_project_protocol():
+def test_pyeit_with_project_protocol(tmp_path):
     """Test digital baseline-to-anomaly reconstruction through the pipeline."""
 
     solver = PyEITSolver(
         grid_size=GRID_SIZE,
         frequency_hz=FREQ_HZ,
+        allow_homogeneous_reference=True,
     )
 
     solver.setup(
@@ -165,18 +163,20 @@ def test_pyeit_with_project_protocol():
     print(protocol_obj.ex_mat)
 
     print("\nMeasurement pairs by drive:")
-    for exc_index in range(len(protocol_obj.ex_mat)):
+    measurements = list(_protocol_measurements(protocol_obj))
+    for drive in protocol_obj.ex_mat:
+        drive_pair = tuple(map(int, drive))
         print(
-            f"\nDrive {protocol_obj.ex_mat[exc_index]}:"
+            f"\nDrive {drive}:"
         )
-        print(protocol_obj.meas_mat[exc_index])
+        print([sense for excitation, sense in measurements if excitation == drive_pair])
 
     print(
         "\nProtocol measurement count:",
-        protocol_obj.n_meas_tot,
+        len(measurements),
     )
 
-    assert protocol_obj.n_meas_tot == 40
+    assert len(measurements) == 40
 
     forward = EITForward(
         mesh_obj,
@@ -193,10 +193,10 @@ def test_pyeit_with_project_protocol():
     )
 
     assert len(v0) == 40
-    assert len(v0) == protocol_obj.n_meas_tot
+    assert len(v0) == len(measurements)
 
     output_dir = (
-        Path(__file__).resolve().parent
+        tmp_path
         / "pyeit_outputs"
     )
 

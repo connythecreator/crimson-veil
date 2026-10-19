@@ -27,6 +27,7 @@ import uuid
 from websockets.asyncio.server import ServerConnection, serve
 from websockets.exceptions import ConnectionClosed
 
+from hardware.firmware_upload import upload_firmware
 from software.core import config
 
 from . import metrics, protocol, selftest
@@ -72,6 +73,7 @@ class ControlServer:
             await ws.send(png)
 
     async def _run_scan(self, ws: ServerConnection, scan_id: str) -> None:
+        await self._send_json(ws, protocol.Progress(id=scan_id, message="Scanning..."))
         try:
             png = await asyncio.to_thread(
                 self._session.run_scan,
@@ -88,6 +90,33 @@ class ControlServer:
             )
             return
         await self._send_result(ws, scan_id, png)
+
+    async def _capture_baseline(self, ws: ServerConnection, request_id: str) -> None:
+        try:
+            await asyncio.to_thread(self._session.capture_baseline)
+        except BusyError:
+            await self._send_json(
+                ws,
+                protocol.ScanError(
+                    id=request_id,
+                    message="busy: scan or baseline capture in progress",
+                ),
+            )
+            return
+        except Exception as exc:  # noqa: BLE001 - report to the client
+            await self._send_json(
+                ws, protocol.ScanError(id=request_id, message=f"{type(exc).__name__}: {exc}")
+            )
+            return
+        await self._send_json(
+            ws,
+            protocol.BaselineCaptured(
+                id=request_id,
+                frequency_hz=self._session.frequency_hz,
+                n_electrodes=self._session.n_electrodes,
+            ),
+        )
+        await self._send_json(ws, protocol.Ready(**self._session.ready_payload()))
 
     async def handler(self, ws: ServerConnection) -> None:
         self._send_locks[ws] = asyncio.Lock()
@@ -120,8 +149,8 @@ class ControlServer:
                 # Debounced: run a scan, wait active/idle interval, repeat.
                 while True:
                     if self._session.booted:
-                        # Announce the acquisition *before* it runs so the
-                        # kiosk starts its field animation at the right time.
+                        # Announce the acquisition before it runs so the kiosk
+                        # starts its field animation at the right time.
                         await self._send_json(
                             ws,
                             protocol.State(
@@ -153,17 +182,23 @@ class ControlServer:
                     log.info("hello from %s (protocol %s)", msg.get("client"), msg.get("protocol"))
                     if self._session.booted:
                         await self._send_json(ws, protocol.Ready(**self._session.ready_payload()))
-                elif kind == "scan":
+                elif kind in {"scan", "capture_baseline"}:
                     if scan_task and not scan_task.done():
                         await self._send_json(
                             ws,
                             protocol.ScanError(
-                                id=msg.get("id", ""), message="busy: scan in progress"
+                                id=msg.get("id", ""),
+                                message="busy: scan or baseline capture in progress",
                             ),
                         )
                     else:
                         scan_id = msg.get("id") or uuid.uuid4().hex
-                        scan_task = asyncio.create_task(schedule_scan(scan_id))
+                        operation = (
+                            self._capture_baseline(ws, scan_id)
+                            if kind == "capture_baseline"
+                            else schedule_scan(scan_id)
+                        )
+                        scan_task = asyncio.create_task(operation)
                 elif kind == "continuous":
                     want = bool(msg.get("on", True))
                     active_interval_s = float(
@@ -171,6 +206,14 @@ class ControlServer:
                     )
                     idle_interval_s = float(msg.get("idle_interval_s", idle_interval_s))
                     if want and not continuous:
+                        if scan_task and not scan_task.done():
+                            await self._send_json(
+                                ws,
+                                protocol.ScanError(
+                                    id="", message="busy: scan or baseline capture in progress"
+                                ),
+                            )
+                            continue
                         continuous = True
                         last_activity = time.monotonic()
                         scan_task = asyncio.create_task(continuous_loop())
@@ -201,7 +244,7 @@ class ControlServer:
                     try:
                         self._session.set_frequency(float(msg.get("frequency_hz", 0.0)))
                         await self._send_json(ws, protocol.Ready(**self._session.ready_payload()))
-                    except ValueError as exc:
+                    except (ValueError, BusyError) as exc:
                         await self._send_json(ws, protocol.ScanError(id="", message=str(exc)))
                 elif kind == "self_test":
                     checks = await asyncio.to_thread(selftest.run_self_test, self._session)
@@ -211,6 +254,45 @@ class ControlServer:
                     if self._session.booted:
                         await self._send_json(
                             ws, protocol.Ready(**self._session.ready_payload())
+                        )
+                elif kind == "upload_firmware":
+                    if scan_task and not scan_task.done():
+                        await self._send_json(
+                            ws,
+                            protocol.ScanError(
+                                id="",
+                                message="busy: scan or baseline capture in progress",
+                            ),
+                        )
+                        continue
+                    if continuous:
+                        continuous = False
+                    try:
+                        # Release the serial port before mpremote takes it.
+                        await asyncio.to_thread(self._session.close)
+                        result = await asyncio.to_thread(
+                            upload_firmware, mock=bool(msg.get("mock", False))
+                        )
+                        await self._send_json(
+                            ws, protocol.FirmwareUploaded(**result)
+                        )
+                    except Exception as exc:  # noqa: BLE001 - report to the client
+                        await self._send_json(
+                            ws,
+                            protocol.ScanError(
+                                id="",
+                                message=f"firmware upload: {type(exc).__name__}: {exc}",
+                            ),
+                        )
+                    try:
+                        await asyncio.to_thread(self._session.boot)
+                        await self._send_json(
+                            ws, protocol.Ready(**self._session.ready_payload())
+                        )
+                    except Exception as exc:  # noqa: BLE001
+                        await self._send_json(
+                            ws,
+                            protocol.BootError(message=f"{type(exc).__name__}: {exc}"),
                         )
                 elif kind == "ping":
                     await self._send_json(ws, protocol.Pong())

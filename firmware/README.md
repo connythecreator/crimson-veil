@@ -34,3 +34,16 @@ The sketch must speak the line-delimited JSON protocol documented in
 The host (`hardware/esp32.py`) is the reference implementation of the other
 side of this protocol; matching it is the contract. The firmware owns the scan
 process and calibration; the host sends no plan and applies no calibration.
+
+## Uploading and mock mode
+
+`python dev.py upload-firmware` (on the Pi, with `mpremote` installed) copies
+the files in `firmware/mp-firm/src/` to the ESP32, writes `board_config.py`,
+and hard-resets it so `main.py` runs. Pass `--mock` to make
+`board_config.USE_MOCK = True`: the firmware then uses `mock_ad5933.py`
+(FEM-generated 8-electrode tables) instead of the unfinished AD5933/mux path.
+`python dev.py mock-firmware` runs the same firmware under CPython on a pty.
+
+`{"type":"mock_mode","mode":"baseline"|"target"|"auto"}` switches the mock
+tables at runtime (mock mode only). The first full scan is the baseline; later
+scans serve the anomaly, which matches the kiosk's capture-then-scan flow.
