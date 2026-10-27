@@ -40,7 +40,7 @@
 //  the only flat, pad-free real estate on the board is around its four
 //  M3 mounting holes.  So the clip passes up THROUGH the hole:
 //
-//      o6.00 flange at z 5.20  <- the board rests on this
+//      o6.00 flange at z 4.40  <- the board rests on this
 //      1.60 board, hole o3.20
 //      o2.80 pin through the hole
 //      4.30 x 2.90 head at z 6.90 .. 8.10, 0.55 lip over the hole
@@ -89,10 +89,12 @@
 //    WALL_SIDE         4.50  long walls, plus six pilasters at 6.00 local;
 //                            thinner walls go straight into SIDE_CLR,
 //                            because the outer footprint is held
+//    FLOOR             1.60  the tray's floor: 4 perimeters at a 0.4 nozzle,
+//                            and the largest single slab in the part
 //    LIFT              2.80  clear air under the board
-//    SEAT_Z            5.20  board underside above the bench
-//    BOARD_TOP         6.80  board top above the bench
-//    WALL_H           24.00  wall top / lid seat; 17.20 above the board,
+//    SEAT_Z            4.40  board underside above the bench
+//    BOARD_TOP         6.00  board top above the bench
+//    WALL_H           24.00  wall top / lid seat; 18.00 above the board,
 //                            enough for the ESP32 DevKit V1's 15.01
 //
 //  ---------------------------------------------------------------------
@@ -110,7 +112,7 @@
 //    1. lower each board into its bay, pad side up, and press it down over
 //       its four pinch clips.  The split heads close through the holes and
 //       spring open above the board; the board lands on the flanges at
-//       z 5.20 with 2.80 of clear air under it.  Pinch the two halves of a
+//       z 4.40 with 2.80 of clear air under it.  Pinch the two halves of a
 //       head together to release a board.
 //    2. fit the ESP32 and any other end-of-board IO.  The -X end is one
 //       full-width opening from z 10.00 to the top; the sill below it is
@@ -172,7 +174,12 @@ WALL_SIDE = 4.50;   // long walls.  The outer envelope is held fixed, so
 WALL_END  = 3.00;   // short walls
 PILASTER_W = 10.00; // pilaster width along the wall
 PILASTER_T =  1.50; // how far it stands proud of the wall's inner face
-FLOOR     = 2.40;
+FLOOR     = 1.60;   // 4 perimeters at a 0.4 nozzle.  The floor is the biggest
+                    // flat area in the part, so every 0.2 mm of it costs a
+                    // full 174 x 119 layer; it is also the one dimension with
+                    // nothing behind it.  LIFT is measured above it, so
+                    // thinning the floor lowers the whole stack rather than
+                    // eating into the air under the board.
 LIFT      = 2.80;   // clear air under the board, for solder joints
 WALL_H    = 24.00;  // wall top, and the lid's seat
 SILL_H    = 10.00;  // the open -X end is solid only up to here
@@ -225,8 +232,8 @@ OY    = 59.50;                                      // outer half-Y, HELD:
 IY    = OY - WALL_SIDE;                             // 55.00 inner half-Y
 BAY_Y = BOARD_GAP/2 + BOARD_W/2;                    // 26.50 bay centre
 SIDE_CLR = IY - (BOARD_GAP/2 + BOARD_W);            // 2.50 board edge to wall
-SEAT_Z     = FLOOR + LIFT;                          // 5.20 board underside
-BOARD_TOP  = SEAT_Z + BOARD_T;                      // 6.80 board top
+SEAT_Z     = FLOOR + LIFT;                          // 4.40 board underside
+BOARD_TOP  = SEAT_Z + BOARD_T;                      // 6.00 board top
 //  Measured off the OUTER face: the o6.20 lid counterbore then stays
 //  inside the lid whatever WALL_SIDE is.  The o2.50 pilot is carried by
 //  the pilasters on the inner face, not by the bare wall.
