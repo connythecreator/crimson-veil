@@ -764,12 +764,12 @@ OH        = SPLIT_B + LCD_T + BEZEL_T;     // = 49.20, the whole shell
 //  and no screw axis in the file needed touching.
 
 // =====================================================================
-//  THE BELT PLATE, AND THE INTERFACE IT BOLTS TO
+//  THE PLATE, AND THE INTERFACE IT BOLTS TO
 // =====================================================================
 //  The case does not touch fabric.  It touches this plate, and the plate
-//  touches the belt - so the plate is SWAPPABLE: any plate on this bolt
+//  touches the fabric - so the plate is SWAPPABLE: any plate on this bolt
 //  rectangle fits, and the case does not change when you find a better way to
-//  hang it.  Two are drawn; see PLATE_STYLE.
+//  hang it.  Three are drawn; see PLATE_STYLE.
 //
 //  WHY THE INTERFACE IS ON THE UNDERSIDE
 //  Hanging the case by its -Z face is what puts the LCD PARALLEL to the
@@ -831,10 +831,11 @@ PLATE_BOLTS = [
 //  both are printed parts and neither first layer is ever quite flat, so a
 //  0.50 gap is what keeps the case from rocking on the plate.
 //
-//  Its depth is the case INTERIOR's, 57.20, because the hook has to reach the
-//  belt's lower edge and a 50 mm belt on a 67.20 case leaves its lower edge
-//  8.35 in from the face - inside the plate, but only just.  A shallower plate
-//  would miss it.
+//  PLATE_W and PLATE_D are the hook / pals footprint.  The hook's depth is
+//  the case INTERIOR's, 57.20, because it has to reach the belt's lower edge:
+//  a 50 mm belt on the 66.20 case leaves that edge 8.10 in from the face -
+//  inside the plate, but only just.  A shallower plate would miss it.  The
+//  strap's tray does not use these two; it is derived from OW / OD below.
 PLATE_GAP     =  0.50;                     // case face to the plate's top face
 PLATE_T       =  4.00;                     // the slab
 PLATE_W       = 76.20;                     // X, 3 x the 25.4 module
@@ -862,10 +863,12 @@ PLATE_CBORE_H =  1.65;                     //  cut in the OUTER face and deep
 //  plate off its seat - the one failure this joint cannot have.
 PLATE_SCREW_L =  6.00;
 
-//  "hook" - two prongs that hook the belt's lower edge.  "pals" - a slot field
-//  on the webbing module.  Both are on the same 25.40 pitch, so the hooks and
-//  the slots line up on the same grid and either plate bolts on the same way.
-PLATE_STYLE = "hook";
+//  "strap" - a shallow tray that hugs the case, with four arms on the corner
+//  diagonals.  "hook" - two prongs that hook the belt's lower edge.  "pals" -
+//  a slot field on the webbing module.  All three bolt to the same four
+//  bosses; the hook and pals bodies share the 25.40 webbing grid, and the
+//  strap tray is the new fabric interface.
+PLATE_STYLE = "strap";
 
 //  The hook, as a J in the Y-Z plane: a web leaves the plate's outer face and
 //  runs out PLATE_HOOK_PROJ; at the far end a PLATE_HOOK_T lip turns and runs
@@ -882,7 +885,7 @@ PLATE_HOOK_W    = 12.00;                   // each prong's width, along X
 PLATE_HOOK_PROJ =  8.00;                   // out from the plate's outer face
 PLATE_HOOK_T    =  2.00;                   // the web, and so the lip
 PLATE_HOOK_LIP  =  6.00;                   // the lip, along +Y
-PLATE_HOOK_Y    = PLATE_CY - BELT_W / 2;   // = 8.35, the belt's lower edge
+PLATE_HOOK_Y    = PLATE_CY - BELT_W / 2;   // = 8.10, the belt's lower edge
 
 //  The webbing field, on the PALS module both ways: 1 in slots, 1.5 in rows.
 PLATE_SLOT_W    = 25.40;                   // X
@@ -890,6 +893,68 @@ PLATE_SLOT_H    =  6.00;                   // Y - the gap webbing threads
 PLATE_ROW_P     = 38.10;                   // Y pitch
 PLATE_SLOT_N    =  2;                      // per row
 PLATE_ROW_N     =  2;
+
+//  THE STRAP PLATE.  A shallow tray under the whole case, with four arms on
+//  the corner diagonals.  The tray's skirt wraps the case's lower 3.00, so
+//  the plate locates itself on the case instead of merely hanging under it;
+//  the arms fan out past the corners, where an elastic strap can loop over a
+//  tip and seat in the waist behind it.
+//
+//  THE WAIST IS CUT, NOT IMPLIED BY THE NECK CIRCLE.  The tip paddle's rear
+//  arc reaches back to r 60.00, so a hull whose only narrow point is the neck
+//  at r 64.00 is simply swallowed by the paddle: the exported arm measured
+//  16.00 wide there, not 14.00.  Two o8.00 circles per arm, 10.00 off the axis
+//  at the neck's radius, cut a concave waist 12.00 wide over about 6.00 along
+//  the arm.  A strap that has stretched over the 20.00 tip seats in that
+//  12.00 groove and cannot slide forward again under tension.  That is the
+//  same one-way logic as the belt hook, without a hook that would stand off
+//  the fabric.
+//
+//  THE SKIRT IS OUTSIDE THE CASE, NOT INSIDE IT.  It clears the case's outer
+//  wall by PLATE_SKIRT_CLR all round, so it locates without binding, and its
+//  four corner radii are the case's own 3.00 plus that clearance.  It stops
+//  at PLATE_SKIRT_TOP = 3.00 so it is a hug, not a shell - the MID's ports
+//  start at 5.50 and nothing on the case is touched.
+//
+//  THE FIVE VENTS CROSS THE SKIRT, so the skirt is notched at exactly the
+//  BASE's vent columns.  A continuous 3.00 skirt would have covered the
+//  lower 1.50 of every vent; the notch is cut full-width, so the vent sees
+//  air rather than plastic 0.50 away from it.
+//
+//  PRINT IT OUTER-FACE DOWN.  The skirt is on the CASE side (it points up at
+//  the case), so the plate prints tray-open-up, unlike the hook plate.  The
+//  four counterbores are then on the bed; each is a 6.20 pocket with a 1.40
+//  inward lip, which is a trivial cantilever and needs no support.
+PLATE_SKIRT_CLR = 0.50;                    // skirt inner face to the case wall
+PLATE_SKIRT_T   = 3.00;                    // the skirt wall
+PLATE_SKIRT_TOP = 3.00;                    // its top above the case underside
+PLATE_SKIRT_OVERLAP = 0.50;                // sunk into the floor, so the union
+                                           //  is one solid and not two shells
+                                           //  touching on a coplanar face
+PLATE_SKIRT_R   = 3.00 + PLATE_SKIRT_CLR;  // = 3.50, the skirt's inner corner
+PLATE_TRAY_X0   = -PLATE_SKIRT_CLR - PLATE_SKIRT_T;
+PLATE_TRAY_X1   =  OW + PLATE_SKIRT_CLR + PLATE_SKIRT_T;
+PLATE_TRAY_Y0   = -PLATE_SKIRT_CLR - PLATE_SKIRT_T;
+PLATE_TRAY_Y1   =  OD + PLATE_SKIRT_CLR + PLATE_SKIRT_T;
+PLATE_TRAY_R    =  3.00 + PLATE_SKIRT_CLR + PLATE_SKIRT_T;   // = 6.50
+
+//  One arm, on a radial line through a case corner.  Distances are from the
+//  plate's centre along that line; the root circle sits inside the tray, the
+//  neck marks where the strap's seat is cut, and the tip paddle is what the
+//  strap has to stretch over to reach it.
+PLATE_ARM_ANG    = atan(OD / OW);          // = 34.85 deg, the real diagonal
+PLATE_ARM_ROOT_R = 46.00;
+PLATE_ARM_ROOT_D = 16.00;
+PLATE_ARM_NECK_R = 64.00;
+PLATE_ARM_NECK_D = 14.00;
+PLATE_ARM_TIP_R  = 70.00;
+PLATE_ARM_TIP_D  = 20.00;
+//  The cut waist.  Each circle is centred PLATE_ARM_WAIST_OFF off the arm's
+//  axis at the neck's radius and removes everything outboard of
+//  OFF - R = 6.00, so the strap seat is 12.00 wide.
+PLATE_ARM_WAIST_OFF = 10.00;
+PLATE_ARM_GROOVE_R  = 4.00;
+PLATE_ARM_WAIST_D   = 2 * (PLATE_ARM_WAIST_OFF - PLATE_ARM_GROOVE_R);  // 12.00
 
 //  How deep the switch pocket sinks into the wall.  The lip in front of the
 //  body is 0.45 of wall that is never cut, only pierced by the button hole, so
@@ -1143,11 +1208,20 @@ SCREWS = [
 echo(str("outer    : ", OW, " x ", OD, " x ", OH, " mm"));
 echo(str("interior : ", IW, " x ", ID, " x ", JOINT_A - FLOOR, " mm below the ",
          "Pi's PCB, plus ", MID_H, " of MID  (whole case ", OH, " tall)"));
-echo(str("splits   : plate -", PLATE_GAP + PLATE_T, "..-", PLATE_GAP,
+echo(str("splits   : plate -", PLATE_GAP + PLATE_T, "..",
+         PLATE_STYLE == "strap" ? PLATE_SKIRT_TOP : -PLATE_GAP,
          "  base 0..", JOINT_A, "  mid ..", SPLIT_B, "  bezel ..", OH,
          "   (mid is ", MID_H, " tall)"));
-echo(str("belt plate ", PLATE_W, " x ", PLATE_D, " x ", PLATE_T, "  style ",
-         PLATE_STYLE, "  gap to the BASE ", PLATE_GAP, "  bolt rectangle ",
+echo(str("plate    : style ", PLATE_STYLE,
+         PLATE_STYLE == "strap"
+           ? str("  tray ", PLATE_TRAY_X1 - PLATE_TRAY_X0, " x ",
+                 PLATE_TRAY_Y1 - PLATE_TRAY_Y0, "  skirt ",
+                 PLATE_SKIRT_T, " x ", PLATE_SKIRT_TOP, " above the case face",
+                 "  arms to r ", PLATE_ARM_TIP_R + PLATE_ARM_TIP_D / 2,
+                 " on ", PLATE_ARM_ANG, " deg, waist ",
+                 PLATE_ARM_WAIST_D, " / tip ", PLATE_ARM_TIP_D)
+           : str("  ", PLATE_W, " x ", PLATE_D, " x ", PLATE_T),
+         "  gap to the BASE ", PLATE_GAP, "  bolt rectangle ",
          2 * PLATE_BOLT_DX, " x ", 2 * PLATE_BOLT_DY, "  screw ", PLATE_SCREW_L,
          " long into a blind o", PLATE_PILOT_D, " x ", PLATE_PILOT_DEEP,
          " pilot, tip at ", PLATE_SCREW_L + PLATE_GAP - PLATE_CBORE_H));
@@ -1261,6 +1335,13 @@ echo(str("    clears the HDMI opening below by ",
 module rbox(w, d, h, r) {
     hull() for (x = [r, w - r], y = [r, d - r])
         translate([x, y, 0]) cylinder(r = r, h = h, $fn = $fn);
+}
+
+//  The 2-D twin, for the tray and its arms.  Both are extruded once, so the
+//  plate is one prism and not a stack of booleans.
+module rrect(w, d, r) {
+    hull() for (x = [r, w - r], y = [r, d - r])
+        translate([x, y]) circle(r = r);
 }
 
 // Cut a measured opening out through a wall.  The opening is given in MODEL
@@ -1533,19 +1614,96 @@ module hook() {
         cube([PLATE_HOOK_W, PLATE_HOOK_LIP, PLATE_HOOK_T]);
 }
 
+//  One strap arm, in the arm's own frame: +X runs out along the corner
+//  diagonal, the arm is centred on y = 0.  Root and tip are separate hulls
+//  sharing the neck circle, which is what makes the waist CONCAVE.  A single
+//  hull of all three would fill it in: a hull is the convex boundary, so the
+//  strap could then slide straight off the tip.
+module strap_arm() {
+    hull() {
+        translate([PLATE_ARM_ROOT_R, 0]) circle(d = PLATE_ARM_ROOT_D);
+        translate([PLATE_ARM_NECK_R, 0]) circle(d = PLATE_ARM_NECK_D);
+    }
+    hull() {
+        translate([PLATE_ARM_NECK_R, 0]) circle(d = PLATE_ARM_NECK_D);
+        translate([PLATE_ARM_TIP_R, 0])  circle(d = PLATE_ARM_TIP_D);
+    }
+}
+
+//  The concave waist, cut from the outline after the arm is built.  One circle
+//  each side of the axis at the neck's radius; together they leave a 12.00
+//  seat.  A hull cannot produce this - it would bridge straight across.
+module strap_waist() {
+    for (s = [-1, 1])
+        translate([PLATE_ARM_NECK_R, s * PLATE_ARM_WAIST_OFF])
+            circle(r = PLATE_ARM_GROOVE_R);
+}
+
+//  The tray floor and its four arms as ONE 2-D outline, extruded by plate().
+//  The arms' root circles sit inside the tray, so the union is a single
+//  connected region and not four tabs that merely touch.
+module plate_strap_2d() {
+    difference() {
+        union() {
+            translate([PLATE_TRAY_X0, PLATE_TRAY_Y0])
+                rrect(PLATE_TRAY_X1 - PLATE_TRAY_X0,
+                      PLATE_TRAY_Y1 - PLATE_TRAY_Y0, PLATE_TRAY_R);
+
+            //  One per corner.  The four angles are the diagonal and its three
+            //  reflections - written out rather than mirrored so the arm keeps
+            //  the same handedness (it does not matter here, but a mirror is
+            //  the one operation that would turn a printable part into its
+            //  twin).
+            for (a = [PLATE_ARM_ANG, 180 - PLATE_ARM_ANG,
+                      180 + PLATE_ARM_ANG, -PLATE_ARM_ANG])
+                translate([PLATE_CX, PLATE_CY]) rotate(a) strap_arm();
+        }
+        for (a = [PLATE_ARM_ANG, 180 - PLATE_ARM_ANG,
+                  180 + PLATE_ARM_ANG, -PLATE_ARM_ANG])
+            translate([PLATE_CX, PLATE_CY]) rotate(a) strap_waist();
+    }
+}
+
 module plate() {
     difference() {
         union() {
-            translate([PLATE_CX - PLATE_W / 2, PLATE_CY - PLATE_D / 2,
-                       -(PLATE_GAP + PLATE_T)])
-                rbox(PLATE_W, PLATE_D, PLATE_T, PLATE_R);
+            if (PLATE_STYLE == "strap") {
+                //  The floor: 4.00 of solid slab under the whole case, arms
+                //  included.  Its top face is PLATE_GAP below the case.
+                translate([0, 0, -(PLATE_GAP + PLATE_T)])
+                    linear_extrude(height = PLATE_T) plate_strap_2d();
 
-            if (PLATE_STYLE == "hook")
-                for (i = [0 : PLATE_HOOK_N - 1])
-                    translate([PLATE_CX + (i - (PLATE_HOOK_N - 1) / 2)
-                                           * PLATE_MOD - PLATE_HOOK_W / 2,
-                               0, 0])
-                        hook();
+                //  The skirt: the tray's wall, standing on that floor and
+                //  wrapping the case's lower PLATE_SKIRT_TOP.  The inner cut
+                //  is the case outline plus PLATE_SKIRT_CLR, so the two
+                //  printed parts never touch.  It starts PLATE_SKIRT_OVERLAP
+                //  inside the floor: a coplanar face-to-face union would
+                //  export as two shells touching, not one solid.
+                translate([0, 0, -(PLATE_GAP + PLATE_SKIRT_OVERLAP)])
+                    linear_extrude(height = PLATE_SKIRT_TOP + PLATE_GAP
+                                          + PLATE_SKIRT_OVERLAP)
+                        difference() {
+                            translate([PLATE_TRAY_X0, PLATE_TRAY_Y0])
+                                rrect(PLATE_TRAY_X1 - PLATE_TRAY_X0,
+                                      PLATE_TRAY_Y1 - PLATE_TRAY_Y0,
+                                      PLATE_TRAY_R);
+                            translate([-PLATE_SKIRT_CLR, -PLATE_SKIRT_CLR])
+                                rrect(OW + 2 * PLATE_SKIRT_CLR,
+                                      OD + 2 * PLATE_SKIRT_CLR,
+                                      PLATE_SKIRT_R);
+                        }
+            } else {
+                translate([PLATE_CX - PLATE_W / 2, PLATE_CY - PLATE_D / 2,
+                           -(PLATE_GAP + PLATE_T)])
+                    rbox(PLATE_W, PLATE_D, PLATE_T, PLATE_R);
+
+                if (PLATE_STYLE == "hook")
+                    for (i = [0 : PLATE_HOOK_N - 1])
+                        translate([PLATE_CX + (i - (PLATE_HOOK_N - 1) / 2)
+                                               * PLATE_MOD - PLATE_HOOK_W / 2,
+                                   0, 0])
+                            hook();
+            }
         }
 
         //  The four bolts.  The counterbore is in the OUTER face, so the heads
@@ -1559,6 +1717,19 @@ module plate() {
                 cylinder(d = PLATE_CBORE_D, h = PLATE_CBORE_H + 0.01,
                          $fn = $fn);
         }
+
+        //  The five BASE vents are behind the -Y skirt, so cut the skirt at
+        //  the same columns.  The slot opens through the skirt's top edge
+        //  (z 1.50..4.00 against a 3.00 skirt), which is deliberate: it is a
+        //  crenellation, not a tunnel, and it prints without a bridge.
+        if (PLATE_STYLE == "strap")
+            for (i = [0 : VENT_N - 1])
+                translate([OW / 2 + (i - (VENT_N - 1) / 2) * VENT_P
+                               - VENT_W / 2,
+                           -PLATE_SKIRT_CLR - PLATE_SKIRT_T - 1,
+                           VENT_Z - VENT_H / 2])
+                    cube([VENT_W, PLATE_SKIRT_T + PLATE_SKIRT_CLR + 2,
+                          VENT_H]);
 
         //  The webbing field, on the PALS module both ways.  Slots rather
         //  than hooks, for webbing wide enough to thread: the belt goes in
@@ -1971,11 +2142,28 @@ module switches() {
 //  plate() is the one exception, and only because it hangs below z 0.
 
 //  plate() is drawn where it fits - under the case - which is the wrong way up
-//  to print, so this is the print orientation: turned over about X so the case
-//  face is on the bed and the hooks stand up off it.  A rotation and not a
-//  mirror, so the part is the same part - only where it sits in the STL
-//  changes.  The Y shift is only to bring it back over its own footprint.
-module plate_placed()   { translate([0, OD, -PLATE_GAP]) rotate([180, 0, 0]) plate(); }
+//  to print.  The print orientation depends on which face has to be on the bed:
+//
+//    hook / pals  the hook stands off the OUTER face, so the part turns over
+//                 and the case face goes on the bed (the hook points up).
+//    strap        the skirt stands off the CASE face, so the OUTER face goes
+//                 on the bed and the tray prints open-side up.  No flip: the
+//                 part is drawn with its outer face already at the bottom, so
+//                 this is a pure lift, and a flip here would put the skirt's
+//                 3.00 rim on the bed and ask the floor to bridge the whole
+//                 tray.  The lift is PLATE_GAP + PLATE_T, which puts the outer
+//                 face at z 0 and the skirt's top at PLATE_T + PLATE_GAP +
+//                 PLATE_SKIRT_TOP.
+//
+//  A rotation and not a mirror, so it is the same part in both cases - only
+//  where it sits in the STL changes.  The Y shift is only to bring it back
+//  over its own footprint.
+module plate_placed() {
+    if (PLATE_STYLE == "strap")
+        translate([0, 0, PLATE_GAP + PLATE_T]) plate();
+    else
+        translate([0, OD, -PLATE_GAP]) rotate([180, 0, 0]) plate();
+}
 
 module boards() {
     color("DarkGreen")      pi();
@@ -2144,5 +2332,8 @@ else {  // "all" - all four laid out along X for printing
     color("SteelBlue") base();
     translate([OW + 10, 0, 0])       color("CornflowerBlue") mid();
     translate([2 * (OW + 10), 0, 0]) color("BurlyWood")      bezel();
-    translate([3 * (OW + 10), 0, 0]) color("Plum")           plate_placed();
+    //  The strap plate is wider than the case (its arms reach 19.88 past the
+    //  case's -X edge), so it needs more than one 105.12 pitch of clearance
+    //  from the BEZEL.  25.00 on top of the pitch leaves 15.12 between them.
+    translate([3 * (OW + 10) + 25, 0, 0]) color("Plum")      plate_placed();
 }

@@ -62,11 +62,11 @@ for v in parts assembly internals stack joints underside section base plate pals
                    -D 'SHOW_PI=false' -D 'SHOW_WITTY=false' \
                    -D 'SHOW_HDR=false' -D 'SHOW_LCD=false' \
                    -D 'SHOW_LED=false' -D 'SHOW_SW=false' ;;
-        # from below: six M3 button heads standing 1.65 proud of the BASE's
-        # underside, and inside their ring the plate's four bolts, and behind
-        # those the Pi's four counterbored screws - which is the order they
-        # come apart in.  The heads stand proud because an M3 button head is
-        # wider than this case's 5.00 wall, so nothing can counterbore them.
+        # from below: the strap plate's outer face fills the view - four bolt
+        # counterbores flush in it and the four arm paddles fanning past the
+        # case corners.  The six case heads and the Pi's four are all behind
+        # that floor now, which is exactly the order they come apart in:
+        # plate first, on its own four bolts.
         underside) render underside $UNDER -D 'PART="assembly"' ;;
         # Half-section, case parts only.  The boards are left out on purpose:
         # the imported LCD is a SURFACE model, so cutting it leaves coplanar
@@ -83,7 +83,8 @@ for v in parts assembly internals stack joints underside section base plate pals
         # pilots down the middle of those bosses - they are the only holes in
         # the case that take a thread.  The six in the rim are clearances.
         base)      render base      $ISO  -D 'PART="base"' ;;
-        # the belt plate on the bed, as it prints
+        # the strap plate on the bed, as it prints: outer face down, the tray
+        # open, the skirt standing up and the four arms flat on the bed
         plate)     render plate     $ISO  -D 'PART="plate"' ;;
         # ...and the other way to hang it: a slot field on the PALS module
         pals)      render pals      $ISO  -D 'PART="plate"' -D 'PLATE_STYLE="pals"' ;;

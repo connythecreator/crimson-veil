@@ -1,0 +1,603 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="420mm" height="297mm" viewBox="0 0 420 297">
+
+<defs>
+  <pattern id="hatch" width="2.2" height="2.2" patternUnits="userSpaceOnUse"
+           patternTransform="rotate(45)">
+    <line x1="0" y1="0" x2="0" y2="2.2" stroke="#101010" stroke-width="0.22"/>
+  </pattern>
+  <pattern id="hatch2" width="1.4" height="1.4" patternUnits="userSpaceOnUse"
+           patternTransform="rotate(-45)">
+    <line x1="0" y1="0" x2="0" y2="1.4" stroke="#101010" stroke-width="0.18"/>
+  </pattern>
+</defs>
+<rect x="0" y="0" width="420" height="297" fill="#ffffff"/>
+<rect x="8.000" y="8.000" width="404.000" height="281.000" rx="0.000" fill="none" stroke="#000000" stroke-width="0.5"/>
+<rect x="10.000" y="10.000" width="400.000" height="277.000" rx="0.000" fill="none" stroke="#000000" stroke-width="0.22"/>
+<line x1="60.000" y1="10.000" x2="60.000" y2="12.000" stroke="#000000" stroke-width="0.22" stroke-linecap="round"/>
+<line x1="60.000" y1="285.000" x2="60.000" y2="287.000" stroke="#000000" stroke-width="0.22" stroke-linecap="round"/>
+<text x="60.000" y="284.000" font-family="DejaVu Sans, Arial, sans-serif" font-size="1.8" fill="#101010" font-weight="normal" text-anchor="middle">7</text>
+<line x1="110.000" y1="10.000" x2="110.000" y2="12.000" stroke="#000000" stroke-width="0.22" stroke-linecap="round"/>
+<line x1="110.000" y1="285.000" x2="110.000" y2="287.000" stroke="#000000" stroke-width="0.22" stroke-linecap="round"/>
+<text x="110.000" y="284.000" font-family="DejaVu Sans, Arial, sans-serif" font-size="1.8" fill="#101010" font-weight="normal" text-anchor="middle">6</text>
+<line x1="160.000" y1="10.000" x2="160.000" y2="12.000" stroke="#000000" stroke-width="0.22" stroke-linecap="round"/>
+<line x1="160.000" y1="285.000" x2="160.000" y2="287.000" stroke="#000000" stroke-width="0.22" stroke-linecap="round"/>
+<text x="160.000" y="284.000" font-family="DejaVu Sans, Arial, sans-serif" font-size="1.8" fill="#101010" font-weight="normal" text-anchor="middle">5</text>
+<line x1="210.000" y1="10.000" x2="210.000" y2="12.000" stroke="#000000" stroke-width="0.22" stroke-linecap="round"/>
+<line x1="210.000" y1="285.000" x2="210.000" y2="287.000" stroke="#000000" stroke-width="0.22" stroke-linecap="round"/>
+<text x="210.000" y="284.000" font-family="DejaVu Sans, Arial, sans-serif" font-size="1.8" fill="#101010" font-weight="normal" text-anchor="middle">4</text>
+<line x1="260.000" y1="10.000" x2="260.000" y2="12.000" stroke="#000000" stroke-width="0.22" stroke-linecap="round"/>
+<line x1="260.000" y1="285.000" x2="260.000" y2="287.000" stroke="#000000" stroke-width="0.22" stroke-linecap="round"/>
+<text x="260.000" y="284.000" font-family="DejaVu Sans, Arial, sans-serif" font-size="1.8" fill="#101010" font-weight="normal" text-anchor="middle">3</text>
+<line x1="310.000" y1="10.000" x2="310.000" y2="12.000" stroke="#000000" stroke-width="0.22" stroke-linecap="round"/>
+<line x1="310.000" y1="285.000" x2="310.000" y2="287.000" stroke="#000000" stroke-width="0.22" stroke-linecap="round"/>
+<text x="310.000" y="284.000" font-family="DejaVu Sans, Arial, sans-serif" font-size="1.8" fill="#101010" font-weight="normal" text-anchor="middle">2</text>
+<line x1="360.000" y1="10.000" x2="360.000" y2="12.000" stroke="#000000" stroke-width="0.22" stroke-linecap="round"/>
+<line x1="360.000" y1="285.000" x2="360.000" y2="287.000" stroke="#000000" stroke-width="0.22" stroke-linecap="round"/>
+<text x="360.000" y="284.000" font-family="DejaVu Sans, Arial, sans-serif" font-size="1.8" fill="#101010" font-weight="normal" text-anchor="middle">1</text>
+<line x1="10.000" y1="56.167" x2="12.000" y2="56.167" stroke="#000000" stroke-width="0.22" stroke-linecap="round"/>
+<line x1="408.000" y1="56.167" x2="410.000" y2="56.167" stroke="#000000" stroke-width="0.22" stroke-linecap="round"/>
+<text x="6.600" y="57.167" font-family="DejaVu Sans, Arial, sans-serif" font-size="1.8" fill="#101010" font-weight="normal" text-anchor="middle">A</text>
+<text x="413.300" y="57.167" font-family="DejaVu Sans, Arial, sans-serif" font-size="1.8" fill="#101010" font-weight="normal" text-anchor="middle">A</text>
+<line x1="10.000" y1="102.333" x2="12.000" y2="102.333" stroke="#000000" stroke-width="0.22" stroke-linecap="round"/>
+<line x1="408.000" y1="102.333" x2="410.000" y2="102.333" stroke="#000000" stroke-width="0.22" stroke-linecap="round"/>
+<text x="6.600" y="103.333" font-family="DejaVu Sans, Arial, sans-serif" font-size="1.8" fill="#101010" font-weight="normal" text-anchor="middle">B</text>
+<text x="413.300" y="103.333" font-family="DejaVu Sans, Arial, sans-serif" font-size="1.8" fill="#101010" font-weight="normal" text-anchor="middle">B</text>
+<line x1="10.000" y1="148.500" x2="12.000" y2="148.500" stroke="#000000" stroke-width="0.22" stroke-linecap="round"/>
+<line x1="408.000" y1="148.500" x2="410.000" y2="148.500" stroke="#000000" stroke-width="0.22" stroke-linecap="round"/>
+<text x="6.600" y="149.500" font-family="DejaVu Sans, Arial, sans-serif" font-size="1.8" fill="#101010" font-weight="normal" text-anchor="middle">C</text>
+<text x="413.300" y="149.500" font-family="DejaVu Sans, Arial, sans-serif" font-size="1.8" fill="#101010" font-weight="normal" text-anchor="middle">C</text>
+<line x1="10.000" y1="194.667" x2="12.000" y2="194.667" stroke="#000000" stroke-width="0.22" stroke-linecap="round"/>
+<line x1="408.000" y1="194.667" x2="410.000" y2="194.667" stroke="#000000" stroke-width="0.22" stroke-linecap="round"/>
+<text x="6.600" y="195.667" font-family="DejaVu Sans, Arial, sans-serif" font-size="1.8" fill="#101010" font-weight="normal" text-anchor="middle">D</text>
+<text x="413.300" y="195.667" font-family="DejaVu Sans, Arial, sans-serif" font-size="1.8" fill="#101010" font-weight="normal" text-anchor="middle">D</text>
+<line x1="10.000" y1="240.833" x2="12.000" y2="240.833" stroke="#000000" stroke-width="0.22" stroke-linecap="round"/>
+<line x1="408.000" y1="240.833" x2="410.000" y2="240.833" stroke="#000000" stroke-width="0.22" stroke-linecap="round"/>
+<text x="6.600" y="241.833" font-family="DejaVu Sans, Arial, sans-serif" font-size="1.8" fill="#101010" font-weight="normal" text-anchor="middle">E</text>
+<text x="413.300" y="241.833" font-family="DejaVu Sans, Arial, sans-serif" font-size="1.8" fill="#101010" font-weight="normal" text-anchor="middle">E</text>
+<text x="14.000" y="17.500" font-family="DejaVu Sans, Arial, sans-serif" font-size="4.2" fill="#101010" font-weight="bold" text-anchor="start">CRIMSON VEIL  —  PI-STACK CASE v0.7</text>
+<text x="14.000" y="12.000" font-family="DejaVu Sans, Arial, sans-serif" font-size="2.2" fill="#101010" font-weight="normal" text-anchor="start" font-style="italic">DIMENSIONED MECHANICAL DRAWINGS  ·  DERIVED FROM pi-stack-v0.7.scad</text>
+<text x="406.000" y="17.000" font-family="DejaVu Sans, Arial, sans-serif" font-size="3.0" fill="#101010" font-weight="bold" text-anchor="end">SHEET 7 OF 8</text>
+<line x1="12.000" y1="20.200" x2="408.000" y2="20.200" stroke="#000000" stroke-width="0.25" stroke-linecap="round"/>
+<rect x="55.000" y="189.400" width="95.120" height="34.900" rx="0.000" fill="none" stroke="#101010" stroke-width="0.5"/>
+<polygon points="65.900,224.300 65.900,217.790 75.380,217.790 75.380,224.300" fill="#ffffff" stroke="none"/>
+<polyline points="65.900,224.300 65.900,217.790 75.380,217.790 75.380,224.300" fill="none" stroke="#101010" stroke-width="0.5" stroke-linejoin="round" stroke-linecap="round"/>
+<polygon points="83.790,224.300 83.790,214.440 100.290,214.440 100.290,224.300" fill="#ffffff" stroke="none"/>
+<polyline points="83.790,224.300 83.790,214.440 100.290,214.440 100.290,224.300" fill="none" stroke="#101010" stroke-width="0.5" stroke-linejoin="round" stroke-linecap="round"/>
+<polygon points="109.390,224.300 109.390,214.520 117.890,214.520 117.890,224.300" fill="#ffffff" stroke="none"/>
+<polyline points="109.390,224.300 109.390,214.520 117.890,214.520 117.890,224.300" fill="none" stroke="#101010" stroke-width="0.5" stroke-linejoin="round" stroke-linecap="round"/>
+<circle cx="81.000" cy="197.000" r="2.600" fill="none" stroke="#101010" stroke-width="0.3"/>
+<circle cx="88.000" cy="197.000" r="2.600" fill="none" stroke="#101010" stroke-width="0.3"/>
+<circle cx="95.000" cy="197.000" r="2.600" fill="none" stroke="#101010" stroke-width="0.3"/>
+<rect x="101.900" y="193.900" width="6.200" height="6.200" rx="0.000" fill="none" stroke="#333333" stroke-width="0.24" stroke-dasharray="2.0 1.2"/>
+<circle cx="105.000" cy="197.000" r="1.800" fill="none" stroke="#101010" stroke-width="0.3"/>
+<rect x="110.900" y="193.900" width="6.200" height="6.200" rx="0.000" fill="none" stroke="#333333" stroke-width="0.24" stroke-dasharray="2.0 1.2"/>
+<circle cx="114.000" cy="197.000" r="1.800" fill="none" stroke="#101010" stroke-width="0.3"/>
+<rect x="119.900" y="193.900" width="6.200" height="6.200" rx="0.000" fill="none" stroke="#333333" stroke-width="0.24" stroke-dasharray="2.0 1.2"/>
+<circle cx="123.000" cy="197.000" r="1.800" fill="none" stroke="#101010" stroke-width="0.3"/>
+<path d="M109.400,203.670 H118.600 A1.500,1.500 0 0 1 120.100,205.170 V209.370 A1.500,1.500 0 0 1 118.600,210.870 H109.400 A1.500,1.500 0 0 1 107.900,209.370 V205.170 A1.500,1.500 0 0 1 109.400,203.670 Z" fill="none" stroke="#101010" stroke-width="0.5"/>
+<rect x="255.000" y="189.400" width="95.120" height="34.900" rx="0.000" fill="none" stroke="#101010" stroke-width="0.5"/>
+<polygon points="329.620,218.000 331.370,214.969 334.870,214.969 336.620,218.000 334.870,221.031 331.370,221.031" fill="none" stroke="#101010" stroke-width="0.5" stroke-linejoin="round" stroke-linecap="round"/>
+<polygon points="329.620,209.000 331.370,205.969 334.870,205.969 336.620,209.000 334.870,212.031 331.370,212.031" fill="none" stroke="#101010" stroke-width="0.5" stroke-linejoin="round" stroke-linecap="round"/>
+<polygon points="329.620,200.000 331.370,196.969 334.870,196.969 336.620,200.000 334.870,203.031 331.370,203.031" fill="none" stroke="#101010" stroke-width="0.5" stroke-linejoin="round" stroke-linecap="round"/>
+<polygon points="320.620,213.500 322.370,210.469 325.870,210.469 327.620,213.500 325.870,216.531 322.370,216.531" fill="none" stroke="#101010" stroke-width="0.5" stroke-linejoin="round" stroke-linecap="round"/>
+<polygon points="320.620,204.500 322.370,201.469 325.870,201.469 327.620,204.500 325.870,207.531 322.370,207.531" fill="none" stroke="#101010" stroke-width="0.5" stroke-linejoin="round" stroke-linecap="round"/>
+<polygon points="320.620,195.500 322.370,192.469 325.870,192.469 327.620,195.500 325.870,198.531 322.370,198.531" fill="none" stroke="#101010" stroke-width="0.5" stroke-linejoin="round" stroke-linecap="round"/>
+<polygon points="311.620,218.000 313.370,214.969 316.870,214.969 318.620,218.000 316.870,221.031 313.370,221.031" fill="none" stroke="#101010" stroke-width="0.5" stroke-linejoin="round" stroke-linecap="round"/>
+<polygon points="311.620,209.000 313.370,205.969 316.870,205.969 318.620,209.000 316.870,212.031 313.370,212.031" fill="none" stroke="#101010" stroke-width="0.5" stroke-linejoin="round" stroke-linecap="round"/>
+<polygon points="311.620,200.000 313.370,196.969 316.870,196.969 318.620,200.000 316.870,203.031 313.370,203.031" fill="none" stroke="#101010" stroke-width="0.5" stroke-linejoin="round" stroke-linecap="round"/>
+<polygon points="302.620,213.500 304.370,210.469 307.870,210.469 309.620,213.500 307.870,216.531 304.370,216.531" fill="none" stroke="#101010" stroke-width="0.5" stroke-linejoin="round" stroke-linecap="round"/>
+<polygon points="302.620,204.500 304.370,201.469 307.870,201.469 309.620,204.500 307.870,207.531 304.370,207.531" fill="none" stroke="#101010" stroke-width="0.5" stroke-linejoin="round" stroke-linecap="round"/>
+<polygon points="302.620,195.500 304.370,192.469 307.870,192.469 309.620,195.500 307.870,198.531 304.370,198.531" fill="none" stroke="#101010" stroke-width="0.5" stroke-linejoin="round" stroke-linecap="round"/>
+<polygon points="293.620,218.000 295.370,214.969 298.870,214.969 300.620,218.000 298.870,221.031 295.370,221.031" fill="none" stroke="#101010" stroke-width="0.5" stroke-linejoin="round" stroke-linecap="round"/>
+<polygon points="293.620,209.000 295.370,205.969 298.870,205.969 300.620,209.000 298.870,212.031 295.370,212.031" fill="none" stroke="#101010" stroke-width="0.5" stroke-linejoin="round" stroke-linecap="round"/>
+<polygon points="293.620,200.000 295.370,196.969 298.870,196.969 300.620,200.000 298.870,203.031 295.370,203.031" fill="none" stroke="#101010" stroke-width="0.5" stroke-linejoin="round" stroke-linecap="round"/>
+<polygon points="284.620,213.500 286.370,210.469 289.870,210.469 291.620,213.500 289.870,216.531 286.370,216.531" fill="none" stroke="#101010" stroke-width="0.5" stroke-linejoin="round" stroke-linecap="round"/>
+<polygon points="284.620,204.500 286.370,201.469 289.870,201.469 291.620,204.500 289.870,207.531 286.370,207.531" fill="none" stroke="#101010" stroke-width="0.5" stroke-linejoin="round" stroke-linecap="round"/>
+<polygon points="284.620,195.500 286.370,192.469 289.870,192.469 291.620,195.500 289.870,198.531 286.370,198.531" fill="none" stroke="#101010" stroke-width="0.5" stroke-linejoin="round" stroke-linecap="round"/>
+<polygon points="280.120,213.000 280.120,207.000 270.120,207.000 270.120,213.000" fill="#ffffff" stroke="none"/>
+<polygon points="280.120,213.000 280.120,207.000 270.120,207.000 270.120,213.000" fill="none" stroke="#101010" stroke-width="0.5" stroke-linejoin="round" stroke-linecap="round"/>
+<line x1="338.420" y1="224.300" x2="338.420" y2="196.070" stroke="#333333" stroke-width="0.24" stroke-dasharray="2.0 1.2" stroke-linecap="round"/>
+<line x1="284.120" y1="224.300" x2="284.120" y2="196.070" stroke="#333333" stroke-width="0.24" stroke-dasharray="2.0 1.2" stroke-linecap="round"/>
+<line x1="338.420" y1="196.070" x2="284.120" y2="196.070" stroke="#333333" stroke-width="0.24" stroke-dasharray="2.0 1.2" stroke-linecap="round"/>
+<rect x="55.000" y="121.400" width="66.200" height="34.900" rx="0.000" fill="none" stroke="#101010" stroke-width="0.5"/>
+<polygon points="94.030,156.300 94.030,154.270 81.530,154.270 81.530,156.300" fill="#ffffff" stroke="none"/>
+<polyline points="94.030,156.300 94.030,154.270 81.530,154.270 81.530,156.300" fill="none" stroke="#101010" stroke-width="0.5" stroke-linejoin="round" stroke-linecap="round"/>
+<polygon points="76.900,156.300 76.900,136.200 73.300,136.200 73.300,156.300" fill="#ffffff" stroke="none"/>
+<polyline points="76.900,156.300 76.900,136.200 73.300,136.200 73.300,156.300" fill="none" stroke="#101010" stroke-width="0.5" stroke-linejoin="round" stroke-linecap="round"/>
+<rect x="160.000" y="121.400" width="66.200" height="34.900" rx="0.000" fill="none" stroke="#101010" stroke-width="0.5"/>
+<polygon points="166.750,156.300 166.750,138.820 183.130,138.820 183.130,136.430 186.700,136.430 186.700,136.930 220.680,136.930 220.680,156.300" fill="#ffffff" stroke="none"/>
+<polyline points="166.750,156.300 166.750,138.820 183.130,138.820 183.130,136.430 186.700,136.430 186.700,136.930 220.680,136.930 220.680,156.300" fill="none" stroke="#101010" stroke-width="0.5" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M303.000,83.800 H392.120 A3.000,3.000 0 0 1 395.120,86.800 V147.000 A3.000,3.000 0 0 1 392.120,150.000 H303.000 A3.000,3.000 0 0 1 300.000,147.000 V86.800 A3.000,3.000 0 0 1 303.000,83.800 Z" fill="none" stroke="#101010" stroke-width="0.5"/>
+<path d="M306.500,88.300 H388.620 A2.000,2.000 0 0 1 390.620,90.300 V143.500 A2.000,2.000 0 0 1 388.620,145.500 H306.500 A2.000,2.000 0 0 1 304.500,143.500 V90.300 A2.000,2.000 0 0 1 306.500,88.300 Z" fill="none" stroke="#333333" stroke-width="0.24" stroke-dasharray="2.0 1.2"/>
+<path d="M309.500,91.300 H385.620 A2.000,2.000 0 0 1 387.620,93.300 V140.500 A2.000,2.000 0 0 1 385.620,142.500 H309.500 A2.000,2.000 0 0 1 307.500,140.500 V93.300 A2.000,2.000 0 0 1 309.500,91.300 Z" fill="none" stroke="#101010" stroke-width="0.5"/>
+<polygon points="310.850,91.300 310.850,88.300 364.350,88.300 364.350,91.300" fill="#ffffff" stroke="none"/>
+<polyline points="310.850,91.300 310.850,88.300 364.350,88.300 364.350,91.300" fill="none" stroke="#101010" stroke-width="0.5" stroke-linejoin="round" stroke-linecap="round"/>
+<rect x="311.700" y="87.000" width="54.300" height="1.300" rx="0.000" fill="none" stroke="#333333" stroke-width="0.24" stroke-dasharray="2.0 1.2"/>
+<circle cx="302.250" cy="141.000" r="1.375" fill="none" stroke="#101010" stroke-width="0.3"/>
+<line x1="300.050" y1="141.000" x2="304.450" y2="141.000" stroke="#444444" stroke-width="0.18" stroke-dasharray="5 1 0.8 1" stroke-linecap="round"/>
+<line x1="302.250" y1="138.800" x2="302.250" y2="143.200" stroke="#444444" stroke-width="0.18" stroke-dasharray="5 1 0.8 1" stroke-linecap="round"/>
+<circle cx="302.250" cy="92.800" r="1.375" fill="none" stroke="#101010" stroke-width="0.3"/>
+<line x1="300.050" y1="92.800" x2="304.450" y2="92.800" stroke="#444444" stroke-width="0.18" stroke-dasharray="5 1 0.8 1" stroke-linecap="round"/>
+<line x1="302.250" y1="90.600" x2="302.250" y2="95.000" stroke="#444444" stroke-width="0.18" stroke-dasharray="5 1 0.8 1" stroke-linecap="round"/>
+<circle cx="309.000" cy="86.050" r="1.375" fill="none" stroke="#101010" stroke-width="0.3"/>
+<line x1="306.800" y1="86.050" x2="311.200" y2="86.050" stroke="#444444" stroke-width="0.18" stroke-dasharray="5 1 0.8 1" stroke-linecap="round"/>
+<line x1="309.000" y1="83.850" x2="309.000" y2="88.250" stroke="#444444" stroke-width="0.18" stroke-dasharray="5 1 0.8 1" stroke-linecap="round"/>
+<circle cx="386.120" cy="86.050" r="1.375" fill="none" stroke="#101010" stroke-width="0.3"/>
+<line x1="383.920" y1="86.050" x2="388.320" y2="86.050" stroke="#444444" stroke-width="0.18" stroke-dasharray="5 1 0.8 1" stroke-linecap="round"/>
+<line x1="386.120" y1="83.850" x2="386.120" y2="88.250" stroke="#444444" stroke-width="0.18" stroke-dasharray="5 1 0.8 1" stroke-linecap="round"/>
+<circle cx="309.000" cy="147.750" r="1.375" fill="none" stroke="#101010" stroke-width="0.3"/>
+<line x1="306.800" y1="147.750" x2="311.200" y2="147.750" stroke="#444444" stroke-width="0.18" stroke-dasharray="5 1 0.8 1" stroke-linecap="round"/>
+<line x1="309.000" y1="145.550" x2="309.000" y2="149.950" stroke="#444444" stroke-width="0.18" stroke-dasharray="5 1 0.8 1" stroke-linecap="round"/>
+<circle cx="386.120" cy="147.750" r="1.375" fill="none" stroke="#101010" stroke-width="0.3"/>
+<line x1="383.920" y1="147.750" x2="388.320" y2="147.750" stroke="#444444" stroke-width="0.18" stroke-dasharray="5 1 0.8 1" stroke-linecap="round"/>
+<line x1="386.120" y1="145.550" x2="386.120" y2="149.950" stroke="#444444" stroke-width="0.18" stroke-dasharray="5 1 0.8 1" stroke-linecap="round"/>
+<line x1="341.560" y1="116.900" x2="353.560" y2="116.900" stroke="#444444" stroke-width="0.18" stroke-dasharray="5 1 0.8 1" stroke-linecap="round"/>
+<line x1="347.560" y1="110.900" x2="347.560" y2="122.900" stroke="#444444" stroke-width="0.18" stroke-dasharray="5 1 0.8 1" stroke-linecap="round"/>
+<line x1="53.400" y1="181.400" x2="151.720" y2="181.400" stroke="#1a1a48" stroke-width="0.18" stroke-linecap="round"/>
+<line x1="55.000" y1="188.300" x2="55.000" y2="179.800" stroke="#1a1a48" stroke-width="0.15" stroke-linecap="round"/>
+<line x1="150.120" y1="188.300" x2="150.120" y2="179.800" stroke="#1a1a48" stroke-width="0.15" stroke-linecap="round"/>
+<polygon points="55.000,181.400 57.000,180.680 57.000,182.120" fill="#1a1a48" stroke="none"/>
+<polygon points="150.120,181.400 148.120,182.120 148.120,180.680" fill="#1a1a48" stroke="none"/>
+<text x="102.560" y="180.400" font-family="DejaVu Sans, Arial, sans-serif" font-size="2.25" fill="#1a1a48" font-weight="normal" text-anchor="middle" style="paint-order:stroke;stroke:#ffffff;stroke-width:1.55;stroke-linejoin:round">95.12</text>
+<line x1="43.000" y1="191.000" x2="43.000" y2="222.700" stroke="#1a1a48" stroke-width="0.18" stroke-linecap="round"/>
+<line x1="53.900" y1="224.300" x2="41.400" y2="224.300" stroke="#1a1a48" stroke-width="0.15" stroke-linecap="round"/>
+<line x1="53.900" y1="189.400" x2="41.400" y2="189.400" stroke="#1a1a48" stroke-width="0.15" stroke-linecap="round"/>
+<polygon points="43.000,224.300 42.280,222.300 43.720,222.300" fill="#1a1a48" stroke="none"/>
+<polygon points="43.000,189.400 43.720,191.400 42.280,191.400" fill="#1a1a48" stroke="none"/>
+<text x="41.900" y="206.850" font-family="DejaVu Sans, Arial, sans-serif" font-size="2.25" fill="#1a1a48" font-weight="normal" text-anchor="middle" transform="rotate(-90 41.900 206.850)" style="paint-order:stroke;stroke:#ffffff;stroke-width:1.55;stroke-linejoin:round">34.90</text>
+<line x1="53.400" y1="236.000" x2="119.490" y2="236.000" stroke="#1a1a48" stroke-width="0.18" stroke-linecap="round"/>
+<line x1="55.000" y1="225.300" x2="55.000" y2="237.000" stroke="#1a1a48" stroke-width="0.15" stroke-linecap="round"/>
+<circle cx="55.000" cy="236.000" r="0.550" fill="#1a1a48" stroke="#1a1a48" stroke-width="0.18"/>
+<line x1="65.900" y1="225.300" x2="65.900" y2="237.000" stroke="#1a1a48" stroke-width="0.15" stroke-linecap="round"/>
+<line x1="65.100" y1="236.800" x2="66.700" y2="235.200" stroke="#1a1a48" stroke-width="0.18" stroke-linecap="round"/>
+<text x="65.900" y="235.000" font-family="DejaVu Sans, Arial, sans-serif" font-size="2.05" fill="#1a1a48" font-weight="normal" text-anchor="middle" style="paint-order:stroke;stroke:#ffffff;stroke-width:1.55;stroke-linejoin:round">10.90</text>
+<line x1="75.380" y1="225.300" x2="75.380" y2="237.000" stroke="#1a1a48" stroke-width="0.15" stroke-linecap="round"/>
+<line x1="74.580" y1="236.800" x2="76.180" y2="235.200" stroke="#1a1a48" stroke-width="0.18" stroke-linecap="round"/>
+<text x="75.380" y="235.000" font-family="DejaVu Sans, Arial, sans-serif" font-size="2.05" fill="#1a1a48" font-weight="normal" text-anchor="middle" style="paint-order:stroke;stroke:#ffffff;stroke-width:1.55;stroke-linejoin:round">20.38</text>
+<line x1="83.790" y1="225.300" x2="83.790" y2="237.000" stroke="#1a1a48" stroke-width="0.15" stroke-linecap="round"/>
+<line x1="82.990" y1="236.800" x2="84.590" y2="235.200" stroke="#1a1a48" stroke-width="0.18" stroke-linecap="round"/>
+<text x="83.790" y="235.000" font-family="DejaVu Sans, Arial, sans-serif" font-size="2.05" fill="#1a1a48" font-weight="normal" text-anchor="middle" style="paint-order:stroke;stroke:#ffffff;stroke-width:1.55;stroke-linejoin:round">28.79</text>
+<line x1="100.290" y1="225.300" x2="100.290" y2="237.000" stroke="#1a1a48" stroke-width="0.15" stroke-linecap="round"/>
+<line x1="99.490" y1="236.800" x2="101.090" y2="235.200" stroke="#1a1a48" stroke-width="0.18" stroke-linecap="round"/>
+<text x="100.290" y="235.000" font-family="DejaVu Sans, Arial, sans-serif" font-size="2.05" fill="#1a1a48" font-weight="normal" text-anchor="middle" style="paint-order:stroke;stroke:#ffffff;stroke-width:1.55;stroke-linejoin:round">45.29</text>
+<line x1="109.390" y1="225.300" x2="109.390" y2="237.000" stroke="#1a1a48" stroke-width="0.15" stroke-linecap="round"/>
+<line x1="108.590" y1="236.800" x2="110.190" y2="235.200" stroke="#1a1a48" stroke-width="0.18" stroke-linecap="round"/>
+<text x="109.390" y="235.000" font-family="DejaVu Sans, Arial, sans-serif" font-size="2.05" fill="#1a1a48" font-weight="normal" text-anchor="middle" style="paint-order:stroke;stroke:#ffffff;stroke-width:1.55;stroke-linejoin:round">54.39</text>
+<line x1="117.890" y1="225.300" x2="117.890" y2="237.000" stroke="#1a1a48" stroke-width="0.15" stroke-linecap="round"/>
+<line x1="117.090" y1="236.800" x2="118.690" y2="235.200" stroke="#1a1a48" stroke-width="0.18" stroke-linecap="round"/>
+<text x="117.890" y="235.000" font-family="DejaVu Sans, Arial, sans-serif" font-size="2.05" fill="#1a1a48" font-weight="normal" text-anchor="middle" style="paint-order:stroke;stroke:#ffffff;stroke-width:1.55;stroke-linejoin:round">62.89</text>
+<line x1="53.400" y1="186.400" x2="124.600" y2="186.400" stroke="#1a1a48" stroke-width="0.18" stroke-linecap="round"/>
+<line x1="55.000" y1="188.400" x2="55.000" y2="185.400" stroke="#1a1a48" stroke-width="0.15" stroke-linecap="round"/>
+<circle cx="55.000" cy="186.400" r="0.550" fill="#1a1a48" stroke="#1a1a48" stroke-width="0.18"/>
+<line x1="81.000" y1="188.400" x2="81.000" y2="185.400" stroke="#1a1a48" stroke-width="0.15" stroke-linecap="round"/>
+<line x1="80.200" y1="187.200" x2="81.800" y2="185.600" stroke="#1a1a48" stroke-width="0.18" stroke-linecap="round"/>
+<text x="81.000" y="185.400" font-family="DejaVu Sans, Arial, sans-serif" font-size="2.05" fill="#1a1a48" font-weight="normal" text-anchor="middle" style="paint-order:stroke;stroke:#ffffff;stroke-width:1.55;stroke-linejoin:round">26.00</text>
+<line x1="88.000" y1="188.400" x2="88.000" y2="185.400" stroke="#1a1a48" stroke-width="0.15" stroke-linecap="round"/>
+<line x1="87.200" y1="187.200" x2="88.800" y2="185.600" stroke="#1a1a48" stroke-width="0.18" stroke-linecap="round"/>
+<text x="88.000" y="185.400" font-family="DejaVu Sans, Arial, sans-serif" font-size="2.05" fill="#1a1a48" font-weight="normal" text-anchor="middle" style="paint-order:stroke;stroke:#ffffff;stroke-width:1.55;stroke-linejoin:round">33.00</text>
+<line x1="95.000" y1="188.400" x2="95.000" y2="185.400" stroke="#1a1a48" stroke-width="0.15" stroke-linecap="round"/>
+<line x1="94.200" y1="187.200" x2="95.800" y2="185.600" stroke="#1a1a48" stroke-width="0.18" stroke-linecap="round"/>
+<text x="95.000" y="185.400" font-family="DejaVu Sans, Arial, sans-serif" font-size="2.05" fill="#1a1a48" font-weight="normal" text-anchor="middle" style="paint-order:stroke;stroke:#ffffff;stroke-width:1.55;stroke-linejoin:round">40.00</text>
+<line x1="105.000" y1="188.400" x2="105.000" y2="185.400" stroke="#1a1a48" stroke-width="0.15" stroke-linecap="round"/>
+<line x1="104.200" y1="187.200" x2="105.800" y2="185.600" stroke="#1a1a48" stroke-width="0.18" stroke-linecap="round"/>
+<text x="105.000" y="185.400" font-family="DejaVu Sans, Arial, sans-serif" font-size="2.05" fill="#1a1a48" font-weight="normal" text-anchor="middle" style="paint-order:stroke;stroke:#ffffff;stroke-width:1.55;stroke-linejoin:round">50.00</text>
+<line x1="114.000" y1="188.400" x2="114.000" y2="185.400" stroke="#1a1a48" stroke-width="0.15" stroke-linecap="round"/>
+<line x1="113.200" y1="187.200" x2="114.800" y2="185.600" stroke="#1a1a48" stroke-width="0.18" stroke-linecap="round"/>
+<text x="114.000" y="185.400" font-family="DejaVu Sans, Arial, sans-serif" font-size="2.05" fill="#1a1a48" font-weight="normal" text-anchor="middle" style="paint-order:stroke;stroke:#ffffff;stroke-width:1.55;stroke-linejoin:round">59.00</text>
+<line x1="123.000" y1="188.400" x2="123.000" y2="185.400" stroke="#1a1a48" stroke-width="0.15" stroke-linecap="round"/>
+<line x1="122.200" y1="187.200" x2="123.800" y2="185.600" stroke="#1a1a48" stroke-width="0.18" stroke-linecap="round"/>
+<text x="123.000" y="185.400" font-family="DejaVu Sans, Arial, sans-serif" font-size="2.05" fill="#1a1a48" font-weight="normal" text-anchor="middle" style="paint-order:stroke;stroke:#ffffff;stroke-width:1.55;stroke-linejoin:round">68.00</text>
+<line x1="158.120" y1="195.400" x2="158.120" y2="219.390" stroke="#1a1a48" stroke-width="0.18" stroke-linecap="round"/>
+<line x1="151.120" y1="230.000" x2="159.120" y2="230.000" stroke="#1a1a48" stroke-width="0.15" stroke-linecap="round"/>
+<circle cx="158.120" cy="230.000" r="0.550" fill="#1a1a48" stroke="#1a1a48" stroke-width="0.18"/>
+<line x1="151.120" y1="217.790" x2="159.120" y2="217.790" stroke="#1a1a48" stroke-width="0.15" stroke-linecap="round"/>
+<line x1="157.320" y1="218.590" x2="158.920" y2="216.990" stroke="#1a1a48" stroke-width="0.18" stroke-linecap="round"/>
+<text x="159.520" y="218.507" font-family="DejaVu Sans, Arial, sans-serif" font-size="2.05" fill="#1a1a48" font-weight="normal" text-anchor="start" style="paint-order:stroke;stroke:#ffffff;stroke-width:1.55;stroke-linejoin:round">12.21</text>
+<line x1="151.120" y1="214.440" x2="159.120" y2="214.440" stroke="#1a1a48" stroke-width="0.15" stroke-linecap="round"/>
+<line x1="157.320" y1="215.240" x2="158.920" y2="213.640" stroke="#1a1a48" stroke-width="0.18" stroke-linecap="round"/>
+<text x="159.520" y="215.157" font-family="DejaVu Sans, Arial, sans-serif" font-size="2.05" fill="#1a1a48" font-weight="normal" text-anchor="start" style="paint-order:stroke;stroke:#ffffff;stroke-width:1.55;stroke-linejoin:round">15.56</text>
+<line x1="151.120" y1="197.000" x2="159.120" y2="197.000" stroke="#1a1a48" stroke-width="0.15" stroke-linecap="round"/>
+<line x1="157.320" y1="197.800" x2="158.920" y2="196.200" stroke="#1a1a48" stroke-width="0.18" stroke-linecap="round"/>
+<text x="159.520" y="197.718" font-family="DejaVu Sans, Arial, sans-serif" font-size="2.05" fill="#1a1a48" font-weight="normal" text-anchor="start" style="paint-order:stroke;stroke:#ffffff;stroke-width:1.55;stroke-linejoin:round">33.00 LED / SW</text>
+<line x1="151.120" y1="203.670" x2="159.120" y2="203.670" stroke="#1a1a48" stroke-width="0.15" stroke-linecap="round"/>
+<line x1="157.320" y1="204.470" x2="158.920" y2="202.870" stroke="#1a1a48" stroke-width="0.18" stroke-linecap="round"/>
+<text x="159.520" y="204.388" font-family="DejaVu Sans, Arial, sans-serif" font-size="2.05" fill="#1a1a48" font-weight="normal" text-anchor="start" style="paint-order:stroke;stroke:#ffffff;stroke-width:1.55;stroke-linejoin:round">26.33</text>
+<line x1="151.120" y1="210.870" x2="159.120" y2="210.870" stroke="#1a1a48" stroke-width="0.15" stroke-linecap="round"/>
+<line x1="157.320" y1="211.670" x2="158.920" y2="210.070" stroke="#1a1a48" stroke-width="0.18" stroke-linecap="round"/>
+<text x="159.520" y="211.588" font-family="DejaVu Sans, Arial, sans-serif" font-size="2.05" fill="#1a1a48" font-weight="normal" text-anchor="start" style="paint-order:stroke;stroke:#ffffff;stroke-width:1.55;stroke-linejoin:round">19.13</text>
+<text x="55.000" y="170.000" font-family="DejaVu Sans, Arial, sans-serif" font-size="2.7" fill="#101010" font-weight="bold" text-anchor="start">FRONT ELEVATION  —  -Y (FROM -Y)</text>
+<line x1="55.000" y1="170.800" x2="103.384" y2="170.800" stroke="#000000" stroke-width="0.25" stroke-linecap="round"/>
+<line x1="256.600" y1="181.400" x2="348.520" y2="181.400" stroke="#1a1a48" stroke-width="0.18" stroke-linecap="round"/>
+<line x1="350.120" y1="188.300" x2="350.120" y2="179.800" stroke="#1a1a48" stroke-width="0.15" stroke-linecap="round"/>
+<line x1="255.000" y1="188.300" x2="255.000" y2="179.800" stroke="#1a1a48" stroke-width="0.15" stroke-linecap="round"/>
+<polygon points="350.120,181.400 348.120,182.120 348.120,180.680" fill="#1a1a48" stroke="none"/>
+<polygon points="255.000,181.400 257.000,180.680 257.000,182.120" fill="#1a1a48" stroke="none"/>
+<text x="302.560" y="180.400" font-family="DejaVu Sans, Arial, sans-serif" font-size="2.25" fill="#1a1a48" font-weight="normal" text-anchor="middle" style="paint-order:stroke;stroke:#ffffff;stroke-width:1.55;stroke-linejoin:round">95.12</text>
+<line x1="289.720" y1="185.400" x2="331.520" y2="185.400" stroke="#1a1a48" stroke-width="0.18" stroke-linecap="round"/>
+<line x1="333.120" y1="188.300" x2="333.120" y2="183.800" stroke="#1a1a48" stroke-width="0.15" stroke-linecap="round"/>
+<line x1="288.120" y1="188.300" x2="288.120" y2="183.800" stroke="#1a1a48" stroke-width="0.15" stroke-linecap="round"/>
+<polygon points="333.120,185.400 331.120,186.120 331.120,184.680" fill="#1a1a48" stroke="none"/>
+<polygon points="288.120,185.400 290.120,184.680 290.120,186.120" fill="#1a1a48" stroke="none"/>
+<text x="310.620" y="184.400" font-family="DejaVu Sans, Arial, sans-serif" font-size="2.25" fill="#1a1a48" font-weight="normal" text-anchor="middle" style="paint-order:stroke;stroke:#ffffff;stroke-width:1.55;stroke-linejoin:round">45.00</text>
+<line x1="271.720" y1="185.400" x2="278.520" y2="185.400" stroke="#1a1a48" stroke-width="0.18" stroke-linecap="round"/>
+<line x1="280.120" y1="188.300" x2="280.120" y2="183.800" stroke="#1a1a48" stroke-width="0.15" stroke-linecap="round"/>
+<line x1="270.120" y1="188.300" x2="270.120" y2="183.800" stroke="#1a1a48" stroke-width="0.15" stroke-linecap="round"/>
+<polygon points="280.120,185.400 278.120,186.120 278.120,184.680" fill="#1a1a48" stroke="none"/>
+<polygon points="270.120,185.400 272.120,184.680 272.120,186.120" fill="#1a1a48" stroke="none"/>
+<text x="275.120" y="184.400" font-family="DejaVu Sans, Arial, sans-serif" font-size="2.25" fill="#1a1a48" font-weight="normal" text-anchor="middle" style="paint-order:stroke;stroke:#ffffff;stroke-width:1.55;stroke-linejoin:round">10.00</text>
+<line x1="251.000" y1="193.900" x2="251.000" y2="219.600" stroke="#1a1a48" stroke-width="0.18" stroke-linecap="round"/>
+<line x1="254.000" y1="230.000" x2="250.000" y2="230.000" stroke="#1a1a48" stroke-width="0.15" stroke-linecap="round"/>
+<circle cx="251.000" cy="230.000" r="0.550" fill="#1a1a48" stroke="#1a1a48" stroke-width="0.18"/>
+<line x1="254.000" y1="218.000" x2="250.000" y2="218.000" stroke="#1a1a48" stroke-width="0.15" stroke-linecap="round"/>
+<line x1="250.200" y1="218.800" x2="251.800" y2="217.200" stroke="#1a1a48" stroke-width="0.18" stroke-linecap="round"/>
+<text x="249.600" y="218.718" font-family="DejaVu Sans, Arial, sans-serif" font-size="2.05" fill="#1a1a48" font-weight="normal" text-anchor="end" style="paint-order:stroke;stroke:#ffffff;stroke-width:1.55;stroke-linejoin:round">12.00</text>
+<line x1="254.000" y1="213.000" x2="250.000" y2="213.000" stroke="#1a1a48" stroke-width="0.15" stroke-linecap="round"/>
+<line x1="250.200" y1="213.800" x2="251.800" y2="212.200" stroke="#1a1a48" stroke-width="0.18" stroke-linecap="round"/>
+<text x="249.600" y="213.718" font-family="DejaVu Sans, Arial, sans-serif" font-size="2.05" fill="#1a1a48" font-weight="normal" text-anchor="end" style="paint-order:stroke;stroke:#ffffff;stroke-width:1.55;stroke-linejoin:round">17.00</text>
+<line x1="254.000" y1="207.000" x2="250.000" y2="207.000" stroke="#1a1a48" stroke-width="0.15" stroke-linecap="round"/>
+<line x1="250.200" y1="207.800" x2="251.800" y2="206.200" stroke="#1a1a48" stroke-width="0.18" stroke-linecap="round"/>
+<text x="249.600" y="207.718" font-family="DejaVu Sans, Arial, sans-serif" font-size="2.05" fill="#1a1a48" font-weight="normal" text-anchor="end" style="paint-order:stroke;stroke:#ffffff;stroke-width:1.55;stroke-linejoin:round">23.00</text>
+<line x1="254.000" y1="195.500" x2="250.000" y2="195.500" stroke="#1a1a48" stroke-width="0.15" stroke-linecap="round"/>
+<line x1="250.200" y1="196.300" x2="251.800" y2="194.700" stroke="#1a1a48" stroke-width="0.18" stroke-linecap="round"/>
+<text x="249.600" y="196.218" font-family="DejaVu Sans, Arial, sans-serif" font-size="2.05" fill="#1a1a48" font-weight="normal" text-anchor="end" style="paint-order:stroke;stroke:#ffffff;stroke-width:1.55;stroke-linejoin:round">34.50</text>
+<text x="255.000" y="170.000" font-family="DejaVu Sans, Arial, sans-serif" font-size="2.7" fill="#101010" font-weight="bold" text-anchor="start">REAR  —  +Y (X REVERSED)</text>
+<line x1="255.000" y1="170.800" x2="291.288" y2="170.800" stroke="#000000" stroke-width="0.25" stroke-linecap="round"/>
+<line x1="56.600" y1="113.400" x2="119.600" y2="113.400" stroke="#1a1a48" stroke-width="0.18" stroke-linecap="round"/>
+<line x1="121.200" y1="120.300" x2="121.200" y2="111.800" stroke="#1a1a48" stroke-width="0.15" stroke-linecap="round"/>
+<line x1="55.000" y1="120.300" x2="55.000" y2="111.800" stroke="#1a1a48" stroke-width="0.15" stroke-linecap="round"/>
+<polygon points="121.200,113.400 119.200,114.120 119.200,112.680" fill="#1a1a48" stroke="none"/>
+<polygon points="55.000,113.400 57.000,112.680 57.000,114.120" fill="#1a1a48" stroke="none"/>
+<text x="88.100" y="112.400" font-family="DejaVu Sans, Arial, sans-serif" font-size="2.25" fill="#1a1a48" font-weight="normal" text-anchor="middle" style="paint-order:stroke;stroke:#ffffff;stroke-width:1.55;stroke-linejoin:round">66.20</text>
+<line x1="45.000" y1="123.000" x2="45.000" y2="154.700" stroke="#1a1a48" stroke-width="0.18" stroke-linecap="round"/>
+<line x1="53.900" y1="156.300" x2="43.400" y2="156.300" stroke="#1a1a48" stroke-width="0.15" stroke-linecap="round"/>
+<line x1="53.900" y1="121.400" x2="43.400" y2="121.400" stroke="#1a1a48" stroke-width="0.15" stroke-linecap="round"/>
+<polygon points="45.000,156.300 44.280,154.300 45.720,154.300" fill="#1a1a48" stroke="none"/>
+<polygon points="45.000,121.400 45.720,123.400 44.280,123.400" fill="#1a1a48" stroke="none"/>
+<text x="43.900" y="138.850" font-family="DejaVu Sans, Arial, sans-serif" font-size="2.25" fill="#1a1a48" font-weight="normal" text-anchor="middle" transform="rotate(-90 43.900 138.850)" style="paint-order:stroke;stroke:#ffffff;stroke-width:1.55;stroke-linejoin:round">34.90</text>
+<line x1="51.000" y1="155.870" x2="51.000" y2="154.700" stroke="#1a1a48" stroke-width="0.18" stroke-linecap="round"/>
+<line x1="53.900" y1="156.300" x2="49.400" y2="156.300" stroke="#1a1a48" stroke-width="0.15" stroke-linecap="round"/>
+<line x1="53.900" y1="154.270" x2="49.400" y2="154.270" stroke="#1a1a48" stroke-width="0.15" stroke-linecap="round"/>
+<polygon points="51.000,156.300 50.280,154.300 51.720,154.300" fill="#1a1a48" stroke="none"/>
+<polygon points="51.000,154.270 51.720,156.270 50.280,156.270" fill="#1a1a48" stroke="none"/>
+<text x="49.900" y="155.285" font-family="DejaVu Sans, Arial, sans-serif" font-size="2.25" fill="#1a1a48" font-weight="normal" text-anchor="middle" transform="rotate(-90 49.900 155.285)" style="paint-order:stroke;stroke:#ffffff;stroke-width:1.55;stroke-linejoin:round">2.03</text>
+<line x1="51.000" y1="137.800" x2="51.000" y2="154.700" stroke="#1a1a48" stroke-width="0.18" stroke-linecap="round"/>
+<line x1="53.900" y1="156.300" x2="49.400" y2="156.300" stroke="#1a1a48" stroke-width="0.15" stroke-linecap="round"/>
+<line x1="53.900" y1="136.200" x2="49.400" y2="136.200" stroke="#1a1a48" stroke-width="0.15" stroke-linecap="round"/>
+<polygon points="51.000,156.300 50.280,154.300 51.720,154.300" fill="#1a1a48" stroke="none"/>
+<polygon points="51.000,136.200 51.720,138.200 50.280,138.200" fill="#1a1a48" stroke="none"/>
+<text x="49.900" y="146.250" font-family="DejaVu Sans, Arial, sans-serif" font-size="2.25" fill="#1a1a48" font-weight="normal" text-anchor="middle" transform="rotate(-90 49.900 146.250)" style="paint-order:stroke;stroke:#ffffff;stroke-width:1.55;stroke-linejoin:round">20.10</text>
+<line x1="95.630" y1="168.000" x2="119.600" y2="168.000" stroke="#1a1a48" stroke-width="0.18" stroke-linecap="round"/>
+<line x1="121.200" y1="157.400" x2="121.200" y2="169.600" stroke="#1a1a48" stroke-width="0.15" stroke-linecap="round"/>
+<line x1="94.030" y1="157.400" x2="94.030" y2="169.600" stroke="#1a1a48" stroke-width="0.15" stroke-linecap="round"/>
+<polygon points="121.200,168.000 119.200,168.720 119.200,167.280" fill="#1a1a48" stroke="none"/>
+<polygon points="94.030,168.000 96.030,167.280 96.030,168.720" fill="#1a1a48" stroke="none"/>
+<text x="107.615" y="170.850" font-family="DejaVu Sans, Arial, sans-serif" font-size="2.25" fill="#1a1a48" font-weight="normal" text-anchor="middle" style="paint-order:stroke;stroke:#ffffff;stroke-width:1.55;stroke-linejoin:round">27.17</text>
+<line x1="83.130" y1="172.000" x2="92.430" y2="172.000" stroke="#1a1a48" stroke-width="0.18" stroke-linecap="round"/>
+<line x1="94.030" y1="157.400" x2="94.030" y2="173.600" stroke="#1a1a48" stroke-width="0.15" stroke-linecap="round"/>
+<line x1="81.530" y1="157.400" x2="81.530" y2="173.600" stroke="#1a1a48" stroke-width="0.15" stroke-linecap="round"/>
+<polygon points="94.030,172.000 92.030,172.720 92.030,171.280" fill="#1a1a48" stroke="none"/>
+<polygon points="81.530,172.000 83.530,171.280 83.530,172.720" fill="#1a1a48" stroke="none"/>
+<text x="87.780" y="174.850" font-family="DejaVu Sans, Arial, sans-serif" font-size="2.25" fill="#1a1a48" font-weight="normal" text-anchor="middle" style="paint-order:stroke;stroke:#ffffff;stroke-width:1.55;stroke-linejoin:round">12.50</text>
+<line x1="78.500" y1="176.000" x2="79.930" y2="176.000" stroke="#1a1a48" stroke-width="0.18" stroke-linecap="round"/>
+<line x1="81.530" y1="157.400" x2="81.530" y2="177.600" stroke="#1a1a48" stroke-width="0.15" stroke-linecap="round"/>
+<line x1="76.900" y1="157.400" x2="76.900" y2="177.600" stroke="#1a1a48" stroke-width="0.15" stroke-linecap="round"/>
+<polygon points="81.530,176.000 79.530,176.720 79.530,175.280" fill="#1a1a48" stroke="none"/>
+<polygon points="76.900,176.000 78.900,175.280 78.900,176.720" fill="#1a1a48" stroke="none"/>
+<text x="79.215" y="178.850" font-family="DejaVu Sans, Arial, sans-serif" font-size="2.25" fill="#1a1a48" font-weight="normal" text-anchor="middle" style="paint-order:stroke;stroke:#ffffff;stroke-width:1.55;stroke-linejoin:round">4.63</text>
+<line x1="74.900" y1="180.000" x2="75.300" y2="180.000" stroke="#1a1a48" stroke-width="0.18" stroke-linecap="round"/>
+<line x1="76.900" y1="157.400" x2="76.900" y2="181.600" stroke="#1a1a48" stroke-width="0.15" stroke-linecap="round"/>
+<line x1="73.300" y1="157.400" x2="73.300" y2="181.600" stroke="#1a1a48" stroke-width="0.15" stroke-linecap="round"/>
+<polygon points="76.900,180.000 74.900,180.720 74.900,179.280" fill="#1a1a48" stroke="none"/>
+<polygon points="73.300,180.000 75.300,179.280 75.300,180.720" fill="#1a1a48" stroke="none"/>
+<text x="75.100" y="182.850" font-family="DejaVu Sans, Arial, sans-serif" font-size="2.25" fill="#1a1a48" font-weight="normal" text-anchor="middle" style="paint-order:stroke;stroke:#ffffff;stroke-width:1.55;stroke-linejoin:round">3.60</text>
+<text x="55.000" y="116.000" font-family="DejaVu Sans, Arial, sans-serif" font-size="2.7" fill="#101010" font-weight="bold" text-anchor="start">LEFT — -X (Y REVERSED)</text>
+<line x1="55.000" y1="116.800" x2="88.264" y2="116.800" stroke="#000000" stroke-width="0.25" stroke-linecap="round"/>
+<line x1="158.400" y1="113.400" x2="227.800" y2="113.400" stroke="#1a1a48" stroke-width="0.18" stroke-linecap="round"/>
+<line x1="160.000" y1="120.300" x2="160.000" y2="111.800" stroke="#1a1a48" stroke-width="0.15" stroke-linecap="round"/>
+<line x1="226.200" y1="120.300" x2="226.200" y2="111.800" stroke="#1a1a48" stroke-width="0.15" stroke-linecap="round"/>
+<polygon points="160.000,113.400 162.000,112.680 162.000,114.120" fill="#1a1a48" stroke="none"/>
+<polygon points="226.200,113.400 224.200,114.120 224.200,112.680" fill="#1a1a48" stroke="none"/>
+<text x="193.100" y="112.400" font-family="DejaVu Sans, Arial, sans-serif" font-size="2.25" fill="#1a1a48" font-weight="normal" text-anchor="middle" style="paint-order:stroke;stroke:#ffffff;stroke-width:1.55;stroke-linejoin:round">66.20</text>
+<line x1="150.000" y1="123.000" x2="150.000" y2="154.700" stroke="#1a1a48" stroke-width="0.18" stroke-linecap="round"/>
+<line x1="158.900" y1="156.300" x2="148.400" y2="156.300" stroke="#1a1a48" stroke-width="0.15" stroke-linecap="round"/>
+<line x1="158.900" y1="121.400" x2="148.400" y2="121.400" stroke="#1a1a48" stroke-width="0.15" stroke-linecap="round"/>
+<polygon points="150.000,156.300 149.280,154.300 150.720,154.300" fill="#1a1a48" stroke="none"/>
+<polygon points="150.000,121.400 150.720,123.400 149.280,123.400" fill="#1a1a48" stroke="none"/>
+<text x="148.900" y="138.850" font-family="DejaVu Sans, Arial, sans-serif" font-size="2.25" fill="#1a1a48" font-weight="normal" text-anchor="middle" transform="rotate(-90 148.900 138.850)" style="paint-order:stroke;stroke:#ffffff;stroke-width:1.55;stroke-linejoin:round">34.90</text>
+<line x1="165.150" y1="168.000" x2="222.280" y2="168.000" stroke="#1a1a48" stroke-width="0.18" stroke-linecap="round"/>
+<line x1="166.750" y1="157.400" x2="166.750" y2="169.600" stroke="#1a1a48" stroke-width="0.15" stroke-linecap="round"/>
+<line x1="220.680" y1="157.400" x2="220.680" y2="169.600" stroke="#1a1a48" stroke-width="0.15" stroke-linecap="round"/>
+<polygon points="166.750,168.000 168.750,167.280 168.750,168.720" fill="#1a1a48" stroke="none"/>
+<polygon points="220.680,168.000 218.680,168.720 218.680,167.280" fill="#1a1a48" stroke="none"/>
+<text x="193.715" y="170.850" font-family="DejaVu Sans, Arial, sans-serif" font-size="2.25" fill="#1a1a48" font-weight="normal" text-anchor="middle" style="paint-order:stroke;stroke:#ffffff;stroke-width:1.55;stroke-linejoin:round">53.93</text>
+<line x1="165.150" y1="172.000" x2="184.730" y2="172.000" stroke="#1a1a48" stroke-width="0.18" stroke-linecap="round"/>
+<line x1="166.750" y1="157.400" x2="166.750" y2="173.600" stroke="#1a1a48" stroke-width="0.15" stroke-linecap="round"/>
+<line x1="183.130" y1="157.400" x2="183.130" y2="173.600" stroke="#1a1a48" stroke-width="0.15" stroke-linecap="round"/>
+<polygon points="166.750,172.000 168.750,171.280 168.750,172.720" fill="#1a1a48" stroke="none"/>
+<polygon points="183.130,172.000 181.130,172.720 181.130,171.280" fill="#1a1a48" stroke="none"/>
+<text x="174.940" y="174.850" font-family="DejaVu Sans, Arial, sans-serif" font-size="2.25" fill="#1a1a48" font-weight="normal" text-anchor="middle" style="paint-order:stroke;stroke:#ffffff;stroke-width:1.55;stroke-linejoin:round">16.38</text>
+<line x1="185.100" y1="172.000" x2="222.280" y2="172.000" stroke="#1a1a48" stroke-width="0.18" stroke-linecap="round"/>
+<line x1="186.700" y1="157.400" x2="186.700" y2="173.600" stroke="#1a1a48" stroke-width="0.15" stroke-linecap="round"/>
+<line x1="220.680" y1="157.400" x2="220.680" y2="173.600" stroke="#1a1a48" stroke-width="0.15" stroke-linecap="round"/>
+<polygon points="186.700,172.000 188.700,171.280 188.700,172.720" fill="#1a1a48" stroke="none"/>
+<polygon points="220.680,172.000 218.680,172.720 218.680,171.280" fill="#1a1a48" stroke="none"/>
+<text x="203.690" y="174.850" font-family="DejaVu Sans, Arial, sans-serif" font-size="2.25" fill="#1a1a48" font-weight="normal" text-anchor="middle" style="paint-order:stroke;stroke:#ffffff;stroke-width:1.55;stroke-linejoin:round">33.98</text>
+<text x="160.000" y="116.000" font-family="DejaVu Sans, Arial, sans-serif" font-size="2.7" fill="#101010" font-weight="bold" text-anchor="start">RIGHT — +X</text>
+<line x1="160.000" y1="116.800" x2="175.120" y2="116.800" stroke="#000000" stroke-width="0.25" stroke-linecap="round"/>
+<line x1="298.400" y1="75.800" x2="396.720" y2="75.800" stroke="#1a1a48" stroke-width="0.18" stroke-linecap="round"/>
+<line x1="300.000" y1="82.700" x2="300.000" y2="74.200" stroke="#1a1a48" stroke-width="0.15" stroke-linecap="round"/>
+<line x1="395.120" y1="82.700" x2="395.120" y2="74.200" stroke="#1a1a48" stroke-width="0.15" stroke-linecap="round"/>
+<polygon points="300.000,75.800 302.000,75.080 302.000,76.520" fill="#1a1a48" stroke="none"/>
+<polygon points="395.120,75.800 393.120,76.520 393.120,75.080" fill="#1a1a48" stroke="none"/>
+<text x="347.560" y="74.800" font-family="DejaVu Sans, Arial, sans-serif" font-size="2.25" fill="#1a1a48" font-weight="normal" text-anchor="middle" style="paint-order:stroke;stroke:#ffffff;stroke-width:1.55;stroke-linejoin:round">95.12</text>
+<line x1="305.900" y1="79.800" x2="389.220" y2="79.800" stroke="#1a1a48" stroke-width="0.18" stroke-linecap="round"/>
+<line x1="307.500" y1="82.700" x2="307.500" y2="78.200" stroke="#1a1a48" stroke-width="0.15" stroke-linecap="round"/>
+<line x1="387.620" y1="82.700" x2="387.620" y2="78.200" stroke="#1a1a48" stroke-width="0.15" stroke-linecap="round"/>
+<polygon points="307.500,79.800 309.500,79.080 309.500,80.520" fill="#1a1a48" stroke="none"/>
+<polygon points="387.620,79.800 385.620,80.520 385.620,79.080" fill="#1a1a48" stroke="none"/>
+<text x="347.560" y="78.800" font-family="DejaVu Sans, Arial, sans-serif" font-size="2.25" fill="#1a1a48" font-weight="normal" text-anchor="middle" style="paint-order:stroke;stroke:#ffffff;stroke-width:1.55;stroke-linejoin:round">80.12</text>
+<line x1="296.000" y1="92.900" x2="296.000" y2="140.900" stroke="#1a1a48" stroke-width="0.18" stroke-linecap="round"/>
+<line x1="298.900" y1="142.500" x2="294.400" y2="142.500" stroke="#1a1a48" stroke-width="0.15" stroke-linecap="round"/>
+<line x1="298.900" y1="91.300" x2="294.400" y2="91.300" stroke="#1a1a48" stroke-width="0.15" stroke-linecap="round"/>
+<polygon points="296.000,142.500 295.280,140.500 296.720,140.500" fill="#1a1a48" stroke="none"/>
+<polygon points="296.000,91.300 296.720,93.300 295.280,93.300" fill="#1a1a48" stroke="none"/>
+<text x="294.900" y="116.900" font-family="DejaVu Sans, Arial, sans-serif" font-size="2.25" fill="#1a1a48" font-weight="normal" text-anchor="middle" transform="rotate(-90 294.900 116.900)" style="paint-order:stroke;stroke:#ffffff;stroke-width:1.55;stroke-linejoin:round">51.20</text>
+<line x1="298.400" y1="154.000" x2="306.100" y2="154.000" stroke="#1a1a48" stroke-width="0.18" stroke-linecap="round"/>
+<line x1="300.000" y1="151.100" x2="300.000" y2="155.600" stroke="#1a1a48" stroke-width="0.15" stroke-linecap="round"/>
+<line x1="304.500" y1="151.100" x2="304.500" y2="155.600" stroke="#1a1a48" stroke-width="0.15" stroke-linecap="round"/>
+<polygon points="300.000,154.000 302.000,153.280 302.000,154.720" fill="#1a1a48" stroke="none"/>
+<polygon points="304.500,154.000 302.500,154.720 302.500,153.280" fill="#1a1a48" stroke="none"/>
+<text x="302.250" y="156.850" font-family="DejaVu Sans, Arial, sans-serif" font-size="2.25" fill="#1a1a48" font-weight="normal" text-anchor="middle" style="paint-order:stroke;stroke:#ffffff;stroke-width:1.55;stroke-linejoin:round">4.50</text>
+<line x1="302.900" y1="166.000" x2="309.100" y2="166.000" stroke="#1a1a48" stroke-width="0.18" stroke-linecap="round"/>
+<line x1="304.500" y1="151.100" x2="304.500" y2="167.600" stroke="#1a1a48" stroke-width="0.15" stroke-linecap="round"/>
+<line x1="307.500" y1="151.100" x2="307.500" y2="167.600" stroke="#1a1a48" stroke-width="0.15" stroke-linecap="round"/>
+<polygon points="304.500,166.000 306.500,165.280 306.500,166.720" fill="#1a1a48" stroke="none"/>
+<polygon points="307.500,166.000 305.500,166.720 305.500,165.280" fill="#1a1a48" stroke="none"/>
+<text x="306.000" y="168.850" font-family="DejaVu Sans, Arial, sans-serif" font-size="2.25" fill="#1a1a48" font-weight="normal" text-anchor="middle" style="paint-order:stroke;stroke:#ffffff;stroke-width:1.55;stroke-linejoin:round">3.00</text>
+<line x1="309.250" y1="166.000" x2="365.950" y2="166.000" stroke="#1a1a48" stroke-width="0.18" stroke-linecap="round"/>
+<line x1="310.850" y1="151.100" x2="310.850" y2="167.600" stroke="#1a1a48" stroke-width="0.15" stroke-linecap="round"/>
+<line x1="364.350" y1="151.100" x2="364.350" y2="167.600" stroke="#1a1a48" stroke-width="0.15" stroke-linecap="round"/>
+<polygon points="310.850,166.000 312.850,165.280 312.850,166.720" fill="#1a1a48" stroke="none"/>
+<polygon points="364.350,166.000 362.350,166.720 362.350,165.280" fill="#1a1a48" stroke="none"/>
+<text x="337.600" y="168.850" font-family="DejaVu Sans, Arial, sans-serif" font-size="2.25" fill="#1a1a48" font-weight="normal" text-anchor="middle" style="paint-order:stroke;stroke:#ffffff;stroke-width:1.55;stroke-linejoin:round">53.50</text>
+<line x1="298.400" y1="174.000" x2="387.720" y2="174.000" stroke="#1a1a48" stroke-width="0.18" stroke-linecap="round"/>
+<line x1="300.000" y1="151.000" x2="300.000" y2="175.000" stroke="#1a1a48" stroke-width="0.15" stroke-linecap="round"/>
+<circle cx="300.000" cy="174.000" r="0.550" fill="#1a1a48" stroke="#1a1a48" stroke-width="0.18"/>
+<line x1="302.250" y1="151.000" x2="302.250" y2="175.000" stroke="#1a1a48" stroke-width="0.15" stroke-linecap="round"/>
+<line x1="301.450" y1="174.800" x2="303.050" y2="173.200" stroke="#1a1a48" stroke-width="0.18" stroke-linecap="round"/>
+<text x="302.250" y="173.000" font-family="DejaVu Sans, Arial, sans-serif" font-size="2.05" fill="#1a1a48" font-weight="normal" text-anchor="middle" style="paint-order:stroke;stroke:#ffffff;stroke-width:1.55;stroke-linejoin:round">2.25</text>
+<line x1="309.000" y1="151.000" x2="309.000" y2="175.000" stroke="#1a1a48" stroke-width="0.15" stroke-linecap="round"/>
+<line x1="308.200" y1="174.800" x2="309.800" y2="173.200" stroke="#1a1a48" stroke-width="0.18" stroke-linecap="round"/>
+<text x="309.000" y="173.000" font-family="DejaVu Sans, Arial, sans-serif" font-size="2.05" fill="#1a1a48" font-weight="normal" text-anchor="middle" style="paint-order:stroke;stroke:#ffffff;stroke-width:1.55;stroke-linejoin:round">9.00</text>
+<line x1="386.120" y1="151.000" x2="386.120" y2="175.000" stroke="#1a1a48" stroke-width="0.15" stroke-linecap="round"/>
+<line x1="385.320" y1="174.800" x2="386.920" y2="173.200" stroke="#1a1a48" stroke-width="0.18" stroke-linecap="round"/>
+<text x="386.120" y="173.000" font-family="DejaVu Sans, Arial, sans-serif" font-size="2.05" fill="#1a1a48" font-weight="normal" text-anchor="middle" style="paint-order:stroke;stroke:#ffffff;stroke-width:1.55;stroke-linejoin:round">86.12</text>
+<line x1="400.120" y1="84.450" x2="400.120" y2="149.350" stroke="#1a1a48" stroke-width="0.18" stroke-linecap="round"/>
+<line x1="396.120" y1="150.000" x2="401.120" y2="150.000" stroke="#1a1a48" stroke-width="0.15" stroke-linecap="round"/>
+<circle cx="400.120" cy="150.000" r="0.550" fill="#1a1a48" stroke="#1a1a48" stroke-width="0.18"/>
+<line x1="396.120" y1="147.750" x2="401.120" y2="147.750" stroke="#1a1a48" stroke-width="0.15" stroke-linecap="round"/>
+<line x1="399.320" y1="148.550" x2="400.920" y2="146.950" stroke="#1a1a48" stroke-width="0.18" stroke-linecap="round"/>
+<text x="401.520" y="148.468" font-family="DejaVu Sans, Arial, sans-serif" font-size="2.05" fill="#1a1a48" font-weight="normal" text-anchor="start" style="paint-order:stroke;stroke:#ffffff;stroke-width:1.55;stroke-linejoin:round">2.25</text>
+<line x1="396.120" y1="141.000" x2="401.120" y2="141.000" stroke="#1a1a48" stroke-width="0.15" stroke-linecap="round"/>
+<line x1="399.320" y1="141.800" x2="400.920" y2="140.200" stroke="#1a1a48" stroke-width="0.18" stroke-linecap="round"/>
+<text x="401.520" y="141.718" font-family="DejaVu Sans, Arial, sans-serif" font-size="2.05" fill="#1a1a48" font-weight="normal" text-anchor="start" style="paint-order:stroke;stroke:#ffffff;stroke-width:1.55;stroke-linejoin:round">9.00</text>
+<line x1="396.120" y1="92.800" x2="401.120" y2="92.800" stroke="#1a1a48" stroke-width="0.15" stroke-linecap="round"/>
+<line x1="399.320" y1="93.600" x2="400.920" y2="92.000" stroke="#1a1a48" stroke-width="0.18" stroke-linecap="round"/>
+<text x="401.520" y="93.517" font-family="DejaVu Sans, Arial, sans-serif" font-size="2.05" fill="#1a1a48" font-weight="normal" text-anchor="start" style="paint-order:stroke;stroke:#ffffff;stroke-width:1.55;stroke-linejoin:round">57.20</text>
+<line x1="396.120" y1="86.050" x2="401.120" y2="86.050" stroke="#1a1a48" stroke-width="0.15" stroke-linecap="round"/>
+<line x1="399.320" y1="86.850" x2="400.920" y2="85.250" stroke="#1a1a48" stroke-width="0.18" stroke-linecap="round"/>
+<text x="401.520" y="86.767" font-family="DejaVu Sans, Arial, sans-serif" font-size="2.05" fill="#1a1a48" font-weight="normal" text-anchor="start" style="paint-order:stroke;stroke:#ffffff;stroke-width:1.55;stroke-linejoin:round">63.95</text>
+<text x="300.000" y="65.800" font-family="DejaVu Sans, Arial, sans-serif" font-size="2.7" fill="#101010" font-weight="bold" text-anchor="start">PLAN  —  FROM +Z (TOP FACE AND SHELF RING)</text>
+<line x1="300.000" y1="66.600" x2="363.504" y2="66.600" stroke="#000000" stroke-width="0.25" stroke-linecap="round"/>
+<line x1="72.004" y1="220.682" x2="178.000" y2="196.000" stroke="#1a1a48" stroke-width="0.18" stroke-linecap="round"/>
+<line x1="175.400" y1="196.000" x2="178.000" y2="196.000" stroke="#1a1a48" stroke-width="0.18" stroke-linecap="round"/>
+<polygon points="70.640,221.000 72.252,219.988 72.534,221.196" fill="#1a1a48" stroke="none"/>
+<text x="178.900" y="196.760" font-family="DejaVu Sans, Arial, sans-serif" font-size="2.0" fill="#1a1a48" font-weight="normal" text-anchor="start" style="paint-order:stroke;stroke:#ffffff;stroke-width:1.55;stroke-linejoin:round">PWR SLOT  9.48 × 6.51  TO BOTTOM</text>
+<line x1="93.410" y1="219.713" x2="178.000" y2="202.000" stroke="#1a1a48" stroke-width="0.18" stroke-linecap="round"/>
+<line x1="175.400" y1="202.000" x2="178.000" y2="202.000" stroke="#1a1a48" stroke-width="0.18" stroke-linecap="round"/>
+<polygon points="92.040,220.000 93.675,219.024 93.929,220.238" fill="#1a1a48" stroke="none"/>
+<text x="178.900" y="202.760" font-family="DejaVu Sans, Arial, sans-serif" font-size="2.0" fill="#1a1a48" font-weight="normal" text-anchor="start" style="paint-order:stroke;stroke:#ffffff;stroke-width:1.55;stroke-linejoin:round">HDMI SLOT  16.50 × 9.86  TO BOTTOM</text>
+<line x1="115.016" y1="219.743" x2="178.000" y2="208.000" stroke="#1a1a48" stroke-width="0.18" stroke-linecap="round"/>
+<line x1="175.400" y1="208.000" x2="178.000" y2="208.000" stroke="#1a1a48" stroke-width="0.18" stroke-linecap="round"/>
+<polygon points="113.640,220.000 115.296,219.061 115.523,220.280" fill="#1a1a48" stroke="none"/>
+<text x="178.900" y="208.760" font-family="DejaVu Sans, Arial, sans-serif" font-size="2.0" fill="#1a1a48" font-weight="normal" text-anchor="start" style="paint-order:stroke;stroke:#ffffff;stroke-width:1.55;stroke-linejoin:round">AUDIO SLOT  8.50 × 9.78  TO BOTTOM</text>
+<line x1="82.379" y1="197.242" x2="178.000" y2="214.000" stroke="#1a1a48" stroke-width="0.18" stroke-linecap="round"/>
+<line x1="175.400" y1="214.000" x2="178.000" y2="214.000" stroke="#1a1a48" stroke-width="0.18" stroke-linecap="round"/>
+<polygon points="81.000,197.000 82.880,196.700 82.666,197.921" fill="#1a1a48" stroke="none"/>
+<text x="178.900" y="214.760" font-family="DejaVu Sans, Arial, sans-serif" font-size="2.0" fill="#1a1a48" font-weight="normal" text-anchor="start" style="paint-order:stroke;stroke:#ffffff;stroke-width:1.55;stroke-linejoin:round">3× Ø5.20 THRU  ·  P 7.00</text>
+<line x1="106.335" y1="197.421" x2="178.000" y2="220.000" stroke="#1a1a48" stroke-width="0.18" stroke-linecap="round"/>
+<line x1="175.400" y1="220.000" x2="178.000" y2="220.000" stroke="#1a1a48" stroke-width="0.18" stroke-linecap="round"/>
+<polygon points="105.000,197.000 106.903,196.950 106.530,198.132" fill="#1a1a48" stroke="none"/>
+<text x="178.900" y="220.760" font-family="DejaVu Sans, Arial, sans-serif" font-size="2.0" fill="#1a1a48" font-weight="normal" text-anchor="start" style="paint-order:stroke;stroke:#ffffff;stroke-width:1.55;stroke-linejoin:round">3× Ø3.60 THRU LIP  ·  6.20 SQ × 4.05 DEEP</text>
+<line x1="115.344" y1="207.663" x2="178.000" y2="226.000" stroke="#1a1a48" stroke-width="0.18" stroke-linecap="round"/>
+<line x1="175.400" y1="226.000" x2="178.000" y2="226.000" stroke="#1a1a48" stroke-width="0.18" stroke-linecap="round"/>
+<polygon points="114.000,207.270 115.902,207.181 115.553,208.371" fill="#1a1a48" stroke="none"/>
+<text x="178.900" y="226.760" font-family="DejaVu Sans, Arial, sans-serif" font-size="2.0" fill="#1a1a48" font-weight="normal" text-anchor="start" style="paint-order:stroke;stroke:#ffffff;stroke-width:1.55;stroke-linejoin:round">12.20 × 7.20 R1.50 THRU, TO BOTTOM</text>
+<line x1="334.371" y1="208.371" x2="355.000" y2="198.000" stroke="#1a1a48" stroke-width="0.18" stroke-linecap="round"/>
+<line x1="352.400" y1="198.000" x2="355.000" y2="198.000" stroke="#1a1a48" stroke-width="0.18" stroke-linecap="round"/>
+<polygon points="333.120,209.000 334.450,207.638 335.007,208.745" fill="#1a1a48" stroke="none"/>
+<text x="355.900" y="198.760" font-family="DejaVu Sans, Arial, sans-serif" font-size="2.0" fill="#1a1a48" font-weight="normal" text-anchor="start" style="paint-order:stroke;stroke:#ffffff;stroke-width:1.55;stroke-linejoin:round">18× HEX 7.00 ACROSS POINTS, THRU</text>
+<line x1="276.513" y1="209.860" x2="355.000" y2="202.000" stroke="#1a1a48" stroke-width="0.18" stroke-linecap="round"/>
+<line x1="352.400" y1="202.000" x2="355.000" y2="202.000" stroke="#1a1a48" stroke-width="0.18" stroke-linecap="round"/>
+<polygon points="275.120,210.000 276.849,209.204 276.973,210.438" fill="#1a1a48" stroke="none"/>
+<text x="355.900" y="202.760" font-family="DejaVu Sans, Arial, sans-serif" font-size="2.0" fill="#1a1a48" font-weight="normal" text-anchor="start" style="paint-order:stroke;stroke:#ffffff;stroke-width:1.55;stroke-linejoin:round">LEAD 10.00 × 6.00 THRU</text>
+<line x1="291.504" y1="196.282" x2="355.000" y2="206.000" stroke="#1a1a48" stroke-width="0.18" stroke-linecap="round"/>
+<line x1="352.400" y1="206.000" x2="355.000" y2="206.000" stroke="#1a1a48" stroke-width="0.18" stroke-linecap="round"/>
+<polygon points="290.120,196.070 291.993,195.729 291.805,196.955" fill="#1a1a48" stroke="none"/>
+<text x="355.900" y="206.760" font-family="DejaVu Sans, Arial, sans-serif" font-size="2.0" fill="#1a1a48" font-weight="normal" text-anchor="start" style="paint-order:stroke;stroke:#ffffff;stroke-width:1.55;stroke-linejoin:round">HEADER RELIEF 1.30 DEEP TO Z 33.93  (HIDDEN)</text>
+<line x1="89.120" y1="155.193" x2="126.000" y2="144.000" stroke="#1a1a48" stroke-width="0.18" stroke-linecap="round"/>
+<line x1="123.400" y1="144.000" x2="126.000" y2="144.000" stroke="#1a1a48" stroke-width="0.18" stroke-linecap="round"/>
+<polygon points="87.780,155.600 89.322,154.484 89.682,155.671" fill="#1a1a48" stroke="none"/>
+<text x="126.900" y="144.760" font-family="DejaVu Sans, Arial, sans-serif" font-size="2.0" fill="#1a1a48" font-weight="normal" text-anchor="start" style="paint-order:stroke;stroke:#ffffff;stroke-width:1.55;stroke-linejoin:round">SD SLOT 12.50 × 2.03</text>
+<line x1="76.487" y1="144.191" x2="126.000" y2="151.000" stroke="#1a1a48" stroke-width="0.18" stroke-linecap="round"/>
+<line x1="123.400" y1="151.000" x2="126.000" y2="151.000" stroke="#1a1a48" stroke-width="0.18" stroke-linecap="round"/>
+<polygon points="75.100,144.000 76.968,143.631 76.799,144.859" fill="#1a1a48" stroke="none"/>
+<text x="126.900" y="151.760" font-family="DejaVu Sans, Arial, sans-serif" font-size="2.0" fill="#1a1a48" font-weight="normal" text-anchor="start" style="paint-order:stroke;stroke:#ffffff;stroke-width:1.55;stroke-linejoin:round">WITTY SLOT 3.60 × 20.10</text>
+<line x1="206.397" y1="142.093" x2="235.000" y2="144.000" stroke="#1a1a48" stroke-width="0.18" stroke-linecap="round"/>
+<line x1="232.400" y1="144.000" x2="235.000" y2="144.000" stroke="#1a1a48" stroke-width="0.18" stroke-linecap="round"/>
+<polygon points="205.000,142.000 206.837,141.501 206.755,142.738" fill="#1a1a48" stroke="none"/>
+<text x="235.900" y="144.760" font-family="DejaVu Sans, Arial, sans-serif" font-size="2.0" fill="#1a1a48" font-weight="normal" text-anchor="start" style="paint-order:stroke;stroke:#ffffff;stroke-width:1.55;stroke-linejoin:round">ETH + USB STEPPED OPENING, TO BOTTOM</text>
+<line x1="206.300" y1="139.520" x2="235.000" y2="151.000" stroke="#1a1a48" stroke-width="0.18" stroke-linecap="round"/>
+<line x1="232.400" y1="151.000" x2="235.000" y2="151.000" stroke="#1a1a48" stroke-width="0.18" stroke-linecap="round"/>
+<polygon points="205.000,139.000 206.902,139.093 206.441,140.244" fill="#1a1a48" stroke="none"/>
+<text x="235.900" y="151.760" font-family="DejaVu Sans, Arial, sans-serif" font-size="2.0" fill="#1a1a48" font-weight="normal" text-anchor="start" style="paint-order:stroke;stroke:#ffffff;stroke-width:1.55;stroke-linejoin:round">ETH TOP 23.18  ·  WEB REMOVED TO 25.57  ·  USB TOP 25.07</text>
+<line x1="306.103" y1="119.904" x2="220.000" y2="114.000" stroke="#1a1a48" stroke-width="0.18" stroke-linecap="round"/>
+<line x1="217.400" y1="114.000" x2="220.000" y2="114.000" stroke="#1a1a48" stroke-width="0.18" stroke-linecap="round"/>
+<polygon points="307.500,120.000 305.662,120.495 305.747,119.258" fill="#1a1a48" stroke="none"/>
+<text x="220.900" y="114.760" font-family="DejaVu Sans, Arial, sans-serif" font-size="2.0" fill="#1a1a48" font-weight="normal" text-anchor="start" style="paint-order:stroke;stroke:#ffffff;stroke-width:1.55;stroke-linejoin:round">SHELF OPENING 80.12 × 51.20 R2.00</text>
+<line x1="336.216" y1="88.508" x2="220.000" y2="106.000" stroke="#1a1a48" stroke-width="0.18" stroke-linecap="round"/>
+<line x1="217.400" y1="106.000" x2="220.000" y2="106.000" stroke="#1a1a48" stroke-width="0.18" stroke-linecap="round"/>
+<polygon points="337.600,88.300 335.912,89.181 335.728,87.955" fill="#1a1a48" stroke="none"/>
+<text x="220.900" y="106.760" font-family="DejaVu Sans, Arial, sans-serif" font-size="2.0" fill="#1a1a48" font-weight="normal" text-anchor="start" style="paint-order:stroke;stroke:#ffffff;stroke-width:1.55;stroke-linejoin:round">LCD NOTCH 53.50 × 3.00</text>
+<line x1="330.306" y1="87.779" x2="220.000" y2="98.000" stroke="#1a1a48" stroke-width="0.18" stroke-linecap="round"/>
+<line x1="217.400" y1="98.000" x2="220.000" y2="98.000" stroke="#1a1a48" stroke-width="0.18" stroke-linecap="round"/>
+<polygon points="331.700,87.650 329.965,88.433 329.850,87.199" fill="#1a1a48" stroke="none"/>
+<text x="220.900" y="98.760" font-family="DejaVu Sans, Arial, sans-serif" font-size="2.0" fill="#1a1a48" font-weight="normal" text-anchor="start" style="paint-order:stroke;stroke:#ffffff;stroke-width:1.55;stroke-linejoin:round">HDR RELIEF 1.30 DEEP, Z 4.50..33.93</text>
+<line x1="307.601" y1="86.112" x2="220.000" y2="90.000" stroke="#1a1a48" stroke-width="0.18" stroke-linecap="round"/>
+<line x1="217.400" y1="90.000" x2="220.000" y2="90.000" stroke="#1a1a48" stroke-width="0.18" stroke-linecap="round"/>
+<polygon points="309.000,86.050 307.229,86.749 307.174,85.510" fill="#1a1a48" stroke="none"/>
+<text x="220.900" y="90.760" font-family="DejaVu Sans, Arial, sans-serif" font-size="2.0" fill="#1a1a48" font-weight="normal" text-anchor="start" style="paint-order:stroke;stroke:#ffffff;stroke-width:1.55;stroke-linejoin:round">6 COLUMNS  ·  Ø2.75 × 15.00 FROM EACH END</text>
+<text x="14.000" y="30.000" font-family="DejaVu Sans, Arial, sans-serif" font-size="1.55" fill="#101010" font-weight="bold" text-anchor="start">TAG  FACE  FEATURE  SIZE / DEPTH  POSITION  (DATUM X0/Y0/Z0)</text>
+<line x1="14.000" y1="31.200" x2="214.000" y2="31.200" stroke="#000000" stroke-width="0.25" stroke-linecap="round"/>
+<text x="14.000" y="34.650" font-family="DejaVu Sans, Arial, sans-serif" font-size="1.55" fill="#101010" font-weight="normal" text-anchor="start">A</text>
+<text x="21.000" y="34.650" font-family="DejaVu Sans, Arial, sans-serif" font-size="1.55" fill="#101010" font-weight="normal" text-anchor="start">-Y</text>
+<text x="30.000" y="34.650" font-family="DejaVu Sans, Arial, sans-serif" font-size="1.55" fill="#101010" font-weight="normal" text-anchor="start">PWR slot</text>
+<text x="68.000" y="34.650" font-family="DejaVu Sans, Arial, sans-serif" font-size="1.55" fill="#101010" font-weight="normal" text-anchor="start">9.48 × 6.51</text>
+<text x="132.000" y="34.650" font-family="DejaVu Sans, Arial, sans-serif" font-size="1.55" fill="#101010" font-weight="normal" text-anchor="start">X 10.90..20.38; top z 12.21</text>
+<line x1="14.000" y1="35.850" x2="214.000" y2="35.850" stroke="#000000" stroke-width="0.25" stroke-linecap="round"/>
+<text x="14.000" y="39.300" font-family="DejaVu Sans, Arial, sans-serif" font-size="1.55" fill="#101010" font-weight="normal" text-anchor="start">B</text>
+<text x="21.000" y="39.300" font-family="DejaVu Sans, Arial, sans-serif" font-size="1.55" fill="#101010" font-weight="normal" text-anchor="start">-Y</text>
+<text x="30.000" y="39.300" font-family="DejaVu Sans, Arial, sans-serif" font-size="1.55" fill="#101010" font-weight="normal" text-anchor="start">HDMI slot</text>
+<text x="68.000" y="39.300" font-family="DejaVu Sans, Arial, sans-serif" font-size="1.55" fill="#101010" font-weight="normal" text-anchor="start">16.50 × 9.86</text>
+<text x="132.000" y="39.300" font-family="DejaVu Sans, Arial, sans-serif" font-size="1.55" fill="#101010" font-weight="normal" text-anchor="start">X 28.79..45.29; top z 15.56</text>
+<line x1="14.000" y1="40.500" x2="214.000" y2="40.500" stroke="#000000" stroke-width="0.25" stroke-linecap="round"/>
+<text x="14.000" y="43.950" font-family="DejaVu Sans, Arial, sans-serif" font-size="1.55" fill="#101010" font-weight="normal" text-anchor="start">C</text>
+<text x="21.000" y="43.950" font-family="DejaVu Sans, Arial, sans-serif" font-size="1.55" fill="#101010" font-weight="normal" text-anchor="start">-Y</text>
+<text x="30.000" y="43.950" font-family="DejaVu Sans, Arial, sans-serif" font-size="1.55" fill="#101010" font-weight="normal" text-anchor="start">AUDIO slot</text>
+<text x="68.000" y="43.950" font-family="DejaVu Sans, Arial, sans-serif" font-size="1.55" fill="#101010" font-weight="normal" text-anchor="start">8.50 × 9.78</text>
+<text x="132.000" y="43.950" font-family="DejaVu Sans, Arial, sans-serif" font-size="1.55" fill="#101010" font-weight="normal" text-anchor="start">X 54.39..62.89; top z 15.48</text>
+<line x1="14.000" y1="45.150" x2="214.000" y2="45.150" stroke="#000000" stroke-width="0.25" stroke-linecap="round"/>
+<text x="14.000" y="48.600" font-family="DejaVu Sans, Arial, sans-serif" font-size="1.55" fill="#101010" font-weight="normal" text-anchor="start">D</text>
+<text x="21.000" y="48.600" font-family="DejaVu Sans, Arial, sans-serif" font-size="1.55" fill="#101010" font-weight="normal" text-anchor="start">-Y</text>
+<text x="30.000" y="48.600" font-family="DejaVu Sans, Arial, sans-serif" font-size="1.55" fill="#101010" font-weight="normal" text-anchor="start">LED bores</text>
+<text x="68.000" y="48.600" font-family="DejaVu Sans, Arial, sans-serif" font-size="1.55" fill="#101010" font-weight="normal" text-anchor="start">3× Ø5.20 THRU, P7.00</text>
+<text x="132.000" y="48.600" font-family="DejaVu Sans, Arial, sans-serif" font-size="1.55" fill="#101010" font-weight="normal" text-anchor="start">X 26.00 / 33.00 / 40.00; z 33.00</text>
+<line x1="14.000" y1="49.800" x2="214.000" y2="49.800" stroke="#000000" stroke-width="0.25" stroke-linecap="round"/>
+<text x="14.000" y="53.250" font-family="DejaVu Sans, Arial, sans-serif" font-size="1.55" fill="#101010" font-weight="normal" text-anchor="start">E</text>
+<text x="21.000" y="53.250" font-family="DejaVu Sans, Arial, sans-serif" font-size="1.55" fill="#101010" font-weight="normal" text-anchor="start">-Y</text>
+<text x="30.000" y="53.250" font-family="DejaVu Sans, Arial, sans-serif" font-size="1.55" fill="#101010" font-weight="normal" text-anchor="start">Switch seats</text>
+<text x="68.000" y="53.250" font-family="DejaVu Sans, Arial, sans-serif" font-size="1.55" fill="#101010" font-weight="normal" text-anchor="start">3× 6.20 SQ × 4.05 deep; Ø3.60 thru</text>
+<text x="132.000" y="53.250" font-family="DejaVu Sans, Arial, sans-serif" font-size="1.55" fill="#101010" font-weight="normal" text-anchor="start">X 50.00 / 59.00 / 68.00; z 33.00</text>
+<line x1="14.000" y1="54.450" x2="214.000" y2="54.450" stroke="#000000" stroke-width="0.25" stroke-linecap="round"/>
+<text x="14.000" y="57.900" font-family="DejaVu Sans, Arial, sans-serif" font-size="1.55" fill="#101010" font-weight="normal" text-anchor="start">F</text>
+<text x="21.000" y="57.900" font-family="DejaVu Sans, Arial, sans-serif" font-size="1.55" fill="#101010" font-weight="normal" text-anchor="start">-Y</text>
+<text x="30.000" y="57.900" font-family="DejaVu Sans, Arial, sans-serif" font-size="1.55" fill="#101010" font-weight="normal" text-anchor="start">Accessory opening</text>
+<text x="68.000" y="57.900" font-family="DejaVu Sans, Arial, sans-serif" font-size="1.55" fill="#101010" font-weight="normal" text-anchor="start">12.20 × 7.20 R1.50 THRU</text>
+<text x="132.000" y="57.900" font-family="DejaVu Sans, Arial, sans-serif" font-size="1.55" fill="#101010" font-weight="normal" text-anchor="start">X 52.90..65.10; z 19.13..26.33</text>
+<line x1="14.000" y1="59.100" x2="214.000" y2="59.100" stroke="#000000" stroke-width="0.25" stroke-linecap="round"/>
+<text x="14.000" y="62.550" font-family="DejaVu Sans, Arial, sans-serif" font-size="1.55" fill="#101010" font-weight="normal" text-anchor="start">G</text>
+<text x="21.000" y="62.550" font-family="DejaVu Sans, Arial, sans-serif" font-size="1.55" fill="#101010" font-weight="normal" text-anchor="start">+Y</text>
+<text x="30.000" y="62.550" font-family="DejaVu Sans, Arial, sans-serif" font-size="1.55" fill="#101010" font-weight="normal" text-anchor="start">Hex vent field</text>
+<text x="68.000" y="62.550" font-family="DejaVu Sans, Arial, sans-serif" font-size="1.55" fill="#101010" font-weight="normal" text-anchor="start">18× 7.00 × 6.06 THRU</text>
+<text x="132.000" y="62.550" font-family="DejaVu Sans, Arial, sans-serif" font-size="1.55" fill="#101010" font-weight="normal" text-anchor="start">X 17.00..62.00; z 12.00..34.50</text>
+<line x1="14.000" y1="63.750" x2="214.000" y2="63.750" stroke="#000000" stroke-width="0.25" stroke-linecap="round"/>
+<text x="14.000" y="67.200" font-family="DejaVu Sans, Arial, sans-serif" font-size="1.55" fill="#101010" font-weight="normal" text-anchor="start">H</text>
+<text x="21.000" y="67.200" font-family="DejaVu Sans, Arial, sans-serif" font-size="1.55" fill="#101010" font-weight="normal" text-anchor="start">+Y</text>
+<text x="30.000" y="67.200" font-family="DejaVu Sans, Arial, sans-serif" font-size="1.55" fill="#101010" font-weight="normal" text-anchor="start">Battery lead</text>
+<text x="68.000" y="67.200" font-family="DejaVu Sans, Arial, sans-serif" font-size="1.55" fill="#101010" font-weight="normal" text-anchor="start">10.00 × 6.00 THRU</text>
+<text x="132.000" y="67.200" font-family="DejaVu Sans, Arial, sans-serif" font-size="1.55" fill="#101010" font-weight="normal" text-anchor="start">X 70.00..80.00; z 17.00..23.00</text>
+<line x1="14.000" y1="68.400" x2="214.000" y2="68.400" stroke="#000000" stroke-width="0.25" stroke-linecap="round"/>
+<text x="14.000" y="71.850" font-family="DejaVu Sans, Arial, sans-serif" font-size="1.55" fill="#101010" font-weight="normal" text-anchor="start">I</text>
+<text x="21.000" y="71.850" font-family="DejaVu Sans, Arial, sans-serif" font-size="1.55" fill="#101010" font-weight="normal" text-anchor="start">-X</text>
+<text x="30.000" y="71.850" font-family="DejaVu Sans, Arial, sans-serif" font-size="1.55" fill="#101010" font-weight="normal" text-anchor="start">SD slot</text>
+<text x="68.000" y="71.850" font-family="DejaVu Sans, Arial, sans-serif" font-size="1.55" fill="#101010" font-weight="normal" text-anchor="start">12.50 × 2.03</text>
+<text x="132.000" y="71.850" font-family="DejaVu Sans, Arial, sans-serif" font-size="1.55" fill="#101010" font-weight="normal" text-anchor="start">Y 27.17..39.67; top z 7.73</text>
+<line x1="14.000" y1="73.050" x2="214.000" y2="73.050" stroke="#000000" stroke-width="0.25" stroke-linecap="round"/>
+<text x="14.000" y="76.500" font-family="DejaVu Sans, Arial, sans-serif" font-size="1.55" fill="#101010" font-weight="normal" text-anchor="start">J</text>
+<text x="21.000" y="76.500" font-family="DejaVu Sans, Arial, sans-serif" font-size="1.55" fill="#101010" font-weight="normal" text-anchor="start">-X</text>
+<text x="30.000" y="76.500" font-family="DejaVu Sans, Arial, sans-serif" font-size="1.55" fill="#101010" font-weight="normal" text-anchor="start">Witty button slot</text>
+<text x="68.000" y="76.500" font-family="DejaVu Sans, Arial, sans-serif" font-size="1.55" fill="#101010" font-weight="normal" text-anchor="start">3.60 × 20.10</text>
+<text x="132.000" y="76.500" font-family="DejaVu Sans, Arial, sans-serif" font-size="1.55" fill="#101010" font-weight="normal" text-anchor="start">Y 44.30..47.90; top z 25.80</text>
+<line x1="14.000" y1="77.700" x2="214.000" y2="77.700" stroke="#000000" stroke-width="0.25" stroke-linecap="round"/>
+<text x="14.000" y="81.150" font-family="DejaVu Sans, Arial, sans-serif" font-size="1.55" fill="#101010" font-weight="normal" text-anchor="start">K</text>
+<text x="21.000" y="81.150" font-family="DejaVu Sans, Arial, sans-serif" font-size="1.55" fill="#101010" font-weight="normal" text-anchor="start">+X</text>
+<text x="30.000" y="81.150" font-family="DejaVu Sans, Arial, sans-serif" font-size="1.55" fill="#101010" font-weight="normal" text-anchor="start">ETH + USB opening</text>
+<text x="68.000" y="81.150" font-family="DejaVu Sans, Arial, sans-serif" font-size="1.55" fill="#101010" font-weight="normal" text-anchor="start">stepped, to bottom</text>
+<text x="132.000" y="81.150" font-family="DejaVu Sans, Arial, sans-serif" font-size="1.55" fill="#101010" font-weight="normal" text-anchor="start">Y 6.75..60.68; z 5.70..25.57</text>
+<line x1="14.000" y1="82.350" x2="214.000" y2="82.350" stroke="#000000" stroke-width="0.25" stroke-linecap="round"/>
+<text x="14.000" y="85.800" font-family="DejaVu Sans, Arial, sans-serif" font-size="1.55" fill="#101010" font-weight="normal" text-anchor="start">L</text>
+<text x="21.000" y="85.800" font-family="DejaVu Sans, Arial, sans-serif" font-size="1.55" fill="#101010" font-weight="normal" text-anchor="start">TOP</text>
+<text x="30.000" y="85.800" font-family="DejaVu Sans, Arial, sans-serif" font-size="1.55" fill="#101010" font-weight="normal" text-anchor="start">Shelf opening</text>
+<text x="68.000" y="85.800" font-family="DejaVu Sans, Arial, sans-serif" font-size="1.55" fill="#101010" font-weight="normal" text-anchor="start">80.12 × 51.20 R2.00</text>
+<text x="132.000" y="85.800" font-family="DejaVu Sans, Arial, sans-serif" font-size="1.55" fill="#101010" font-weight="normal" text-anchor="start">from X/Y 7.50; z 38.60..40.60</text>
+<line x1="14.000" y1="87.000" x2="214.000" y2="87.000" stroke="#000000" stroke-width="0.25" stroke-linecap="round"/>
+<text x="14.000" y="90.450" font-family="DejaVu Sans, Arial, sans-serif" font-size="1.55" fill="#101010" font-weight="normal" text-anchor="start">M</text>
+<text x="21.000" y="90.450" font-family="DejaVu Sans, Arial, sans-serif" font-size="1.55" fill="#101010" font-weight="normal" text-anchor="start">TOP</text>
+<text x="30.000" y="90.450" font-family="DejaVu Sans, Arial, sans-serif" font-size="1.55" fill="#101010" font-weight="normal" text-anchor="start">LCD notch</text>
+<text x="68.000" y="90.450" font-family="DejaVu Sans, Arial, sans-serif" font-size="1.55" fill="#101010" font-weight="normal" text-anchor="start">53.50 × 3.00</text>
+<text x="132.000" y="90.450" font-family="DejaVu Sans, Arial, sans-serif" font-size="1.55" fill="#101010" font-weight="normal" text-anchor="start">X 10.85..64.35; Y 58.70..61.70</text>
+<line x1="14.000" y1="91.650" x2="214.000" y2="91.650" stroke="#000000" stroke-width="0.25" stroke-linecap="round"/>
+<text x="14.000" y="95.100" font-family="DejaVu Sans, Arial, sans-serif" font-size="1.55" fill="#101010" font-weight="normal" text-anchor="start">N</text>
+<text x="21.000" y="95.100" font-family="DejaVu Sans, Arial, sans-serif" font-size="1.55" fill="#101010" font-weight="normal" text-anchor="start">+Y</text>
+<text x="30.000" y="95.100" font-family="DejaVu Sans, Arial, sans-serif" font-size="1.55" fill="#101010" font-weight="normal" text-anchor="start">Header relief</text>
+<text x="68.000" y="95.100" font-family="DejaVu Sans, Arial, sans-serif" font-size="1.55" fill="#101010" font-weight="normal" text-anchor="start">1.30 deep, 54.30 long</text>
+<text x="132.000" y="95.100" font-family="DejaVu Sans, Arial, sans-serif" font-size="1.55" fill="#101010" font-weight="normal" text-anchor="start">X 11.70..66.00; z 4.50..33.93</text>
+<line x1="14.000" y1="96.300" x2="214.000" y2="96.300" stroke="#000000" stroke-width="0.25" stroke-linecap="round"/>
+<text x="14.000" y="99.750" font-family="DejaVu Sans, Arial, sans-serif" font-size="1.55" fill="#101010" font-weight="normal" text-anchor="start">P</text>
+<text x="21.000" y="99.750" font-family="DejaVu Sans, Arial, sans-serif" font-size="1.55" fill="#101010" font-weight="normal" text-anchor="start">ALL</text>
+<text x="30.000" y="99.750" font-family="DejaVu Sans, Arial, sans-serif" font-size="1.55" fill="#101010" font-weight="normal" text-anchor="start">Screw pilots</text>
+<text x="68.000" y="99.750" font-family="DejaVu Sans, Arial, sans-serif" font-size="1.55" fill="#101010" font-weight="normal" text-anchor="start">12× Ø2.75 × 15.00</text>
+<text x="132.000" y="99.750" font-family="DejaVu Sans, Arial, sans-serif" font-size="1.55" fill="#101010" font-weight="normal" text-anchor="start">X 2.25/9.00/86.12; Y 2.25/9.00/57.20/63.95</text>
+<line x1="14.000" y1="100.950" x2="214.000" y2="100.950" stroke="#000000" stroke-width="0.25" stroke-linecap="round"/>
+<text x="220.000" y="30.000" font-family="DejaVu Sans, Arial, sans-serif" font-size="2.4" fill="#101010" font-weight="bold" text-anchor="start">NOTES — MID</text>
+<line x1="220.000" y1="31.000" x2="234.784" y2="31.000" stroke="#000000" stroke-width="0.25" stroke-linecap="round"/>
+<text x="220.000" y="34.100" font-family="DejaVu Sans, Arial, sans-serif" font-size="2.05" fill="#101010" font-weight="normal" text-anchor="start">1.  Datum: X = -X outer face, Y = -Y outer face,</text>
+<text x="220.000" y="37.000" font-family="DejaVu Sans, Arial, sans-serif" font-size="2.05" fill="#101010" font-weight="normal" text-anchor="start">    Z = case underside (z 0). MID spans z 5.70..40.60.</text>
+<text x="220.000" y="39.900" font-family="DejaVu Sans, Arial, sans-serif" font-size="2.05" fill="#101010" font-weight="normal" text-anchor="start">2.  Every port slot is open to the MID's bottom edge and</text>
+<text x="220.000" y="42.800" font-family="DejaVu Sans, Arial, sans-serif" font-size="2.05" fill="#101010" font-weight="normal" text-anchor="start">    is closed from below by the BASE rim on assembly.</text>
+<text x="220.000" y="45.700" font-family="DejaVu Sans, Arial, sans-serif" font-size="2.05" fill="#101010" font-weight="normal" text-anchor="start">3.  Dashed: switch seats behind the 0.45 lip, the cavity</text>
+<text x="220.000" y="48.600" font-family="DejaVu Sans, Arial, sans-serif" font-size="2.05" fill="#101010" font-weight="normal" text-anchor="start">    wall below the shelf, and the header relief.</text>
+<text x="220.000" y="51.500" font-family="DejaVu Sans, Arial, sans-serif" font-size="2.05" fill="#101010" font-weight="normal" text-anchor="start">4.  The shelf ring is 3.00 wide; its top face at z 38.60</text>
+<text x="220.000" y="54.400" font-family="DejaVu Sans, Arial, sans-serif" font-size="2.05" fill="#101010" font-weight="normal" text-anchor="start">    is the LCD seat (SPLIT_B = 40.60 at the wall).</text>
+<text x="220.000" y="57.300" font-family="DejaVu Sans, Arial, sans-serif" font-size="2.05" fill="#101010" font-weight="normal" text-anchor="start">5.  Walls 4.50; seam groove 0.60 × 1.60 at both</text>
+<text x="220.000" y="60.200" font-family="DejaVu Sans, Arial, sans-serif" font-size="2.05" fill="#101010" font-weight="normal" text-anchor="start">    joints, patched 7.00 long at the six columns.</text>
+<text x="220.000" y="63.100" font-family="DejaVu Sans, Arial, sans-serif" font-size="2.05" fill="#101010" font-weight="normal" text-anchor="start">6.  Pilots: 15.00 deep from each end, leaving</text>
+<text x="220.000" y="66.000" font-family="DejaVu Sans, Arial, sans-serif" font-size="2.05" fill="#101010" font-weight="normal" text-anchor="start">    4.90 of solid between the floors.</text>
+<rect x="235.000" y="120.000" width="10.000" height="2.2" fill="#101010" stroke="#101010" stroke-width="0.2"/>
+<text x="235.000" y="125.600" font-family="DejaVu Sans, Arial, sans-serif" font-size="1.8" fill="#101010" font-weight="normal" text-anchor="middle">0</text>
+<rect x="245.000" y="120.000" width="10.000" height="2.2" fill="#ffffff" stroke="#101010" stroke-width="0.2"/>
+<text x="245.000" y="125.600" font-family="DejaVu Sans, Arial, sans-serif" font-size="1.8" fill="#101010" font-weight="normal" text-anchor="middle">10</text>
+<rect x="255.000" y="120.000" width="10.000" height="2.2" fill="#101010" stroke="#101010" stroke-width="0.2"/>
+<text x="255.000" y="125.600" font-family="DejaVu Sans, Arial, sans-serif" font-size="1.8" fill="#101010" font-weight="normal" text-anchor="middle">20</text>
+<rect x="265.000" y="120.000" width="10.000" height="2.2" fill="#ffffff" stroke="#101010" stroke-width="0.2"/>
+<text x="265.000" y="125.600" font-family="DejaVu Sans, Arial, sans-serif" font-size="1.8" fill="#101010" font-weight="normal" text-anchor="middle">30</text>
+<rect x="275.000" y="120.000" width="10.000" height="2.2" fill="#101010" stroke="#101010" stroke-width="0.2"/>
+<text x="275.000" y="125.600" font-family="DejaVu Sans, Arial, sans-serif" font-size="1.8" fill="#101010" font-weight="normal" text-anchor="middle">40</text>
+<text x="285.000" y="125.600" font-family="DejaVu Sans, Arial, sans-serif" font-size="1.8" fill="#101010" font-weight="normal" text-anchor="middle">50</text>
+<text x="289.000" y="122.000" font-family="DejaVu Sans, Arial, sans-serif" font-size="2.1" fill="#101010" font-weight="normal" text-anchor="start">1:1</text>
+<rect x="250.000" y="244.000" width="160.000" height="43.000" rx="0.000" fill="none" stroke="#000000" stroke-width="0.5"/>
+<line x1="250.000" y1="253.500" x2="410.000" y2="253.500" stroke="#000000" stroke-width="0.25" stroke-linecap="round"/>
+<line x1="250.000" y1="262.000" x2="410.000" y2="262.000" stroke="#000000" stroke-width="0.25" stroke-linecap="round"/>
+<line x1="250.000" y1="271.000" x2="410.000" y2="271.000" stroke="#000000" stroke-width="0.25" stroke-linecap="round"/>
+<line x1="250.000" y1="279.000" x2="410.000" y2="279.000" stroke="#000000" stroke-width="0.25" stroke-linecap="round"/>
+<line x1="332.000" y1="253.500" x2="332.000" y2="279.000" stroke="#000000" stroke-width="0.25" stroke-linecap="round"/>
+<text x="252.500" y="247.200" font-family="DejaVu Sans, Arial, sans-serif" font-size="2.3" fill="#101010" font-weight="bold" text-anchor="start">CRIMSON VEIL</text>
+<text x="252.500" y="251.200" font-family="DejaVu Sans, Arial, sans-serif" font-size="2.1" fill="#101010" font-weight="normal" text-anchor="start">PI-STACK CASE  ·  FOUR-PART SHELL</text>
+<text x="334.500" y="247.200" font-family="DejaVu Sans, Arial, sans-serif" font-size="1.9" fill="#101010" font-weight="normal" text-anchor="start">DRAWING No.</text>
+<text x="334.500" y="251.400" font-family="DejaVu Sans, Arial, sans-serif" font-size="3.0" fill="#101010" font-weight="bold" text-anchor="start">CV-PSC-07</text>
+<text x="252.500" y="256.800" font-family="DejaVu Sans, Arial, sans-serif" font-size="1.9" fill="#101010" font-weight="normal" text-anchor="start">TITLE</text>
+<text x="252.500" y="260.700" font-family="DejaVu Sans, Arial, sans-serif" font-size="2.7" fill="#101010" font-weight="bold" text-anchor="start">MID  —  SHIM</text>
+<text x="334.500" y="256.800" font-family="DejaVu Sans, Arial, sans-serif" font-size="1.9" fill="#101010" font-weight="normal" text-anchor="start">SCALE</text>
+<text x="334.500" y="260.600" font-family="DejaVu Sans, Arial, sans-serif" font-size="2.5" fill="#101010" font-weight="normal" text-anchor="start">1:1</text>
+<text x="252.500" y="266.000" font-family="DejaVu Sans, Arial, sans-serif" font-size="1.9" fill="#101010" font-weight="normal" text-anchor="start">MATERIAL / PROCESS</text>
+<text x="252.500" y="269.700" font-family="DejaVu Sans, Arial, sans-serif" font-size="2.1" fill="#101010" font-weight="normal" text-anchor="start">PLA, 0.4 mm nozzle</text>
+<text x="334.500" y="266.000" font-family="DejaVu Sans, Arial, sans-serif" font-size="1.9" fill="#101010" font-weight="normal" text-anchor="start">UNITS / PROJECTION</text>
+<text x="334.500" y="269.700" font-family="DejaVu Sans, Arial, sans-serif" font-size="2.1" fill="#101010" font-weight="normal" text-anchor="start">mm  ·  THIRD ANGLE</text>
+<text x="252.500" y="274.700" font-family="DejaVu Sans, Arial, sans-serif" font-size="1.9" fill="#101010" font-weight="normal" text-anchor="start">SOURCE</text>
+<text x="252.500" y="278.100" font-family="DejaVu Sans, Arial, sans-serif" font-size="1.95" fill="#101010" font-weight="normal" text-anchor="start">pi-stack-v0.7.scad  (constants parsed)</text>
+<text x="334.500" y="274.700" font-family="DejaVu Sans, Arial, sans-serif" font-size="1.9" fill="#101010" font-weight="normal" text-anchor="start">DATE / DRAWN</text>
+<text x="334.500" y="278.100" font-family="DejaVu Sans, Arial, sans-serif" font-size="1.95" fill="#101010" font-weight="normal" text-anchor="start">2026-10-25  ·  generated</text>
+<text x="252.500" y="282.700" font-family="DejaVu Sans, Arial, sans-serif" font-size="1.95" fill="#101010" font-weight="normal" text-anchor="start">Port slots, front panel, rear vent field, shelf ring, screw pilots</text>
+<text x="405.000" y="282.700" font-family="DejaVu Sans, Arial, sans-serif" font-size="2.0" fill="#101010" font-weight="bold" text-anchor="end">DO NOT SCALE</text>
+</svg>

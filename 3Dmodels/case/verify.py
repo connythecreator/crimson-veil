@@ -195,6 +195,27 @@ PLATE_HOOK_PROJ, PLATE_HOOK_T = 8.00, 2.00
 PLATE_HOOK_LIP, PLATE_HOOK_W = 6.00, 12.00
 PLATE_HOOK_N, PLATE_MOD = 2, 25.40
 
+#  The strap plate, mirrored from the .scad.  PLATE_STYLE is mirrored too so
+#  the plate checks can branch the same way the model does; the bbox check is
+#  what catches this mirror drifting from the file's default.
+PLATE_STYLE = "strap"
+PLATE_SKIRT_CLR, PLATE_SKIRT_T, PLATE_SKIRT_TOP = 0.50, 3.00, 3.00
+PLATE_SKIRT_OVERLAP = 0.50
+PLATE_SKIRT_R = 3.00 + PLATE_SKIRT_CLR
+PLATE_TRAY_X0 = -PLATE_SKIRT_CLR - PLATE_SKIRT_T
+PLATE_TRAY_X1 = OW + PLATE_SKIRT_CLR + PLATE_SKIRT_T
+PLATE_TRAY_Y0 = -PLATE_SKIRT_CLR - PLATE_SKIRT_T
+PLATE_TRAY_Y1 = OD + PLATE_SKIRT_CLR + PLATE_SKIRT_T
+PLATE_TRAY_R = 3.00 + PLATE_SKIRT_CLR + PLATE_SKIRT_T
+PLATE_ARM_ANG = math.degrees(math.atan(OD / OW))
+PLATE_ARM_ROOT_R, PLATE_ARM_ROOT_D = 46.00, 16.00
+PLATE_ARM_NECK_R, PLATE_ARM_NECK_D = 64.00, 14.00
+PLATE_ARM_TIP_R, PLATE_ARM_TIP_D = 70.00, 20.00
+PLATE_ARM_WAIST_OFF, PLATE_ARM_GROOVE_R = 10.00, 4.00
+PLATE_ARM_WAIST_D = 2 * (PLATE_ARM_WAIST_OFF - PLATE_ARM_GROOVE_R)
+PLATE_ARM_COS, PLATE_ARM_SIN = math.cos(math.radians(PLATE_ARM_ANG)), \
+                               math.sin(math.radians(PLATE_ARM_ANG))
+
 #  Front panel, in the -Y wall.  PANEL_Z and the band around it are STACK z.
 PANEL_Z = 33.00
 PANEL_BAND_LO, PANEL_BAND_HI = 15.56, SPLIT_B - SHELF_T   # 15.56 .. 38.60
@@ -1256,25 +1277,71 @@ def main():
     check("plate is one closed shell", shells == 1 and bad == 0,
           f"{shells} shell(s), {bad} edges not shared by two")
     bx, by, bz = bbox(stl["plate"])
-    check("plate is PLATE_W x PLATE_D x PLATE_T, on the case's centre",
-          abs(bx[1] - bx[0] - PLATE_W) < 1e-6
-          and abs(by[1] - by[0] - PLATE_D) < 1e-6
-          and abs(bz[1] - PLATE_Z1) < 1e-6,
-          f"{bx[1]-bx[0]:.2f} x {by[1]-by[0]:.2f} x "
-          f"{bz[1]-PLATE_Z1 + PLATE_T:.2f}, body z {PLATE_Z0:.2f}..{PLATE_Z1:.2f}")
-    check("plate outline sits inside the case's OW x OD",
-          PLATE_X0 > 0 and PLATE_X1 < OW and PLATE_Y0 > 0 and PLATE_Y1 < OD,
-          f"x {PLATE_X0:.2f}..{PLATE_X1:.2f}, y {PLATE_Y0:.2f}..{PLATE_Y1:.2f}")
+    if PLATE_STYLE == "strap":
+        #  The arms set the envelope, not the tray: the tip circle is the
+        #  furthest thing in both X and Y, so the expected box is the tip's
+        #  centre plus its radius, projected on the two axes.
+        exp_w = 2 * (PLATE_ARM_TIP_R * PLATE_ARM_COS + PLATE_ARM_TIP_D / 2)
+        exp_d = 2 * (PLATE_ARM_TIP_R * PLATE_ARM_SIN + PLATE_ARM_TIP_D / 2)
+        check("strap plate envelope is the tray + four arms, on the case's centre",
+              abs(bx[1] - bx[0] - exp_w) < 0.06
+              and abs(by[1] - by[0] - exp_d) < 0.06
+              and abs(bz[0] - PLATE_Z0) < 1e-6
+              and abs(bz[1] - PLATE_SKIRT_TOP) < 1e-6,
+              f"{bx[1]-bx[0]:.2f} x {by[1]-by[0]:.2f} "
+              f"(arms {exp_w:.2f} x {exp_d:.2f}), "
+              f"z {bz[0]:.2f}..{bz[1]:.2f}")
+        #  The skirt is OUTSIDE the case, so this is the opposite assertion to
+        #  the hook plate's: the tray must not intrude on the case, and the
+        #  skirt must be solid where it wraps.  Six probes on the walls and
+        #  one through the floor.
+        probes = [
+            ("-X gap",   (-0.25, PLATE_CY, 1.00),      False),
+            ("-X skirt", (-2.00, PLATE_CY, 1.00),      True),
+            ("+X gap",   (OW + 0.25, PLATE_CY, 1.00),  False),
+            ("+X skirt", (OW + 2.00, PLATE_CY, 1.00),  True),
+            ("-Y gap",   (PLATE_CX, -0.25, 1.00),      False),
+            ("-Y skirt", (PLATE_CX, -2.00, 1.00),      True),
+            ("+Y gap",   (PLATE_CX, OD + 0.25, 1.00),  False),
+            ("+Y skirt", (PLATE_CX, OD + 2.00, 1.00),  True),
+            ("floor",    (PLATE_CX, PLATE_CY, PLATE_Z0 + PLATE_T / 2), True),
+        ]
+        bad = [name for name, p, want in probes if plate.inside(p) != want]
+        check("the skirt wraps the case at PLATE_SKIRT_CLR, floor under it",
+              not bad,
+              f"{len(probes)} probes: skirt solid 2.00 out, gap at 0.25 in, "
+              f"floor solid at z {PLATE_Z0 + PLATE_T / 2:.2f}"
+              + (f"; wrong: {', '.join(bad)}" if bad else ""))
+    else:
+        check("plate is PLATE_W x PLATE_D x PLATE_T, on the case's centre",
+              abs(bx[1] - bx[0] - PLATE_W) < 1e-6
+              and abs(by[1] - by[0] - PLATE_D) < 1e-6
+              and abs(bz[1] - PLATE_Z1) < 1e-6,
+              f"{bx[1]-bx[0]:.2f} x {by[1]-by[0]:.2f} x "
+              f"{bz[1]-PLATE_Z1 + PLATE_T:.2f}, body z {PLATE_Z0:.2f}..{PLATE_Z1:.2f}")
+        check("plate outline sits inside the case's OW x OD",
+              PLATE_X0 > 0 and PLATE_X1 < OW and PLATE_Y0 > 0 and PLATE_Y1 < OD,
+              f"x {PLATE_X0:.2f}..{PLATE_X1:.2f}, y {PLATE_Y0:.2f}..{PLATE_Y1:.2f}")
     n = probe_intersection(tmp, "plate()", 0.0, "base()", 0.0, "platebase")
     check("plate n base, as placed", n == 0,
           f"{n} facets - the plate lies PLATE_GAP below the case, not on it")
     #  The plate prints flipped, case face down.  This is that copy: it has to
     #  start on the bed, or it is not printable as drawn.
     pbx, pby, pbz = bbox(stl_bed)
-    check("plate_placed() lies on the bed, hooks up",
-          abs(pbz[0]) < 1e-6
-          and abs(pbz[1] - (PLATE_T + PLATE_HOOK_PROJ)) < 1e-6,
-          f"z {pbz[0]:.2f}..{pbz[1]:.2f}")
+    if PLATE_STYLE == "strap":
+        #  The skirt is on the case face, so the tray prints OUTER FACE DOWN and
+        #  the skirt stands up: floor plus skirt, plus the 0.50 of gap under it.
+        check("plate_placed() lies on the bed, tray open up",
+              abs(pbz[0]) < 1e-6
+              and abs(pbz[1] - (PLATE_T + PLATE_SKIRT_TOP + PLATE_GAP)) < 1e-6,
+              f"z {pbz[0]:.2f}..{pbz[1]:.2f} "
+              f"(floor {PLATE_T:.2f} + skirt "
+              f"{PLATE_SKIRT_TOP + PLATE_GAP:.2f} above it)")
+    else:
+        check("plate_placed() lies on the bed, hooks up",
+              abs(pbz[0]) < 1e-6
+              and abs(pbz[1] - (PLATE_T + PLATE_HOOK_PROJ)) < 1e-6,
+              f"z {pbz[0]:.2f}..{pbz[1]:.2f}")
     #  The four bolts: hole open, counterbore in the OUTER face, material
     #  beside both.
     ok, det = True, []
@@ -1313,56 +1380,144 @@ def main():
           f"pilot's floor")
     #  The hooks: the web takes the belt's lower edge, the lip keeps the case
     #  on it.  Probed on one hook, and in the channel on the belt's side.
-    hx_ = PLATE_CX - PLATE_MOD / 2
-    check("the hook's web and lip are where the belt needs them",
-          plate.inside((hx_, PLATE_HOOK_Y - PLATE_HOOK_T / 2, -8.00))
-          and plate.inside((hx_, PLATE_HOOK_Y + PLATE_HOOK_LIP / 2, -11.50))
-          and not plate.inside((hx_, PLATE_HOOK_Y + PLATE_HOOK_LIP / 2, -7.00))
-          and not plate.inside((hx_, PLATE_HOOK_Y - PLATE_HOOK_T - 1.00,
-                                -8.00)),
-          f"web at y {PLATE_HOOK_Y - PLATE_HOOK_T:.2f}..{PLATE_HOOK_Y:.2f}, "
-          f"lip to y {PLATE_HOOK_Y + PLATE_HOOK_LIP:.2f}, channel "
-          f"{PLATE_HOOK_PROJ - PLATE_HOOK_T:.2f} deep")
-    check("the two hooks are clear of each other on the 25.4 module",
-          not plate.inside((PLATE_CX, PLATE_HOOK_Y - PLATE_HOOK_T / 2, -8.00)),
-          f"probed the middle at x {PLATE_CX:.2f}")
-    check("no case bore mouth is hidden behind the plate",
-          all(sx < PLATE_X0 or sx > PLATE_X1 or sy < PLATE_Y0 or sy > PLATE_Y1
-              for sx, sy in SCREWS),
-          f"plate x {PLATE_X0:.2f}..{PLATE_X1:.2f} y {PLATE_Y0:.2f}.."
-          f"{PLATE_Y1:.2f}, bores at "
-          f"{sorted({(round(s[0], 2), round(s[1], 2)) for s in SCREWS})}")
-    #  ...and the twelve heads have to clear it too, not just the bores.  An M3
-    #  button head is o5.70, so its rim is 2.85 from each column's centre, and
-    #  the plate's footprint has rounded corners - so the four CORNER columns
-    #  are the tight ones and they are what this measures.  (The plate has to
-    #  come off before a bit driver will reach those four; a hex key will.)
-    def plate_gap(px, py):
-        """Distance from a point to the plate's rounded-rectangle footprint."""
-        r = PLATE_R
-        cx = min(max(px, PLATE_X0 + r), PLATE_X1 - r)
-        cy = min(max(py, PLATE_Y0 + r), PLATE_Y1 - r)
-        if (px, py) == (cx, cy):
-            return -min(px - PLATE_X0, PLATE_X1 - px,
-                        py - PLATE_Y0, PLATE_Y1 - py)
-        return math.hypot(px - cx, py - cy) - r
-    gaps = [(plate_gap(sx, sy) - 5.70 / 2, sx, sy) for sx, sy in SCREWS]
-    worst = min(gaps)
-    check("all twelve case heads clear the plate by >= 0.50",
-          worst[0] >= 0.50,
-          f"tightest {worst[0]:.2f} at the corner column "
-          f"{worst[1]:.2f},{worst[2]:.2f}; the long-wall ones clear by "
-          f"{max(gaps)[0]:.2f}")
+    if PLATE_STYLE == "hook":
+        hx_ = PLATE_CX - PLATE_MOD / 2
+        check("the hook's web and lip are where the belt needs them",
+              plate.inside((hx_, PLATE_HOOK_Y - PLATE_HOOK_T / 2, -8.00))
+              and plate.inside((hx_, PLATE_HOOK_Y + PLATE_HOOK_LIP / 2, -11.50))
+              and not plate.inside((hx_, PLATE_HOOK_Y + PLATE_HOOK_LIP / 2, -7.00))
+              and not plate.inside((hx_, PLATE_HOOK_Y - PLATE_HOOK_T - 1.00,
+                                    -8.00)),
+              f"web at y {PLATE_HOOK_Y - PLATE_HOOK_T:.2f}..{PLATE_HOOK_Y:.2f}, "
+              f"lip to y {PLATE_HOOK_Y + PLATE_HOOK_LIP:.2f}, channel "
+              f"{PLATE_HOOK_PROJ - PLATE_HOOK_T:.2f} deep")
+        check("the two hooks are clear of each other on the 25.4 module",
+              not plate.inside((PLATE_CX, PLATE_HOOK_Y - PLATE_HOOK_T / 2, -8.00)),
+              f"probed the middle at x {PLATE_CX:.2f}")
+        check("no case bore mouth is hidden behind the plate",
+              all(sx < PLATE_X0 or sx > PLATE_X1 or sy < PLATE_Y0 or sy > PLATE_Y1
+                  for sx, sy in SCREWS),
+              f"plate x {PLATE_X0:.2f}..{PLATE_X1:.2f} y {PLATE_Y0:.2f}.."
+              f"{PLATE_Y1:.2f}, bores at "
+              f"{sorted({(round(s[0], 2), round(s[1], 2)) for s in SCREWS})}")
+        #  ...and the twelve heads have to clear it too, not just the bores.  An
+        #  M3 button head is o5.70, so its rim is 2.85 from each column's
+        #  centre, and the plate's footprint has rounded corners - so the four
+        #  CORNER columns are the tight ones and they are what this measures.
+        #  (The plate has to come off before a bit driver will reach those
+        #  four; a hex key will.)
+        def plate_gap(px, py):
+            """Distance from a point to the plate's rounded-rectangle footprint."""
+            r = PLATE_R
+            cx = min(max(px, PLATE_X0 + r), PLATE_X1 - r)
+            cy = min(max(py, PLATE_Y0 + r), PLATE_Y1 - r)
+            if (px, py) == (cx, cy):
+                return -min(px - PLATE_X0, PLATE_X1 - px,
+                            py - PLATE_Y0, PLATE_Y1 - py)
+            return math.hypot(px - cx, py - cy) - r
+        gaps = [(plate_gap(sx, sy) - 5.70 / 2, sx, sy) for sx, sy in SCREWS]
+        worst = min(gaps)
+        check("all twelve case heads clear the plate by >= 0.50",
+              worst[0] >= 0.50,
+              f"tightest {worst[0]:.2f} at the corner column "
+              f"{worst[1]:.2f},{worst[2]:.2f}; the long-wall ones clear by "
+              f"{max(gaps)[0]:.2f}")
+    elif PLATE_STYLE == "strap":
+        #  The arms, on the four corner diagonals.  Each is a hull chain
+        #  root -> neck -> tip with a concave waist cut into it; the WAIST is
+        #  the strap's seat, so the probes that matter are just outside the
+        #  12.00 waist (empty) and just inside the 20.00 tip paddle's rim
+        #  (solid), at the same offset.  7.00 is 1.00 clear of the 6.00 waist
+        #  half-width and 3.00 inside the 10.00 tip.
+        arm_ok, arm_det = True, []
+        zc = PLATE_Z0 + PLATE_T / 2
+        for ux, uy in ((1, 1), (-1, 1), (-1, -1), (1, -1)):
+            dx, dy = ux * PLATE_ARM_COS, uy * PLATE_ARM_SIN
+            px_, py_ = -dy, dx          # perpendicular, same sense as the arm
+
+            def at(r, off=0.0):
+                return (PLATE_CX + r * dx + off * px_,
+                        PLATE_CY + r * dy + off * py_,
+                        zc)
+
+            waist = PLATE_ARM_WAIST_D / 2 + 1.00
+            if not plate.inside(at(PLATE_ARM_ROOT_R)):
+                arm_ok = False
+                arm_det.append(f"root missing at {dx:.2f},{dy:.2f}")
+            if not plate.inside(at(PLATE_ARM_TIP_R)):
+                arm_ok = False
+                arm_det.append(f"tip missing at {dx:.2f},{dy:.2f}")
+            if plate.inside(at(PLATE_ARM_NECK_R, waist)):
+                arm_ok = False
+                arm_det.append(f"waist filled at {dx:.2f},{dy:.2f}")
+            if not plate.inside(at(PLATE_ARM_TIP_R, waist)):
+                arm_ok = False
+                arm_det.append(f"tip paddle narrow at {dx:.2f},{dy:.2f}")
+            if not plate.inside(at(PLATE_ARM_TIP_R + PLATE_ARM_TIP_D / 2 - 1.00)):
+                arm_ok = False
+                arm_det.append(f"tip rim missing at {dx:.2f},{dy:.2f}")
+            if plate.inside(at(PLATE_ARM_TIP_R + PLATE_ARM_TIP_D / 2 + 1.00)):
+                arm_ok = False
+                arm_det.append(f"tip overshoots at {dx:.2f},{dy:.2f}")
+        check("four arms fan to the corners, each with a waist and a tip paddle",
+              arm_ok,
+              f"roots r {PLATE_ARM_ROOT_R:.2f}, cut waists o{PLATE_ARM_WAIST_D:.2f} "
+              f"at r {PLATE_ARM_NECK_R:.2f} < tips r {PLATE_ARM_TIP_R:.2f} "
+              f"o{PLATE_ARM_TIP_D:.2f}"
+              + (f"; {', '.join(arm_det)}" if arm_det else ""))
+        #  ...and they really are four arms and not a slab: well past the tray,
+        #  the four mid-edge directions are empty.  This is the X, measured.
+        mids = [(PLATE_TRAY_X1 + 10.00, PLATE_CY),
+                (PLATE_TRAY_X0 - 10.00, PLATE_CY),
+                (PLATE_CX, PLATE_TRAY_Y1 + 10.00),
+                (PLATE_CX, PLATE_TRAY_Y0 - 10.00)]
+        check("the arms are separate - the mid-edges are open",
+              not any(plate.inside((x_, y_, zc)) for x_, y_ in mids),
+              f"4 probes 10.00 past the tray's mid-edges; "
+              f"the case is held on the diagonals only")
+        #  The skirt's crenellations at the BASE's five -Y vents: open where a
+        #  slot is, solid beside it and below it.  If the cut missed, the vents
+        #  breathe into the skirt; if it ran too deep, the skirt comes apart.
+        vc = [OW / 2 + (i - (VENT_N - 1) / 2) * VENT_P for i in range(VENT_N)]
+        vz = (VENT_Z - VENT_H / 2 + PLATE_SKIRT_TOP) / 2
+        vy = -PLATE_SKIRT_CLR - PLATE_SKIRT_T / 2
+        vb = []
+        for cx_ in vc:
+            if plate.inside((cx_, vy, vz)):
+                vb.append(f"slot {cx_:.2f} blocked")
+            if not plate.inside((cx_ + VENT_W / 2 + 1.00, vy, vz)):
+                vb.append(f"web beside {cx_:.2f} missing")
+            if not plate.inside((cx_, vy, (VENT_Z - VENT_H / 2) / 2)):
+                vb.append(f"skirt under {cx_:.2f} missing")
+        check("the skirt is notched at all five BASE vents", not vb,
+              f"{len(vc)} slots, open at z {vz:.2f}, solid beside and below"
+              + (f"; {', '.join(vb)}" if vb else ""))
+        #  The hatch claim, in geometry rather than in a comment: the floor is
+        #  solid over every one of the six lower screw columns, so those six
+        #  only come out after the plate does.
+        covered = all(plate.inside((sx, sy, zc)) for sx, sy in SCREWS)
+        check("the plate floor covers all six lower case-screw mouths",
+              covered and PLATE_Z1 == -PLATE_GAP,
+              f"{len(SCREWS)} probes through the floor at z {zc:.2f}; the plate "
+              f"comes off first, on its own four bolts, and its inner face is "
+              f"{PLATE_GAP:.2f} below every head")
     #  ...and the reason all of this works: the BASE's underside is FLAT
-    #  everywhere the plate bears on it, from the plate's own edge in.  A
-    #  screw head 0.5 proud, or a stray seam, would show up here and nowhere
-    #  else.  This is the check that moved with the interface when the MOUNT
-    #  went - it used to run over the MOUNT's underside.
+    #  everywhere the plate bears on it.  For the hook plate that is the plate's
+    #  own footprint; the strap's tray is larger than the case, so there the
+    #  grid is the case's whole underside - the tray's floor has to be flat
+    #  under all of it, not just under the plate's bolt pattern.  A screw head
+    #  0.5 proud, or a stray seam, would show up here and nowhere else.  This
+    #  is the check that moved with the interface when the MOUNT went - it used
+    #  to run over the MOUNT's underside.
     grid, worst = [], None
-    x = PLATE_X0 + 0.50
-    while x < PLATE_X1:
-        y = PLATE_Y0 + 0.50
-        while y < PLATE_Y1:
+    if PLATE_STYLE == "strap":
+        gx0, gx1, gy0, gy1 = 0.50, OW - 0.50, 0.50, OD - 0.50
+    else:
+        gx0, gx1, gy0, gy1 = PLATE_X0 + 0.50, PLATE_X1, PLATE_Y0 + 0.50, PLATE_Y1
+    x = gx0
+    while x < gx1:
+        y = gy0
+        while y < gy1:
             z = base.first_above(x, y, -2.00)
             if z is not None and (worst is None or z < worst[0]):
                 worst = (z, x, y)

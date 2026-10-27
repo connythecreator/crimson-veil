@@ -1,21 +1,22 @@
 # Pi-stack case
 
 Parametric OpenSCAD enclosure for the Raspberry Pi 3 + WittyPi + 3.5" SPI LCD
-stack, with a belt plate bolted to its underside. **The LiPo is not in here** —
+stack, with a strap plate bolted to its underside. **The LiPo is not in here** —
 the battery enclosure is a separate build, and this case does not hold it. This
 is the first of the three physical boxes in Project Crimson; the ESP32/analog
 case and the electrode belt housing come later.
 
 ```
 pi-stack-v0.7.scad     the design - single source of truth
-pi-stack.scad          v0.6, three parts, no belt plate - kept as it was
+pi-stack.scad          v0.6, three parts, no plate - kept as it was
+ce07929-case.scad      the CE07929 protoboard case - a separate build
 verify.py              geometry checks, run this before you print
 render.sh              regenerates preview/v0.7-*.png
-trailer.sh             renders and encodes trailer/, the demo video
-trailer.ass            the demo video's titles - plain text, burned in on encode
 stl/                   exported, printable parts
-trailer/               the demo video
-  pi-stack-v0.7-trailer.mp4
+drawings/              dimensioned mechanical drawings (SVG), A3
+  assembly-*.svg       the whole assembly, four views
+  base/mid/bezel/plate.svg   one sheet per printed part
+  make_drawings.py     regenerates all eight sheets from the SCAD constants
 preview/               rendered views
   v0.7-parts           each part on its own
   v0.7-joints          the joint lines, part by part
@@ -23,7 +24,7 @@ preview/               rendered views
   v0.7-internals       bezel off
   v0.7-assembly        everything together
   v0.7-base            the BASE alone: the tray, its bosses and the vents
-  v0.7-plate           the belt plate on the bed, as it prints
+  v0.7-plate           the strap plate on the bed, tray open up
   v0.7-pals            ...and the other way to hang it
   v0.7-underside       six case screws, then the plate's bolts, then the Pi's
   v0.7-section         the CUT_AWAY switch, doing its job
@@ -40,7 +41,7 @@ Open `pi-stack-v0.7.scad` in OpenSCAD and turn on
 Set `PART` at the top to `"plate"`, `"base"`, `"mid"`, `"bezel"`,
 `"assembly"`, `"all"` (all four laid out for printing), `"stack"`, `"header"`
 or `"boards"`. `"trailer"` is not one you would open by hand — it is driven by
-OpenSCAD's animation clock, and `./trailer.sh` runs it.
+OpenSCAD's animation clock; see *The demo video* below.
 
 To export:
 
@@ -99,18 +100,20 @@ around it. It splits bottom-up:
 
 | part  | z range (mm)   | contains |
 |-------|----------------|----------|
-| PLATE | −4.50 … −0.50  | the belt interface — a bolt-on plate, printed on its own; the hooks reach to −12.50 |
+| PLATE | −4.50 … +3.00  | the fabric interface — a bolt-on strap tray whose skirt wraps the case's lower 3.00 and whose four arms fan out on the corner diagonals; the arms lie in the same 4.00 floor, so nothing hangs below it |
 | BASE  | 0 … 5.50       | floor, four Pi screw bosses (to z 7.60), four bolt bosses for the plate, four counterbored Pi screw bores, **six clearance bores through the rim**, five vents, and a rim that clears the whole board. The Pi bosses rise inside the MID's cavity; the outer rim stops at 5.50 |
 | MID   | 5.70 … 40.60   | every port opening, the LCD shelf and its four support flanges, the **rear hex vent field and 10 × 6 battery-lead rectangle**, the front panel and its **12 × 7 accessory opening**, and **the twelve blind screw pilots — this part is the case's nut** |
 | BEZEL | 40.80 … 49.20  | LCD pocket (86.60 × 57.20), 81.80 × 51.60 window, six flush counterbores + countersinks |
 
 Outer envelope **95.12 × 66.20 × 49.20 mm**, interior 86.12 × 57.20 mm, wall
-4.50 mm throughout. With the plate bolted on, the whole thing is **61.70 mm**
-from the top of the case to the hooks' tips.
+4.50 mm throughout. With the strap plate bolted on, the whole thing is
+**53.70 mm** from the plate's outer face to the top of the BEZEL. The plate's
+arms lie in its 4.00 slab, so they add to the footprint
+(**134.89 × 99.95 mm**) but not to the height.
 
 The table's z ranges are heights off the bench, and BASE + MID + BEZEL is the
-case: the PLATE's negative z is where it hangs under the BASE's underside,
-which is also what the belt sees.
+case: the PLATE is drawn around z = 0, with its 4.00 floor hanging below the
+case's underside and its 3.00 skirt standing up around the case's lower edge.
 
 **Both printed butt joints carry a 0.20 mm axial clearance (`MATE_GAP`).**
 FDM faces are not flat — first-layer squash and elephant's-foot put the two
@@ -131,7 +134,7 @@ placed where the SCAD puts them.
 **There used to be a fifth part, and it is worth saying why it went.** The
 MOUNT was 21 mm of open-top tub under the BASE, and it existed to hold the LiPo
 pouch. The battery came out of the design first ("we will make that
-separately"), and the tub's remaining job — carrying the belt plate and being
+separately"), and the tub's remaining job — carrying the fabric plate and being
 the hatch you reach the Pi's four screws through — was invented afterwards to
 justify it. It does not hold: the plate comes off on **its own** four bolts, so
 **the plate alone is the access hatch**, and the tub was a whole printed part
@@ -147,29 +150,60 @@ and that one figure is what the case is sized from — see the section on it
 below. Adding the parts up instead is what made an earlier version 10.21 mm
 too tall.
 
-### The belt plate, and why the interface is on the underside
+### The plate, and why the interface is on the underside
 
 Hanging the case by its −Z face is what puts the **LCD parallel to the
 mounting plane**: the screen faces straight out from the belt instead of up the
 body's side, which is the only orientation you can read while wearing it. The
 case never touches fabric — it touches the plate, and the plate touches the
-belt. That also makes the mount **swappable**: any plate on this bolt rectangle
-fits, and the case does not change when you find a better way to hang it.
+fabric. That also makes the mount **swappable**: any plate on this bolt
+rectangle fits, and the case does not change when you find a better way to hang
+it.
 
 It bolts rather than clips because it is the first thing off and the last thing
 on (see above), and four M3 bolts into printed plastic is the least that
 survives being taken off and put back any number of times.
 
 ```
-plate        76.20 x 57.20 x 4.00 r3.20   (X is 3 x the 25.4 webbing module)
+plate        102.12 x 73.20 x 4.00 r6.50   tray: the case + 0.50 clearance
+                                           + a 3.00 skirt, all round
+arms         4, on the corner diagonals at 34.85 deg to X
+             root o16.00 at r 46.00 -> cut waist o12.00 at r 64.00
+             -> tip paddle o20.00 at r 70.00
+envelope     134.89 x 99.95 x 7.50         arms included; z -4.50..+3.00
+                                           (4.00 floor + 3.50 skirt above it)
+skirt        3.00 wall, 0.50 off the case, top at +3.00 above its underside
 gap          0.50   to the case's underside - both are printed, and neither
                     first layer is flat, so a gap is what stops the case rocking
 bolts        4 x M3 x 6, on a 62.00 x 35.00 rectangle, into blind Ø2.75 pilots
 ```
 
-The plate is 57.20 deep — the case *interior's* depth, not the case's — because
-the hook has to reach the belt's lower edge, and a 50 mm belt on a 66.20 mm case
-leaves that edge 8.35 mm in from the face. A shallower plate would miss it.
+The tray is the **case's outline**, not a belt dimension: its inner face is
+`PLATE_SKIRT_CLR` (0.50) off the case on every side, and its wall is 3.00
+thick, so the case sits down into a shallow tray. That is what "hug" means
+here — the skirt locates the case in X and Y and takes the side load, while the
+0.50 gap under the floor keeps both printed faces from rocking on each other.
+
+The four arms are the fabric interface, and they grow out of the same 4.00
+slab. Each is a hull chain: a 16.00 root at r 46.00, a **12.00 waist at
+r 64.00**, and a 20.00 tip paddle at r 70.00. The waist is the strap's seat,
+and it is **cut, not implied by a neck circle**: the tip's rear arc reaches
+back to r 60.00, so a hull alone measures 16.00 wide there and the groove
+disappears into the paddle. Two Ø8.00 circles per arm, 10.00 off the axis, cut
+a concave 12.00 seat about 6.00 long along the arm. An elastic loop stretches
+over the 20.00 paddle, settles into the 12.00 waist, and the 4.00 shoulder at
+the tip stops it walking off. The arms sit on the **corner diagonals** — the
+longest lever the case has — and there are four rather than two because a
+continuous loop can cross the back in an X and share the load between them.
+`PLATE_ARM_ANG = atan(OD / OW)` is the real diagonal, 34.85°, not a
+drawn-by-eye 45°.
+
+The skirt's top is at +3.00, deliberately below the MID's ports at 5.70, so it
+is a hug and not a sleeve. It is **crenellated at the BASE's five −Y vents**:
+the same five 6.00 × 2.50 columns are cut through it from z 1.50 to 4.00, which
+is 1.00 above the skirt's top, so each notch opens through the top edge. That
+is a crenellation, not a tunnel — it prints without a bridge, and the vents
+still breathe into the 0.50 gap rather than into the skirt.
 
 The bosses stand on the **inside** of the BASE's floor, as four
 Ø7.00 × **2.90** pillars, so the case's own underside stays flat and the plate's
@@ -179,7 +213,7 @@ pilot, 5.30 deep**, running up from the case's underside through the floor's
 screw comes up from under the plate and threads into that plastic — there are no
 inserts in this build, and this is the only hole in the whole case that is
 threaded in the BASE. The plate's own counterbores open to the **outer** face,
-so nothing stands proud against the belt.
+so nothing stands proud against the fabric.
 
 **The bosses are 2.90 tall, and that number is set by the Pi, not by the
 screw.** On the MOUNT they were 3.40, standing in a tub whose floor was 21 mm
@@ -197,25 +231,24 @@ up.
 
 `PLATE_STYLE` picks the interface:
 
-- **`"hook"`** (the default) — two prongs that hook the belt's lower edge, as a
-  J in the Y-Z plane: a 2.00 web leaves the plate and runs out 8.00, a 2.00 lip
-  turns back along +Y for 6.00, and the channel between them is 6.00 deep. The
-  web is what carries the case — the belt's lower edge bears on its face over
-  the belt's full thickness — and the lip is what keeps the case *on*: without
-  it the case lifts off the belt, hook and all. Two prongs 25.40 apart, so the
-  case cannot rock about the belt.
-
-**Print the plate case-face-down**, so the body is 4.00 of solid slab with the
-hooks standing up off it. The only overhang then is the lip's underside, a
-6.00 cantilever 2.00 thick — short enough to print as it is, and the first
-place to look if your printer droops; chamfering the tip inward at 45° is the
-fix if it does. The BASE and the plate both print open-side-up, and no part
-here needs support.
+- **`"strap"`** (the default) — the tray and four arms above. The plate prints
+  **outer face down**: the floor is on the bed, the skirt stands up around it
+  and the tray is open. No support, and the only overhang is the four
+  Ø6.20 × 1.65 counterbores, which bridge a 6.20 circle. The print is 7.50 tall
+  — 4.00 of floor and 3.50 of skirt above it. Turning it over instead would put
+  the skirt's 3.00 rim on the bed and ask the floor to bridge the whole tray,
+  so `plate_placed()` lifts it rather than flipping it.
+- **`"hook"`** — the older belt-edge interface: two prongs that hook the belt's
+  lower edge, as a J in the Y-Z plane: a 2.00 web leaves the plate and runs out
+  8.00, a 2.00 lip turns back along +Y for 6.00, and the channel between them is
+  6.00 deep. The web carries the case and the lip keeps it on. The hook body is
+  still 76.20 × 57.20, and it prints case-face-down with the hooks standing up;
+  the only overhang then is the lip's underside, a 6.00 cantilever 2.00 thick.
 - **`"pals"`** — a slot field on the webbing module: 25.40 × 6.00 slots on a
-  38.10 row pitch, for threading standard PALS/MOLLE webbing. Both styles are
-  on the same 25.40 pitch, so either plate bolts on the same way.
+  38.10 row pitch, for threading standard PALS/MOLLE webbing. It prints
+  case-face-down like the hook. All three styles bolt on the same four holes.
 
-The two are deliberately isolated in the plate. The hook's fit is the one
+The three are deliberately isolated in the plate. The strap's fit is the one
 thing here no measurement can settle, so a wrong guess costs a plate, not the
 case.
 
@@ -233,10 +266,10 @@ here would cost the drop-in assembly and 3 mm of case height for nothing.
 Because the rim is below everything, **the BASE cuts no ports at all**. It
 carries five things: the Pi's four screw bosses, the plate's four bolt bosses,
 the six clearance bores through the rim, the five vents in its −Y wall, and the
-rim itself. Its underside is the face the plate lies on, so it is the one part
-whose flatness matters — there is no seam groove in it (`seam(0)` was removed
-with the MOUNT) and `verify.py` ray-casts the whole plate footprint to prove the
-lowest surface is 0.00 everywhere.
+rim itself. Its underside is the face the plate's floor lies under, so it is the
+one part whose flatness matters — there is no seam groove in it (`seam(0)` was
+removed with the MOUNT) and `verify.py` ray-casts the case's whole underside to
+prove the lowest surface is 0.00 everywhere.
 
 ### Every port opening is a three-sided notch
 
@@ -639,7 +672,7 @@ the slab over its footprint) and be at least 60% inside the panel's outline.
 
 The load path is: finger → glass → LCD PCB → flange and ring → MID wall → the
 **twelve M3 × 14** clamped into that wall, six from each end → BASE floor →
-plate → belt. **The LCD's socket is never load-bearing**, and neither is the
+plate → fabric. **The LCD's socket is never load-bearing**, and neither is the
 BEZEL: a press on the glass reaches the MID's wall directly, and the MID is the
 one part every screw in the case bites into.
 
@@ -733,7 +766,7 @@ where the costs of that are set out.
   with the BEZEL group is the 6.95 … 19.05 quoted above.
 - 4 × **M3 × 6 mm button head**, **up from underneath the plate**, into the four
   blind Ø2.75 pilots in the BASE's floor bosses. The plate's counterbores bury
-  these heads flush, so nothing stands proud against the belt. Not M3 × 8 — its
+  these heads flush, so nothing stands proud against the fabric. Not M3 × 8 — its
   tip lands 0.15 mm above the pilot's floor, which is inside the printer's own
   hole-depth tolerance, and a screw that bottoms stands the plate off its seat.
 - 4 × **M2.5 × 14 mm** pan head, **up from underneath** the BASE, through the
@@ -773,12 +806,13 @@ dropped in — and because the plate comes off on its own four bolts, **the
 plate alone is the hatch**: four out, plate off, and the Pi's four are looking
 at you, flush in the case's underside.
 
-Two of them are reachable even with the plate on. The plate is 76.20 wide and
-the Pi's hole pattern starts at x 8.85, so the −X pair sits 0.86 mm outboard of
-the plate's edge, with the edge cutting across the outer rim of those two
-counterbores. Harmless — the plate's inner face is 0.50 mm below the case, so
-a flush head never touches it — but it is a real number and `verify.py` states
-it rather than rounding it away.
+None of them is reachable with the strap plate on: its tray is larger than the
+case and its floor spans the whole underside, so all four heads sit behind it.
+That is the deliberate trade for the skirt and the four arms — the plate is the
+hatch, and it comes off first. Under the older hook plate two heads sat just
+outside its 76.20 width; the tray has no such edge. The clearance is the same
+either way: the plate's inner face is 0.50 mm below the case, so a flush head
+never touches it.
 
 That decides the mechanics, and it is worth being explicit about why the nuts
 are there. A screw driven from below has its head on the *far* side of the PCB
@@ -859,9 +893,10 @@ forms its own thread in FDM plastic, and the consequences are real:
   swapped; plastic cannot. Count on a handful of full teardowns before the holes
   loosen, and remember that the extra depth is the repair: drive the same screw
   deeper, or step up one gauge.
-- **Plastic creeps under sustained load.** The belt plate hangs a ~400 g case
+- **Plastic creeps under sustained load.** The plate hangs a ~400 g case
   from four M3 × 6 with only **3.15 mm of bite**, into the thinnest and most
-  cycled joint in the case. Under a belt, that load is permanent and warm, which
+  cycled joint in the case. Under a belt or strap, that load is permanent and
+  warm, which
   is exactly the condition creep needs. Those four want re-checking after the
   first few weeks of wear; they are also the ones a stripped hole hurts most.
 - **A long thread means high driving torque**, and the first few turns take all
@@ -905,8 +940,8 @@ have to go in before the BEZEL lands on top.
    MID's lower pilots. Do these now: the BEZEL's six thread into the same
    columns from the top, and while it is off you can still see into them. Each
    head sinks into its 1.65 counterbore until it is flush with the case's
-   underside; the plate covers the middle of the floor, not the rim, so they
-   are reachable with it on.
+   underside. The strap plate is not on yet — and once it is, its floor covers
+   all six, so this is the only chance.
 7. Fit the panel, **from inside** with the top still open: press the three
    switches into their pockets, and drop the three LEDs into their bores lens
    first until the flange lands on the wall's inner face, then wire them to the
@@ -921,15 +956,24 @@ have to go in before the BEZEL lands on top.
    one place this design can be cross-threaded.
 10. Secure the lead's outside run with a stick-on tie mount or tape — the old
     Ø3.2 tie holes went with the round grommet. An external pack's lead is the
-    one wire here that gets yanked every time the case comes off a belt.
-11. Bolt the plate to the **BASE's underside**, four M3 × 6, and hang the case.
-    This is the last step because it is the first one undone: the plate comes
-    off on its own four bolts, and that is what exposes the Pi's four screws.
+    one wire here that gets yanked every time the case comes off the fabric.
+11. Fit the strap plate. Stand the case on its BEZEL (on a cloth, so the window
+    does not take the weight), lower the plate tray-down over the BASE, and
+    drive the **four M3 × 6 down through the plate** into the BASE's bosses.
+    Then turn the case over and thread the elastic over the four arm paddles,
+    settling each loop into its waist. This is the last step because it is the
+    first one undone: the plate comes off on its own four bolts, and that is
+    what exposes the Pi's four screws.
 
-**A hex key, not a bit driver, for the four corner screws.** The heads at the
-plate's four corners clear its footprint by 0.51 mm, so a driver whose bit is
-wider than its head will not go on until the plate is off. The two long-wall
-columns clear by 4.36 mm and take a driver fine.
+    If you would rather keep the plate on the bench, set it outer-face down and
+    lower the case into the tray to locate it, then tip the pair up to reach the
+    counterbores. Either way the four bolts go in from the **outer** face, into
+    the bosses.
+
+**The lower six are behind the plate.** The tray's floor spans the whole
+underside, so none of the six BASE-to-MID screws is reachable once step 11 is
+done. They have to be driven at step 6, before the plate lands — and taking the
+plate off is the first move in any teardown.
 
 Disassembly is the reverse, and it is short: **plate off (4 bolts), Pi screws
 out (4)**, and the board lifts out of the BASE with everything above it still
@@ -1059,18 +1103,22 @@ still matter. What it checks, in the order it runs:
   both joints, with the probes placed to stay clear of the port openings. Plus
   the arithmetic that forced it: the bore's edge is 0.80 mm in from the face,
   so a straight 0.60 groove would have left 0.20.
-- the **plate**: one closed shell; its size and z; its outline inside the
-  case's; zero intersection with the BASE; `plate_placed()` lying on the bed
-  with the hooks up; the four bolts with their holes, counterbores, bosses and
-  **blind pilots**; the 6 mm screw landing in the plastic with 3.15 of bite and
-  its tip 2.15 short of the pilot's floor; the hook's web, lip and channel
-  where the belt needs them; the two hooks clear of each other on the 25.40
-  module; **no case bore mouth hidden behind the plate** — and its companion,
-  that all **twelve head rims clear the plate's rounded footprint by ≥ 0.50**
-  (the tightest is 0.51 at a corner column, against 4.36 on the long walls);
-  and the check that matters most — **the BASE's underside is flat under the
-  plate's whole footprint**, 192 probes on a 5 mm grid, lowest reading 0.00.
-  That is what would have caught a screw tip standing below the case.
+- the **plate**: one closed shell; the envelope set by the four arm tips; the
+  skirt probed all round — **solid at 2.00 out, empty in the 0.50 gap, floor
+  solid under the case**; zero intersection with the BASE; `plate_placed()`
+  lying on the bed with the tray open up (z 0.00..7.50); the four bolts with
+  their holes, counterbores, bosses and **blind pilots**; the 6 mm screw
+  landing in the plastic with 3.15 of bite and its tip 2.15 short of the
+  pilot's floor; **all four arms** with a root, a waist that is empty just
+  outside it, a tip paddle that is solid at the same offset, and a rim that
+  stops at r 80.00 — plus the four mid-edges empty, which is the X measured
+  rather than drawn; the **five vent crenellations** open through the skirt
+  with material beside and below them; and that the floor covers **all six
+  lower case-screw mouths**, so the plate is the hatch. The check that matters
+  most is the last one — **the BASE's underside is flat under the whole
+  plate**, **266 probes** on a 5 mm grid over the case's own footprint, lowest
+  reading 0.00. That is what would have caught a screw tip standing below the
+  case.
 - **joints and seams**: both parts-to-parts joints stack with **zero
   interference as placed** (no `EPS` lift — the 0.20 `MATE_GAP` means they are
   not in contact at all), each joint is probed **open at the seam and solid on
@@ -1085,14 +1133,14 @@ still matter. What it checks, in the order it runs:
   through +Y but **not** through −Y, solid at both flanks, and 4.50 from the
   field; plus the five vents open through the BASE's −Y wall, with the row
   inside the wall's span and clear of both screws in it.
-- **the four Pi counterbores are still reachable from underneath** — the
-  regression that matters most, now that the plate is the only thing between you
-  and them: the counterbore and bore are empty along each screw's axis from the
-  BASE's floor face up to the PCB's underside, there is floor beside each
-  counterbore for the head to seat on, and the plate's inner face clears the
-  four seated heads by `PLATE_GAP`. Plus the M2.5 figures in a Ø7.00 boss:
-  Ø2.80 of clearance for a 2.70 shank, 1.40 of counterbore for a 1.40 head,
-  leaving 1.20 of floor under it and 1.00 of boss wall round it.
+- **the four Pi counterbores are reachable as soon as the plate is off** — the
+  regression that matters most, because the strap plate is the only thing
+  between you and them: the counterbore and bore are empty along each screw's
+  axis from the BASE's floor face up to the PCB's underside, there is floor
+  beside each counterbore for the head to seat on, and the plate's inner face
+  clears the four seated heads by `PLATE_GAP`. Plus the M2.5 figures in a
+  Ø7.00 boss: Ø2.80 of clearance for a 2.70 shank, 1.40 of counterbore for a
+  1.40 head, leaving 1.20 of floor under it and 1.00 of boss wall round it.
 - the **front panel**, which is all *negative* assertions — places that must be
   empty, plus one that must not be: the three LED bores open through the wall
   and the bore is **plain** (probing just outside Ø5.20 at *both* faces finds
@@ -1278,11 +1326,15 @@ A render is a sanity check, not evidence. The measurements above are evidence.
 
 ### The demo video
 
-`./trailer.sh` renders the assembly coming together and encodes it to
-`trailer/pi-stack-v0.7-trailer.mp4` — 1280 × 720 H.264, 40 s, silent, with the
-titles burned in from `trailer.ass`. That `.ass` is a plain text file next to
-the script rather than something baked into a binary, so a caption can be
-corrected with an editor and a re-encode, which takes about ten seconds.
+The rendered video, its `.ass` title file and the render script were removed
+from the repo — they were build artefacts of the marketing pass, not part of
+the case. The `PART="trailer"` animation that produced them is still in
+`pi-stack-v0.7.scad`, so the video can be rebuilt from the design alone.
+
+It came out as 1280 × 720 H.264, 40 s, silent, with the titles burned in. Those
+titles lived in a plain text `.ass` file rather than being baked into a binary,
+so a caption could be corrected with an editor and a re-encode, which took
+about ten seconds.
 
 It is **two shots**, not one. The first is a card: a single frame of the
 *finished* case, held 4.6 s with the title over it. Then a dip to the paper —
@@ -1309,7 +1361,7 @@ The camera is pinned, and it has to be: `--viewall` recomputes the bounding box
 on every frame, so as parts fly in the case would zoom and drift under a
 camera that was trying to keep it framed. So the model is composed to fit a
 fixed camera instead. OpenSCAD's orthographic scale is `view_height ≈
-dist / 3.8`, so the `dist 450` in the script gives a frame about 118 mm tall,
+dist / 3.8`, so the `dist 450` the video was rendered at gives a frame about 118 mm tall,
 the 67 mm case silhouette fills a little over half of it, and there is clear
 cream above for the title and below for the captions.
 
@@ -1337,8 +1389,8 @@ are meant to be seen waiting. Re-sweep it by rendering one frame at
 `TRAILER_AT=0` if the camera or the aspect ever moves.
 
 Two things it does not have. There is **no score** — there is no music to clear
-here, so it writes a silent file, and the script documents the one-line ffmpeg
-call that muxes an audio track on without re-encoding the video. And it is
+here, so the encoded file is silent; an audio track can be muxed on afterwards
+with one ffmpeg copy, without re-encoding the video. And it is
 **not a rendering of the real hardware**: the boards are the imported vendor
 meshes and the LEDs and switches are the reference geometry from `### The
 reference hardware`, so the video shows the three 5 mm LEDs and the three
@@ -1386,14 +1438,19 @@ model does not contain, and it is not allowed to imply the opposite.
   LCD sits in the pocket and the six screws hold the case closed around it.
   Print, assemble, then decide whether the flanges want a 0.2 mm shim of tape
   under the panel.
-- **The plate's hook fit is a guess.** `BELT_W = 50.00` and a 6.00 deep channel
-  are sized for a 4–5 mm webbing belt; a thicker or thinner belt changes
-  `PLATE_HOOK_PROJ`. Hook retention and webbing fatigue are not modelled at all
-  — this is the part to iterate on, which is why it is isolated in a plate.
-- **The plate's structural adequacy as a belt carrier is not analysed.** It is
-  a 4.00 slab with two hooks, and it now carries a ~400 g case on **four M3 × 6
-  into printed plastic, with 3.15 mm of bite** — the shortest thread and the most
-  cycled joint in the case, into a Ø2.75 pilot only 5.30 deep. Geometry cannot
+- **The strap's grip is a guess.** The 12.00 cut waist and 20.00 paddle are
+  sized for a 4–5 mm elastic loop; a wider or narrower elastic, or a different
+  stretch, changes how hard it seats in the waist and whether the tip shoulder
+  holds it. Elastic fatigue, abrasion against the printed paddle and the
+  tension actually needed to carry ~400 g are not modelled at all. This is the
+  part to iterate on, which is why it is isolated in a plate; the older
+  `PLATE_STYLE = "hook"` is still there for comparison.
+- **The plate's structural adequacy as a fabric carrier is not analysed.** It
+  is a 4.00 tray with four arms, and it carries a ~400 g case on **four
+  M3 × 6 into printed plastic, with 3.15 mm of bite** — the shortest thread and
+  the most cycled joint in the case, into a Ø2.75 pilot only 5.30 deep. The
+  arms are loaded in bending at the 12.00 waist, and the skirt is only 3.00
+  tall, so a sideways knock can peel the case out of the tray. Geometry cannot
   answer whether that is enough; a swing test can. If it is not, the bosses, the
   floor skin and the pilot's depth are where to thicken — remembering that the
   +X/−Y boss is capped at 5.30 by the Pi's Ethernet shell above it.
@@ -1414,11 +1471,11 @@ model does not contain, and it is not allowed to imply the opposite.
   counterbore tight enough that the head will not seat the last fraction; ream
   it with the screw or a 5.8 bit if it happens. A washer under each still fixes
   any marking, at the cost of the heads standing 1.0 mm proud.
-- **A bit driver will not reach the four corner case screws** until the plate is
-  off: their heads clear the plate's rounded footprint by 0.51 mm, against 4.36
-  for the two long-wall columns. A hex key reaches all six. This is the same
-  order the case already documents — plate first — so it is a convenience gap
-  rather than a service one.
+- **The strap plate is the largest print in the project.** Its footprint is
+  **134.89 × 99.95 mm**, arms included, so the bed has to be at least that; the
+  tray alone is 102.12 × 73.20. The tip paddles are 4.00 thick and carry the
+  elastic at their waist, which is fine in PLA or PETG but is where a brittle
+  filament will crack first if the loop is too tight.
 - **The Ø2.75 pilot is a starting point, not a measurement.** It leaves 0.25
   over an M3's core so printing drift does not close the hole, but PLA, PETG and
   ASA each want their own, and the right one is found by printing a BASE and
@@ -1433,11 +1490,11 @@ model does not contain, and it is not allowed to imply the opposite.
   BASE's rim, and the closest approach anywhere on their footprints is 2.10 mm
   against the imported mesh. If the real shell hangs lower than the mesh says,
   shorten `PLATE_BOSS_H` — the check above is where that shows up.
-- **The BASE's underside is the case's whole bottom face now, and it is the
-  plate's seat.** Nothing bears on it but the plate, and `verify.py` samples it
-  on a 5 mm grid — but a warped first layer is a real seat with a real gap in it,
-  and no geometry check sees a warp. If the plate rocks, the fix is the print,
-  not the model.
+- **The BASE's underside is the tray's seat now, and it is the case's whole
+  bottom face.** Nothing bears on it but the plate's floor, and `verify.py`
+  samples it on a 5 mm grid over the case's own footprint — but a warped first
+  layer is a real seat with a real gap in it, and no geometry check sees a warp.
+  If the plate rocks, the fix is the print, not the model.
 - **The rear (+Y) wall is now a hex vent field and a 10 × 6 mm lead
   rectangle.** The old charging slot (15 × 8 mm), Ø9 grommet and two Ø3.20 tie
   holes are gone, so the WittyPi's charging input, which faces the **+X** wall
