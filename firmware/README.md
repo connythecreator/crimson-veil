@@ -28,7 +28,7 @@ The sketch must speak the line-delimited JSON protocol documented in
 - Periodically: send `{"type":"telemetry","temp_esp32_c":…,"temp_ad5933_c":…}`.
 - On `{"type":"selftest"}`: verify the AD5933 responds (temperature) and the mux
   bank can be addressed, then send
-  `{"type":"selftest_result","firmware":…,"ad5933":bool,"mux":bool,"temp_ad5933_c":…,"error":…}`.
+  `{"type":"selftest_result","firmware":…,"ad5933":bool,"mux":bool,"temp_ad5933_c":…,"calibration":bool,"calibration_entries":int,"calibration_error":…,"error":…}`.
 - On any fault: send `{"type":"error","message":…}`.
 
 The host (`hardware/esp32.py`) is the reference implementation of the other
@@ -51,3 +51,23 @@ the mock tables at runtime (mock mode only). The first full scan is the
 baseline; in the default `continuous`/`auto` mode each later scan cycles through
 eight anomaly positions, so monitor mode shows a moving anomaly. `target` forces
 one static anomaly; `baseline` restarts the capture sequence.
+
+## Standalone bench tests
+
+Two separate, self-contained bring-up firmwares exercise only the AD5933 and
+the analog channel with a known 0.1 µF capacitor. They do not use the mux bank,
+mock tables, pyEIT, the Pi or the control service:
+
+- [`mp-firm/hwtest/`](mp-firm/hwtest/) — ESP32 MicroPython, uploaded with
+  `tools/hwtest.py --upload`; the host tool parses its JSON protocol. Its
+  `--calibrate` mode writes `cal.json`, which the production firmware loads at
+  boot; a missing/invalid file fails the backend self-test.
+- [`cpp-firm/ad5933_test/`](cpp-firm/ad5933_test/) — Arduino-framework sketch
+  based on the `mjmeli/arduino-ad5933` sample, for manual upload. It uses the
+  installed library and prints sample-style `R/I/|Z|` lines over Serial; it
+  does not use `tools/hwtest.py`.
+
+The MP hwtest `--calibrate` mode writes `cal.json` on the ESP32. The production
+firmware loads that file at boot; if it is missing or invalid, scans are
+refused and `selftest_result` reports `calibration: false` with the error, so
+the backend self-test fails instead of running uncalibrated.

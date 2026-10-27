@@ -5,7 +5,7 @@ Separate from the device boot (main.py). Subcommands:
 
     python dev.py doctor            # report configured backends and dependency status
     python dev.py scan-once         # run one scan via the pipeline -> a PNG file
-    python dev.py calibrate         # gain/phase calibration (stub until hardware exists)
+    python dev.py calibrate         # print the hwtest calibration command
     python dev.py mock-firmware     # mock ESP32 firmware on a pty (JSON protocol)
     python dev.py upload-firmware   # copy MicroPython firmware to the ESP32
 
@@ -91,8 +91,12 @@ def cmd_upload_firmware(args: argparse.Namespace) -> int:
 
 
 def cmd_calibrate(_args: argparse.Namespace) -> int:
-    print("calibrate: not implemented yet (needs known-resistor measurements).")
-    print("See docs/eit-bioimpedance/eit-netlist.md section 8 step 7.")
+    print("Calibration is created by the standalone hwtest firmware:")
+    print(
+        "  python tools/hwtest.py --upload --port /dev/ttyUSB0 "
+        "--calibrate --freqs 10000,50000"
+    )
+    print("It writes cal.json on the ESP32; the main firmware loads it at boot.")
     return 0
 
 

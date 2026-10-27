@@ -27,3 +27,12 @@ esp → host: `hello` · `frame` · `telemetry` · `error`
 .venv/bin/mpremote connect /dev/ttyUSB0 fs cp -r src :
 .venv/bin/mpremote connect /dev/ttyUSB0 soft-reset
 ```
+
+## Standalone bench test
+
+`hwtest/` is a separate, self-contained firmware for bringing up the AD5933
+analog channel with a known capacitor. It does not use the mux bank, mock
+tables, pyEIT, the Raspberry Pi or the control service. Its `--calibrate` mode
+writes `cal.json`; the main firmware loads that file at boot and refuses scans
+(and fails the backend self-test) if it is missing or invalid. See
+[`hwtest/README.md`](hwtest/README.md).
