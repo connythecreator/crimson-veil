@@ -32,7 +32,7 @@ dev.py                  bring-up tooling (doctor, scan-once, calibrate, upload)
 software/               Python suite
   interfaces/           HardwareBackend + SolverBackend contracts
   core/                 shared types + config
-  reconstruction/       grid -> PNG encoding
+  reconstruction/       pyEIT solver, grid -> PNG encoding
   sim/                  simulated backend (laptop/CI) + stub solver
   pipeline.py           run_scan(): scan -> reconstruct
 service/                WebSocket control surface over software.pipeline
@@ -53,10 +53,12 @@ tests/                  pytest suite (runs on the sim backend)
 docs/                   local-only design research and breadboard write-up (not published)
 bleed/                  KiCad board (schematic + PCB) and its LTspice bench
 3Dmodels/               the printed enclosures, their CAD sources and drawings
+architecture-repo-wide.svg  repo-wide architecture and scan lifecycle
 ```
 
 Two front ends over one core: the Rust kiosk (`kiosk-rs`) and the Python control
-service (`service/`) share `software.pipeline`.
+service (`service/`) share `software.pipeline`. The rendered diagram is
+[`architecture-repo-wide.svg`](architecture-repo-wide.svg) (PNG beside it).
 
 ## Hardware
 
@@ -163,7 +165,10 @@ uv pip install --python .venv -r requirements-pyeit.txt
 ```
 
 Capture a baseline in the kiosk's **CALIB** page before scanning; pyEIT
-differences each frame against that measured reference.
+differences each frame against that measured reference. The solver contract is
+in [`software/reconstruction/PYEIT_SOLVER.md`](software/reconstruction/PYEIT_SOLVER.md)
+and the synthetic validation record in
+[`software/reconstruction/PYEIT_VALIDATION.md`](software/reconstruction/PYEIT_VALIDATION.md).
 
 ## Run
 

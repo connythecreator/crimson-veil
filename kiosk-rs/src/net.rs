@@ -68,9 +68,14 @@ impl Net {
         self.last_ping = Instant::now();
     }
 
-    pub fn send(&mut self, msg: &ClientMessage) {
+    /// Queue a message, returning false when no socket is available.
+    /// Transport failures after queuing arrive as a Disconnected event.
+    pub fn send(&mut self, msg: &ClientMessage) -> bool {
         if let Some(sender) = &mut self.sender {
             sender.send(WsMessage::Text(msg.to_json()));
+            true
+        } else {
+            false
         }
     }
 

@@ -121,6 +121,7 @@ mod tests {
         assert_eq!(m.kind, "ready");
         assert_eq!(m.n_electrodes, 8);
         assert_eq!(m.frequency_hz, 50000.0);
+        assert!(!m.baseline_ready);
     }
 
     #[test]

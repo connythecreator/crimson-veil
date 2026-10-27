@@ -19,13 +19,11 @@ Chromium if one is present (optional, for visual checking only).
 
 from __future__ import annotations
 
-import ast
 import math
 import re
 import shutil
 import subprocess
 import sys
-import tempfile
 import xml.etree.ElementTree as ET
 from pathlib import Path
 from xml.sax.saxutils import escape
@@ -391,7 +389,10 @@ def outline_topology(step=0.16):
     two neighbours and all segments must form one loop.
     """
     segs = plate_outline_segments(step)
-    key = lambda p: (round(p[0], 6), round(p[1], 6))
+
+    def key(p):
+        return (round(p[0], 6), round(p[1], 6))
+
     deg, adj = {}, {}
     for a, b in segs:
         ka, kb = key(a), key(b)
@@ -1066,7 +1067,7 @@ def _table(sheet, x, y, widths, header, rows, size=1.85, row_h=5.0):
     ys += row_h
     for row in rows:
         cx = x
-        for w, cell in zip(widths, row):
+        for w, cell in zip(widths, row, strict=True):
             sheet.text(cx, ys, cell, size=size, kind="note", halo=False)
             cx += w
         sheet.line(x, ys + 1.2, x + total, ys + 1.2, "border")
@@ -1124,7 +1125,6 @@ def sheet_plate():
                   D.PLATE_ARM_TIP_R):
             v.cross(D.PLATE_CX + r * ca, D.PLATE_CY + r * sa, 2.6)
     ca, sa = ARM_C, ARM_S
-    ux, uy = ca, sa
     px, py = -sa, ca
     wrx = D.PLATE_CX + D.PLATE_ARM_NECK_R * ca
     wry = D.PLATE_CY + D.PLATE_ARM_NECK_R * sa
@@ -1196,7 +1196,7 @@ def sheet_plate():
 
     # ---- notes ----------------------------------------------------------
     arm_lines = [
-        f"4 arms, each a hull of circles on the corner diagonal",
+        "4 arms, each a hull of circles on the corner diagonal",
         f"at {fmt(D.PLATE_ARM_ANG)}° (atan(66.20/95.12)):",
         f"  root Ø{fmt(D.PLATE_ARM_ROOT_D)} at r {fmt(D.PLATE_ARM_ROOT_R)}",
         f"  tip  Ø{fmt(D.PLATE_ARM_TIP_D)} at r {fmt(D.PLATE_ARM_TIP_R)}",
@@ -2247,7 +2247,7 @@ def sheet_bezel():
             "    adjacent outer face. Heads still finish flush.",
             f"6.  Window {fmt(D.WIN_W)} × {fmt(D.WIN_D)} leaves a",
             f"    {fmt(D.WIN_X-D.POCK_X)} lip all round.",
-            f"7.  Screw columns are shared with the MID; see sheet 7.",
+            "7.  Screw columns are shared with the MID; see sheet 7.",
         ], size=2.0, spacing=2.85)
     s.scale_bar(172.0, 128.0, 1.0, 50.0)
     s.title_block()
@@ -2312,7 +2312,7 @@ def derived_checks():
         bad.append(f"plate outline: {len(baddeg)} open/non-manifold vertices")
     if loops != 1:
         bad.append(f"plate outline: {loops} loops, expected 1")
-    for tag, (p, face) in PORTS.items():
+    for tag, (p, _face) in PORTS.items():
         lo = MID_LO - 1e-6
         if p["z1"] <= lo:
             bad.append(f"{tag}: top {p['z1']:.2f} below MID underside")
@@ -2386,7 +2386,7 @@ def main(argv=None):
     for name, fn in SHEETS:
         sheet = fn()
         problems = sheet.run_checks()
-        for ok, msg in problems:
+        for _ok, msg in problems:
             print(f"{name}: {msg}")
         failures += sum(1 for ok, _ in problems if not ok)
         if check_only:

@@ -56,8 +56,10 @@
 //  there are no board screws to lose.
 //
 //  LIFT = 2.80 is the requested 2-3 mm of clear air under the board:
-//  SEAT_Z 5.20 - FLOOR 2.40 = 2.80.  At each hole the flange is the
-//  support; everywhere else the underside is empty.
+//  SEAT_Z 4.40 - FLOOR 1.60 = 2.80.  At each hole the flange is the
+//  support; everywhere else the underside is empty.  Thinning the floor
+//  therefore does not eat into that gap - it lowers the whole stack
+//  instead, and shortens the clip posts with it.
 //
 //  ---------------------------------------------------------------------
 //  WHY THE LID IS A HONEYCOMB AND THE WALLS ARE PILASTERED

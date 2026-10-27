@@ -13,6 +13,8 @@ ce07929-case.scad      the CE07929 protoboard case - a separate build
 verify.py              geometry checks, run this before you print
 render.sh              regenerates preview/v0.7-*.png
 stl/                   exported, printable parts
+  pi-stack-v0.7-*.stl  base, mid, bezel, plate
+  ce07929-*.stl        protoboard case: base, lid (already in print orientation)
 drawings/              dimensioned mechanical drawings (SVG), A3
   assembly-*.svg       the whole assembly, four views
   base/mid/bezel/plate.svg   one sheet per printed part

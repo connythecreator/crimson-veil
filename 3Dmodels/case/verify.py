@@ -636,7 +636,9 @@ def surf_points(x0, x1, y0, y1, z0, z1, step=3.0, inset=0.4):
     X0, X1 = x0 + inset, x1 - inset
     Y0, Y1 = y0 + inset, y1 - inset
     Z0, Z1 = z0 + inset, z1 - inset
-    n = lambda a, b: max(1, int(math.ceil((b - a) / step)))
+    def n(a, b):
+        return max(1, int(math.ceil((b - a) / step)))
+
     nx, ny, nz = n(X0, X1), n(Y0, Y1), n(Z0, Z1)
     pts = []
     for i in range(nx + 1):
@@ -1435,7 +1437,7 @@ def main():
             dx, dy = ux * PLATE_ARM_COS, uy * PLATE_ARM_SIN
             px_, py_ = -dy, dx          # perpendicular, same sense as the arm
 
-            def at(r, off=0.0):
+            def at(r, off=0.0, dx=dx, dy=dy, px_=px_, py_=py_):
                 return (PLATE_CX + r * dx + off * px_,
                         PLATE_CY + r * dy + off * py_,
                         zc)
@@ -1473,8 +1475,8 @@ def main():
                 (PLATE_CX, PLATE_TRAY_Y0 - 10.00)]
         check("the arms are separate - the mid-edges are open",
               not any(plate.inside((x_, y_, zc)) for x_, y_ in mids),
-              f"4 probes 10.00 past the tray's mid-edges; "
-              f"the case is held on the diagonals only")
+              "4 probes 10.00 past the tray's mid-edges; "
+              "the case is held on the diagonals only")
         #  The skirt's crenellations at the BASE's five -Y vents: open where a
         #  slot is, solid beside it and below it.  If the cut missed, the vents
         #  breathe into the skirt; if it ran too deep, the skirt comes apart.
@@ -1610,7 +1612,7 @@ def main():
     #  in a 34.90 MID - still more than a diameter and a half of o2.75, and
     #  the 15.00 depth is what the user asked for, so it is the shorter MID
     #  that gives up the margin, not the drills.
-    check(f"the solid wall between the two pilots is >= 4.50 mm",
+    check("the solid wall between the two pilots is >= 4.50 mm",
           PILOT_UP[0] - PILOT_LO[1] >= 4.50,
           f"{PILOT_UP[0] - PILOT_LO[1]:.2f} between {PILOT_LO[1]:.2f} and "
           f"{PILOT_UP[0]:.2f} - two 15 mm drills in a {MID_H:.2f} MID")
@@ -1619,7 +1621,7 @@ def main():
           f"{SCREW_DEEP:.2f} of thread per screw per column - this is the "
           f"stock a stripped hole is re-driven into, since there is no insert "
           f"to replace")
-    check(f"the pilot is the requested 0.20..0.30 over an M3's 2.50 core",
+    check("the pilot is the requested 0.20..0.30 over an M3's 2.50 core",
           0.20 <= SCREW_PILOT - 2.50 <= 0.30,
           f"o{SCREW_PILOT:.2f}, {SCREW_PILOT - 2.50:.2f} over 2.50")
 
@@ -2019,7 +2021,6 @@ def main():
     #  stood in for the switch.  It was the last thing in this suite measuring
     #  a guess, and it could not have caught the one thing that is actually
     #  wrong here - see the terminal check at the end.
-    rest = Union(base, bezel)
 
     #  1. The body sits in its own pocket with 0.10 all round.  Probed 0.05 in
     #  from the pocket's walls, which is where the gap is - and clear of the
@@ -2216,7 +2217,7 @@ def main():
     #  own inset span.  The terminal shoulders are no longer a contact at all
     #  now that each strip has its own notch.
     def allowed(p, cx):
-        dx, dz = abs(p[0] - cx), abs(p[2] - PZ)
+        dx = abs(p[0] - cx)
         rib = (SW_POCKET / 2 - SW_RIB - 0.02 <= dx <= SW_POCKET / 2 + 0.02
                and RIB_Y0 - 0.02 <= p[1] <= RIB_Y1 + 0.02
                and abs(p[2] - PZ) <= RIB_Z + 0.02)

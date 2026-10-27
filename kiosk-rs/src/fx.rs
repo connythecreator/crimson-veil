@@ -214,7 +214,7 @@ mod tests {
 
     #[test]
     fn cell_reveal_all_or_nothing() {
-        let mut fx = ScanFx::default();
+        let fx = ScanFx::default();
         // Default phase is Idle -> progress 0 -> nothing revealed.
         assert!(!fx.cell_revealed(0));
         assert!(!fx.cell_revealed(CELLS - 1));
