@@ -1,6 +1,7 @@
 """Main.py: creates defaults and runs loop
 """
 
+import json
 import sys
 
 try:
@@ -13,7 +14,8 @@ import protocol
 from ad5933_driver import AD5933, OUTPUT_RANGE_2VPP, PGA_GAIN_1, AD5933Error
 
 # configuration
-FIRMWARE_VERSION = "1.0.0"
+FIRMWARE_VERSION = "1.1.0"
+CALIBRATION_FILE = "cal.json"
 
 # On-device configuration written by the uploader; --mock also works under CPython.
 try:
@@ -35,7 +37,7 @@ SWEEP_HZ = 50_000.0
 I2C_ID = 0
 I2C_SCL = 22
 I2C_SDA = 21
-I2C_FREQ = 400_000
+I2C_FREQ = 100_000
 AD5933_ADDR = 0x0D
 
 AD5933_MCLK_HZ = 16_776_000.0
@@ -70,17 +72,74 @@ def default_scan(n_electrodes=N_ELECTRODES):
 
 
 class CalibrationTable:
-    """Per-frequency complex correction applied to raw data."""
+    """Per-frequency complex calibration ``K``, where ``Z = K / raw``.
+
+    The hwtest firmware writes the entries; this class loads them and picks the
+    nearest measured frequency when the scan frequency is not an exact match.
+    """
 
     def __init__(self, factors=None):
         self._factors = dict(factors or {})
 
+    def __len__(self):
+        return len(self._factors)
+
     def factor(self, freq_hz):
-        return self._factors.get(freq_hz, complex(1.0, 0.0))
+        if not self._factors:
+            return complex(1.0, 0.0)
+        exact = self._factors.get(freq_hz)
+        if exact is not None:
+            return exact
+        best = None
+        best_diff = None
+        for candidate, factor in self._factors.items():
+            diff = abs(candidate - freq_hz)
+            if best_diff is None or diff < best_diff:
+                best = factor
+                best_diff = diff
+        return best if best is not None else complex(1.0, 0.0)
 
     def apply(self, freq_hz, real, imag):
-        z = complex(real, imag) / self.factor(freq_hz)
+        raw = complex(real, imag)
+        if raw == 0:
+            raise AD5933Error("zero raw measurement; check the fixture/AD5933")
+        z = self.factor(freq_hz) / raw
         return z.real, z.imag
+
+
+def load_calibration(path=CALIBRATION_FILE):
+    """Load ``K`` entries written by the hwtest firmware.
+
+    Returns ``(CalibrationTable, error)``. An empty table with an error string
+    means the main firmware must refuse scans and report a hardware failure.
+    """
+    try:
+        handle = open(path)
+        try:
+            data = json.loads(handle.read())
+        finally:
+            handle.close()
+    except OSError:
+        return CalibrationTable(), "calibration file missing: " + path
+    except ValueError as exc:
+        return CalibrationTable(), "calibration file invalid: " + str(exc)
+
+    entries = data.get("entries") if isinstance(data, dict) else None
+    factors = {}
+    for entry in entries or []:
+        try:
+            if entry.get("status", "pass") not in ("pass", "warn"):
+                continue
+            freq = float(entry["f"])
+            k_re = float(entry["k_re"])
+            k_im = float(entry["k_im"])
+        except (AttributeError, KeyError, TypeError, ValueError):
+            continue
+        if freq > 0:
+            factors[freq] = complex(k_re, k_im)
+    if not factors:
+        return CalibrationTable(), "calibration file has no usable entries: " + path
+    return CalibrationTable(factors), None
 
 
 class MuxBank:
@@ -111,10 +170,11 @@ class MuxBank:
 class Firmware:
     """Protocol state machine; owns the scan process and mux selection."""
 
-    def __init__(self, driver, mux=None, calibration=None):
+    def __init__(self, driver, mux=None, calibration=None, calibration_error=None):
         self._driver = driver
         self._mux = mux
         self._calibration = calibration or CalibrationTable()
+        self._calibration_error = calibration_error
         self._running = False
 
     def boot(self):
@@ -167,6 +227,10 @@ class Firmware:
         return kind
 
     def _scan(self, message):
+        if self._calibration_error:
+            protocol.send_error("calibration unavailable: " + self._calibration_error)
+            return
+
         try:
             freq = float(message.get("f", SWEEP_HZ))
         except (TypeError, ValueError):
@@ -178,11 +242,11 @@ class Firmware:
             try:
                 self.select_measurement(drive, sense)
                 re, im = self._driver.measure(freq)
+                re, im = self._calibration.apply(freq, re, im)
             except AD5933Error as exc:
                 self.stop()
                 protocol.send_error(f"acquisition failed: {exc}")
                 return
-            re, im = self._calibration.apply(freq, re, im)
             points.append({"n": index, "f": freq, "re": re, "im": im})
         self.stop()
         protocol.send_frame(points)
@@ -200,7 +264,7 @@ class Firmware:
         protocol.emit({"type": "mock_mode_result", "mode": mode})
 
     def _selftest(self):
-        """Verify the AD5933 responds and the mux bank can be addressed."""
+        """Verify the AD5933/mux and report whether calibration is loaded."""
         temp = None
         error = None
         ad5933 = False
@@ -223,12 +287,19 @@ class Firmware:
             finally:
                 self._mux.disable_all()
 
+        calibration = self._calibration_error is None
+        if not calibration and error is None:
+            error = self._calibration_error
+
         protocol.send_selftest_result(
             ad5933=ad5933,
             mux=mux,
             temp_ad5933_c=temp,
             firmware=FIRMWARE_VERSION,
             error=error,
+            calibration=calibration,
+            calibration_entries=len(self._calibration),
+            calibration_error=self._calibration_error,
         )
 
     def telemetry(self):
@@ -289,7 +360,17 @@ def main():
         settle_cycles=AD5933_SETTLE_CYCLES,
         timeout_ms=AD5933_TIMEOUT_MS,
     )
-    firmware = Firmware(driver, mux=MuxBank())
+    try:
+        driver.initialize()
+    except Exception:  # noqa: BLE001 - selftest/scan report the failure
+        pass
+    calibration, calibration_error = load_calibration()
+    firmware = Firmware(
+        driver,
+        mux=MuxBank(),
+        calibration=calibration,
+        calibration_error=calibration_error,
+    )
     firmware.boot()
     firmware.run()
 

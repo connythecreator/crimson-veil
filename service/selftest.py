@@ -84,7 +84,7 @@ def esp_check(session) -> Check:
 
 
 def impedance_check(session) -> Check:
-    """Impedance subsystem: firmware probe of the AD5933 and mux bank."""
+    """Impedance subsystem: AD5933/mux probe and calibration-file check."""
     hardware = session.hardware
     if hardware is None:
         return Check("Impedance Subsystem", "skip", "ESP not connected")
@@ -103,10 +103,24 @@ def impedance_check(session) -> Check:
             str(result.get("error") or "AD5933 not responding"),
         )
 
+    if result.get("calibration") is False:
+        return Check(
+            "Impedance Subsystem",
+            "fail",
+            str(
+                result.get("calibration_error")
+                or result.get("error")
+                or "calibration file missing"
+            ),
+        )
+
     detail = "AD5933 responding"
     temp = result.get("temp_ad5933_c")
     if temp is not None:
         detail += f" ({float(temp):.1f} C)"
+    entries = result.get("calibration_entries")
+    if entries:
+        detail += f", {int(entries)} calibration points"
     return Check("Impedance Subsystem", "pass", detail)
 
 

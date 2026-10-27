@@ -37,6 +37,9 @@ class FakeDriver:
         self.measurements += 1
         return float(self.measurements), 0.0
 
+    def temperature_c(self):
+        return 25.0
+
     def halt(self):
         self.halts += 1
 
@@ -84,3 +87,79 @@ def test_firmware_acquisition_error_keeps_command_loop_available(firmware_module
     assert [reply["type"] for reply in replies] == ["error", "frame"]
     assert "test acquisition failure" in replies[0]["message"]
     assert len(replies[1]["points"]) == 40
+
+
+def test_load_calibration_missing_file(tmp_path, firmware_module):
+    table, error = firmware_module.load_calibration(str(tmp_path / "cal.json"))
+    assert len(table) == 0
+    assert "missing" in error
+
+
+def test_load_calibration_loads_entries_and_uses_nearest(tmp_path, firmware_module):
+    path = tmp_path / "cal.json"
+    path.write_text(
+        json.dumps(
+            {
+                "entries": [
+                    {"f": 10_000, "k_re": 10, "k_im": 0, "status": "pass"},
+                    {"f": 50_000, "k_re": 2, "k_im": 0, "status": "pass"},
+                    {"f": 1_000, "k_re": 99, "k_im": 0, "status": "skip"},
+                ]
+            }
+        )
+    )
+    table, error = firmware_module.load_calibration(str(path))
+    assert error is None
+    assert len(table) == 2
+    assert table.factor(49_000) == complex(2.0, 0.0)
+    re, im = table.apply(50_000, 1000, 0)
+    assert re == pytest.approx(0.002)
+    assert im == pytest.approx(0.0)
+
+
+def test_firmware_refuses_scan_without_calibration(firmware_module):
+    replies = []
+    firmware_module.protocol.sink = lambda line: replies.append(json.loads(line))
+    firmware = firmware_module.Firmware(
+        FakeDriver(), calibration_error="calibration file missing: cal.json"
+    )
+
+    firmware.handle({"type": "scan"})
+
+    assert replies == [
+        {
+            "type": "error",
+            "message": "calibration unavailable: calibration file missing: cal.json",
+        }
+    ]
+
+
+def test_selftest_reports_missing_calibration(firmware_module):
+    replies = []
+    firmware_module.protocol.sink = lambda line: replies.append(json.loads(line))
+    firmware = firmware_module.Firmware(
+        FakeDriver(), calibration_error="calibration file missing: cal.json"
+    )
+
+    firmware._selftest()
+
+    result = replies[-1]
+    assert result["type"] == "selftest_result"
+    assert result["calibration"] is False
+    assert result["calibration_entries"] == 0
+    assert "calibration file missing" in result["calibration_error"]
+    assert "calibration file missing" in result["error"]
+
+
+def test_scan_applies_complex_calibration(firmware_module):
+    replies = []
+    firmware_module.protocol.sink = lambda line: replies.append(json.loads(line))
+    table = firmware_module.CalibrationTable({50_000.0: complex(2.0, 0.0)})
+    firmware = firmware_module.Firmware(FakeDriver(), calibration=table)
+
+    firmware.handle({"type": "scan"})
+
+    frame = replies[-1]
+    assert frame["type"] == "frame"
+    assert frame["points"][0]["re"] == pytest.approx(2.0)
+    assert frame["points"][0]["im"] == pytest.approx(0.0)

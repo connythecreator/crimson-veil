@@ -25,7 +25,10 @@ Wire protocol (line-delimited JSON, one object per line, USB CDC at 115200):
                    "temp_ad5933_c": float|null}
                   {"type": "selftest_result", "firmware": str,
                    "ad5933": bool, "mux": bool,
-                   "temp_ad5933_c": float|null, "error": str|null}
+                   "temp_ad5933_c": float|null,
+                   "calibration": bool|null,
+                   "calibration_entries": int|null,
+                   "calibration_error": str|null, "error": str|null}
                   {"type": "error", "message": str}
 
 `hello` is sent unsolicited on boot and again in reply to `identify`; the

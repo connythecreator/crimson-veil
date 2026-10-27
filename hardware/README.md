@@ -48,7 +48,7 @@ authoritative description; the firmware must match it.
 | `{"type":"hello","firmware":str,"n_electrodes":int,"electrodes":[…],"sweep_hz":float}` | sent unsolicited on boot, and in reply to `identify` |
 | `{"type":"frame","points":[{"n":int,"f":Hz,"re":float,"im":float}, …]}` | one frame, the firmware's adjacent sequence, `n` = index in that sequence |
 | `{"type":"telemetry","temp_esp32_c":float\|null,"temp_ad5933_c":float\|null}` | periodic on-chip temperatures |
-| `{"type":"selftest_result","firmware":str,"ad5933":bool,"mux":bool,"temp_ad5933_c":float\|null,"error":str\|null}` | reply to `selftest` |
+| `{"type":"selftest_result","firmware":str,"ad5933":bool,"mux":bool,"temp_ad5933_c":float\|null,"calibration":bool\|null,"calibration_entries":int\|null,"calibration_error":str\|null,"error":str\|null}` | reply to `selftest`; `calibration` is false when `cal.json` is missing/invalid |
 | `{"type":"error","message":str}` | a fault the host should surface |
 
 ## Configuration

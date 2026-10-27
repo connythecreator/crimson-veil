@@ -178,3 +178,34 @@ def test_run_self_test_retries_boot_and_returns_all_checks(monkeypatch):
     assert by_name["Impedance Subsystem"]["status"] == "pass"
     assert by_name["PyEIT"]["status"] == "fail"
     assert by_name["Control Service"]["status"] == "pass"
+
+
+def test_impedance_fails_without_calibration():
+    hw = Esp32Hardware(
+        selftest_result={
+            "ad5933": True,
+            "mux": True,
+            "calibration": False,
+            "calibration_entries": 0,
+            "calibration_error": "calibration file missing: cal.json",
+            "error": "calibration file missing: cal.json",
+        }
+    )
+    check = selftest.impedance_check(FakeSession(hardware=hw))
+    assert check.status == "fail"
+    assert "calibration file missing" in check.detail
+
+
+def test_impedance_reports_loaded_calibration_points():
+    hw = Esp32Hardware(
+        selftest_result={
+            "ad5933": True,
+            "mux": True,
+            "calibration": True,
+            "calibration_entries": 2,
+            "temp_ad5933_c": 25.0,
+        }
+    )
+    check = selftest.impedance_check(FakeSession(hardware=hw))
+    assert check.status == "pass"
+    assert "2 calibration points" in check.detail

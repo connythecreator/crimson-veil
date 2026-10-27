@@ -60,6 +60,9 @@ def send_selftest_result(
     temp_ad5933_c=None,
     firmware=None,
     error=None,
+    calibration=None,
+    calibration_entries=None,
+    calibration_error=None,
 ):
     emit(
         {
@@ -68,6 +71,9 @@ def send_selftest_result(
             "ad5933": bool(ad5933),
             "mux": bool(mux),
             "temp_ad5933_c": temp_ad5933_c,
+            "calibration": calibration,
+            "calibration_entries": calibration_entries,
+            "calibration_error": calibration_error,
             "error": error,
         }
     )
