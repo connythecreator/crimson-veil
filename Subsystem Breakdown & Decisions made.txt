@@ -1,0 +1,265 @@
+SECTION 1 — SYSTEM OVERVIEW, CONSTRAINTS AND SAFETY
+
+1.1 What the device is
+
+Crimson Veil MK1 is a prehospital internal-bleeding detector. An
+eight-electrode ring is placed on the abdomen; a small AC current is injected
+through one pair, the resulting voltage is measured on other pairs, and the
+host reconstructs a conductivity map. Blood pooling raises local conductivity,
+so a map differenced against a baseline shows where bleeding is likely.
+
+The clinical gap is timing. CT and MRI are hospital-only, FAST ultrasound needs
+a trained operator, and heart rate and blood pressure are late indicators. MK1
+is therefore local and battery-powered: a Raspberry Pi 3 runs the UI and
+reconstruction, a 3.5" SPI panel is the display, a Witty Pi 4 BMS manages the
+battery, and an ESP32 owns the analog front end. Target runtime is about six
+hours from a 6000 mAh cell.
+
+MK1 is an engineering prototype. It is tested on a saline phantom, not on
+people or animals, and it makes no clinical claim.
+
+1.2 The measurement
+
+Each shot uses four roles: drive+, drive−, sense+, sense−. Current is injected
+through the drive pair and voltage is measured across a different, disjoint
+sense pair. This is tetrapolar measurement. Contact impedance sits in the drive
+loop and drops out of the sensed voltage, which is the main reason for this
+choice over a bipolar (two-electrode) measurement.
+
+The drive pair is adjacent and the sense pair is rotated. For n electrodes the
+firmware uses drive (e, e+1) and sense (e+2, e+3), (e+3, e+4), ... for n−3 pairs
+per drive position. Eight electrodes give 8 × 5 = 40 points per frame, which is
+what the protocol, solver and tests expect.
+
+The AD5933 returns one complex value per point at one frequency. A complex
+calibration factor K converts raw data S to impedance: K = Z_expected × S_cal,
+then Z = K / S_raw. K corrects magnitude and phase together. The bench firmware
+derives K from a known 0.1 µF capacitor; the production firmware applies it.
+
+Reconstruction is difference EIT. Absolute conductivity varies with patient,
+contact and lead dress, so the device captures a plain-saline baseline and
+reconstructs the difference to the target. Differencing cancels drift and
+first-order contact error and avoids needing a patient-specific model. The
+baseline is invalidated when the frequency changes, and the kiosk has a CALIB
+page to recapture it.
+
+1.3 The signal chain
+
+  AD5933 VOUT
+    -> C17 10 µF / R17 10 k high-pass
+    -> mirrored Howland (U5A/U5B TL082, 47 k bridge, 5 k current-set,
+       0.1 µF coupling)
+    -> Drive+ / Drive− -> 4× CD74HC4067 mux bank -> electrode ring
+    -> Sense+ / Sense− -> AD620 -> R4 10 k -> AD5933 VIN
+
+The AD5933 contains the frequency generator, 12-bit ADC and I2C interface, so
+no separate DDS or ADC is needed. At 5 V it outputs 3.00 V p-p biased at 2.24 V.
+Its VIN is the virtual ground of the receive stage, which is why the AD620
+reaches it through 10 k.
+
+C17 and R17 block the AD5933's DC bias and give the floating drive network a
+defined DC return. Without that return the AD620 bias current walks the inputs
+to a rail. The return is on the drive side because a return on Sense+ would add
+part of the drive voltage to the sensed signal.
+
+The mirrored Howland turns the AD5933's voltage into a load-independent
+current. Two TL082 halves drive Drive+ and Drive− in opposition, giving a
+differential drive and about twice the swing for the same rails. The four 47 k
+bridge resistors are equal, so the Howland balance condition holds. R8 and R13
+set the transconductance: two 10 k parts in parallel, 5 k, giving about
+0.6 mA p-p from 3 V p-p. The first schematic used 47 k there; LTspice showed
+that gave only 26.5 µA p-p, so the value changed.
+
+The mux bank is four CD74HC4067 16:1 multiplexers. All four see the same
+electrode lines, but each common is one role: drive+, drive−, sense+, sense−.
+Address bits are shared; each mux has its own active-low enable. That lets any
+electrode take any role with four address lines and four enables. The firmware
+drives four address bits (GPIO 25, 26, 27, 23) so 16 electrodes can be
+addressed; with 8 electrodes the top bit is zero.
+
+The sense pair goes to an AD620. Gain is G = 1 + 49.4 k / RG, with RG a 50 k
+trimmer: about 2 at 50 k and 10.9 at 4.95 k. REF sits at 2.5 V from a 47 k/47 k
+divider buffered by the spare TL082. The AD620 gives high input impedance and
+common-mode rejection, so the sense electrodes are not loaded.
+
+Power is ±5 V; a MAX1044 charge pump makes −5 V from +5 V. The ±5 V rails give
+the TL082 and AD620 headroom around the 2.24/2.5 V bias. The AD5933 runs from
++5 V, which is why the bias is 2.24 V, not 1.65 V.
+
+Why these parts:
+
+- AD5933 over AD5940: integrated DDS/ADC/I2C on a cheap breakout. The AD5940
+  has better resolution but costs several times more and needs SPI and a more
+  complex board. The ~100 kHz ceiling is the trade-off.
+- AD620 over AD623: the build uses ±5 V, so AD623's single-supply advantage does
+  not apply; AD620 has the better common-mode rejection.
+- TL082 over OPA2277: cheap DIP dual JFET op-amp with enough bandwidth and slew
+  rate for 3 V p-p at 50 kHz. The earlier docs name OPA2277; the built schematic
+  uses TL082.
+- Mirrored Howland over single-ended: differential drive doubles the swing for
+  the same rails and keeps current symmetric about the bias point.
+
+The calibration fixture is a 0.1 µF capacitor between Drive+ and Drive−, with
+Sense strapped to the same nodes. At 50 kHz that is 31.83 Ω at −90°, a stable
+reference for magnitude and phase. The hwtest firmware calibrates on the first
+half of its samples, verifies on the second, and writes cal.json. The production
+firmware loads it, picks the nearest calibrated frequency, and refuses to scan
+if it is missing or invalid.
+
+1.4 Data path
+
+The ESP32 owns hardware configuration, the scan sequence and calibration. The
+host sends no plan. A scan command runs the sequence once and returns one
+frame; continuous scanning is a host policy, so the ESP32 stays deterministic
+and single-shot.
+
+The protocol is line-delimited JSON over USB CDC at 115200. On boot and on
+identify, the ESP32 sends hello with firmware version, electrode count,
+electrode list and sweep frequency. A frame carries points tagged n, f, re, im,
+where n is the index in the firmware sequence; the host validates and re-orders
+them. Telemetry carries ESP32 and AD5933 temperatures every five seconds.
+Errors are a first-class message. JSON was chosen because it is readable in a
+serial terminal, MicroPython has it built in, and one object per line gives a
+clean resync point.
+
+On the Pi, a Python service owns one ScanSession holding the hardware and solver
+backends. Scans and baseline captures are single-flight; blocking work runs in
+a worker thread. Continuous mode scans, then waits 60 s while active and 120 s
+when idle, with a 30 s activity timeout. The service also runs a five-part
+self-test, broadcasts metrics every five seconds, and can upload firmware by
+closing the serial port and running mpremote.
+
+Reconstruction is pyEIT's adjacent protocol and back-projection solver, on a
+96 × 96 map, encoded as PNG. The firmware and pyEIT can represent a sense pair
+in either orientation, so the solver maps each measurement and negates the real
+value when the pair is reversed. A baseline must match the target's frequency,
+electrode count and point count.
+
+The kiosk is Rust/eframe. It connects to the service over a localhost WebSocket,
+decodes the PNG into a texture, and draws the map, electrode ring, readouts and
+status as vectors at 15 fps idle, about 30 fps while animating. The layout is
+phone-shaped because the panel is 480 × 320.
+
+For work without hardware, a simulated backend, stub solver and mock ESP32
+firmware run the whole pipeline on a laptop. The mock uses FEM-generated tables
+for 4, 8 and 16 electrodes and cycles an anomaly through eight positions.
+
+1.5 Safety
+
+The safety quantity is current through the body. The design ceiling is 1 mA peak
+(2 mA p-p). LTspice drives 1.99 mA p-p into 1 kΩ from 2 V p-p, which is the
+ceiling met exactly. The built values — 3 V p-p and 5 k — give about 0.62 mA p-p,
+or 0.31 mA peak, so the build runs below the ceiling with the 1 mA case kept as
+the verified bound.
+
+The electrodes see 3 V p-p differential. Rails are ±5 V, but the current-setting
+resistors and Howland feedback hold the load current inside the envelope. The
+AD5933 output is AC-coupled, so there is no DC path through the body; R17
+provides the single DC return.
+
+Power is battery or isolated USB only. Nothing is mains-connected while
+electrodes are attached, because a mains-referenced return path is the one
+failure that makes a low-voltage circuit hazardous. Testing is on 0.9% saline.
+There is no patient isolation, defibrillation protection or certification in
+MK1; those are explicit non-goals of the prototype.
+
+One build risk: a CD74HC4067 at 5 V wants V_IH near 3.5 V, but the ESP32 drives
+3.3 V. Run the mux at 3.3 V or level-shift it.
+
+1.6 Constraints and trade-offs
+
+Cost drove the build to a generic AD5933 breakout, DIP parts and breadboard/
+perfboard: about $25 against $80–120 for the ADI board and $150–200 for AD5940
+hardware. A KiCad schematic exists, but the PCB has no footprints, so no board
+has been laid out; that waits until the analog chain is proven.
+
+Complexity drove three simplifications: one excitation frequency per scan rather
+than a sweep (the AD5933 cannot reach 300–500 kHz anyway), eight electrodes as
+default rather than sixteen (eight matches the literature ring; sixteen doubles
+the mux and electrode hardware), and a Pi/ESP32 split because Linux is not
+real-time enough for the AD5933/mux sequence while the Pi is right for the UI
+and pyEIT.
+
+The scope is a prototype. No bioimpedance device is approved for prehospital
+bleeding detection, and published evidence is animal and phantom work. The
+deliverable is a working prototype plus evidence, not a clinical claim.
+
+1.7 What was done, simulated, and left open
+
+Built and committed:
+
+- v0.7 four-part case: parametric OpenSCAD, STLs, drawings, render script and a
+  139-check verify.py that ray-casts the exported meshes. Holds the Pi, Witty
+  Pi, LCD, LEDs and switches; battery in a separate enclosure.
+- MicroPython firmware: AD5933 driver, mux bank, adjacent scan sequence, JSON
+  protocol, calibration loading, self-test, telemetry and mock mode.
+- Bench firmware (hwtest, MicroPython and Arduino versions) for bringing up the
+  AD5933 and analog channel with a known capacitor and writing cal.json.
+- Python suite: hardware/solver interfaces, sim hardware, stub solver, pipeline,
+  pyEIT solver, PNG encoder.
+- Control service: WebSocket protocol, single-flight ScanSession, continuous
+  mode, metrics, self-test, firmware upload.
+- Rust/egui kiosk, Pi kiosk setup (Plymouth, Xorg/openbox, SPI panel, fbcp,
+  systemd unit), and the pytest suite on the simulated backend.
+
+Simulated in LTspice:
+
+- Howland in DC, transient, AC and load sweep: established the 1 mA ceiling,
+  output swing, load independence, and that the as-drawn 47 k current-set
+  resistors were far too large.
+- Full front end with a lumped body model: established gain range, headroom and
+  the need for a DC return.
+- Contact sweeps: sensed voltage changes about 1.7% from 100 Ω to 1 kΩ and about
+  15% at a dry 4.7 kΩ, quantifying the tetrapolar advantage.
+
+Not yet done:
+
+- No PCB laid out or fabricated; the KiCad PCB file is empty.
+- Production firmware has not run against the real mux bank and electrode ring
+  here; only the mock path and bench hwtest have been exercised.
+- No recorded full eight-electrode phantom scan with the production chain.
+- 16-electrode hardware exists in firmware and mock tables but has not been
+  built.
+- Mux logic levels, AD5933 RFB, AD620 common-mode range and Howland resistor
+  tolerance still need bench confirmation.
+- No human or animal testing, and no clinical validation.
+
+Where the detail lives: electrical design in bleed/bleed.kicad_sch and
+bleed/sim/; case rationale in 3Dmodels/case/README.md; firmware in
+firmware/mp-firm/; service in service/README.md; solver in
+software/reconstruction/PYEIT_SOLVER.md; build/run in README.md.
+
+
+Mechanical
+- Case to hold the stack
+- Case to hold the components
+- Done using OpenScad
+- Sewn together belt 
+
+
+Electrical
+- Ad5933 Impedance Converter
+- Mirrored Howland Current pump  (V driven Freq to Current)
+- AD620 preamp for input (shift signal to Virtual ground for AD5933 input
+
+Firmware
+- Micropython for quick and fast prototyping
+- Using AD5933 datasheet for implimenting i2c
+
+
+Software
+- EIT
+- Python backend for fast prototyping
+- Rust Egui for frontend 
+
+
+
+Testing / Simulation
+- Simulated Electrical Circuits to ensure correct operation
+- Simulated to enforce current/voltage limitations (<=1mA, 5V)
+
+- Created test environement to simulate/calibrate Belt
+
+
+Reports
+
