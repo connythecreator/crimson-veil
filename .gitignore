@@ -24,7 +24,14 @@ kiosk-rs/target/
 .DS_Store
 .idea/
 .vscode/
+
+# Local-only research notes (kept on disk, not published)
 docs/
+
+# KiCad local state and generated simulation output
+bleed/.history/
+*.lck
+*.kicad_prl
 
 # Agent / Claude Code worktrees and local config
 .claude/

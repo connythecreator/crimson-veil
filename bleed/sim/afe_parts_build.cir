@@ -1,0 +1,127 @@
+* Project Crimson AFE - parts-constrained 0.6 mA build, as drawn in
+* bleed/bleed_parts_build.kicad_sch (rev 2, RV1 = AD620 RG).
+*
+* Connectivity and values follow the KiCad netlist:
+*
+*   VOUT --C17(10u)-- CurrentOut --R17(10k)-- Earth
+*
+*   U5A (mirrored Howland A)            U5B (mirrored Howland B)
+*     R6  47k  CurrentOut -> A-          R11 47k  B- -> Earth
+*     R7  47k  A- -> A_out               R12 47k  B- -> B_out
+*     R9  47k  Drive+ -> A+              R14 47k  Drive- -> B+
+*     R10 47k  A+ -> Earth               R15 47k  B+ -> CurrentOut
+*     R8||R16 (2x10k = 5k) A_out->C3     R13||R18 (2x10k = 5k) B_out->C2
+*     C3  0.1u C3 -> Drive+              C2  0.1u C2 -> Drive-
+*
+*   U4 (AD620)  RG = RV1 = 50k (pins 1/8), +in Drive+, -in Drive-,
+*                REF = 2.500 V from U6A, out -> R4(10k) -> AD5933 VIN
+*   U8 (MAX1044) modelled as the -5 V rail.
+*
+* The AD620 has no LTspice model installed, so it is modelled as its real
+* internal topology: three op-amps with the datasheet's 24.7k gain resistors,
+* which gives exactly G = 1 + 49.4k/RG from the external RV1.  The op-amps are
+* the same ADTL082 macromodel used for U5/U6, so the model is deliberately a
+* little slower than an AD620.
+*
+* AD5933 VOUT: 2000 mV p-p range at VDD = 5 V -> 3.00 V p-p, 2.24 V bias.
+* The AD5933 VIN pin is the virtual ground of its receive stage, modelled as a
+* stiff 2.5 V source behind R4.
+*
+* Run:  wine LTspice.exe -b afe_parts_build.cir
+
+.include ADTL082.lib
+
+.param RB   = 47k
+.param RS   = 10k          ; two in parallel = 5k
+.param RG   = 50k          ; RV1
+.param RL   = 1k
+.param VAMP = 1.5          ; 3.00 V p-p (2000 mV p-p range at 5 V)
+.param VDC  = 2.24
+
+* 2000 mV p-p range (1.5 V amp) and 1000 mV p-p range (0.735 V amp)
+.step param VAMP list 1.5 0.735
+
+VCC VCC 0 5
+VEE VEE 0 -5
+VOUT IN 0 DC {VDC} AC 1 SINE({VDC} {VAMP} 50k)
+
+* ---- AD5933 output HPF (C17 + R17) ---------------------------------------
+C17 IN  IN_NET 10u
+R17 IN_NET 0 10k
+
+* ---- mirrored Howland, U5A ----------------------------------------------
+R6  IN_NET A_INM {RB}
+R7  A_INM  A_OUT {RB}
+R9  DRV_P  A_INP {RB}
+R10 A_INP  0     {RB}
+R8  A_OUT  A_C3  {RS}
+R16 A_OUT  A_C3  {RS}
+C3  A_C3   DRV_P 0.1u
+XU5A A_INP A_INM VCC VEE A_OUT ADTL082
+
+* ---- mirrored Howland, U5B ----------------------------------------------
+R11 B_INM 0     {RB}
+R12 B_INM B_OUT {RB}
+R14 DRV_M B_INP {RB}
+R15 B_INP IN_NET {RB}
+R13 B_OUT B_C2  {RS}
+R18 B_OUT B_C2  {RS}
+C2  B_C2  DRV_M 0.1u
+XU5B B_INP B_INM VCC VEE B_OUT ADTL082
+
+* ---- load ----------------------------------------------------------------
+RL DRV_P DRV_M {RL}
+
+* ---- AD620 (behavioural build of its internal topology) -----------------
+* pins: +IN  -IN  RG1  RG2  V+  V-  REF  OUT
+XU4 DRV_P DRV_M RG1 RG2 VCC VEE VREF AMP_OUT AD620
+RV1 RG1 RG2 {RG}
+
+* ---- buffered 2.500 V reference (U6A, R20/R21 divider) ------------------
+R20 VCC VREF_D 47k
+R21 VREF_D 0    47k
+C18 VREF_D 0    0.1u
+XU6A VREF_D VREF VCC VEE VREF ADTL082
+
+* ---- receive path into the AD5933 ----------------------------------------
+R4 AMP_OUT VIN 10k
+VVIN VIN 0 2.5
+
+* ---- AD620 macromodel-equivalent -----------------------------------------
+.subckt AD620 INP INM RG1 RG2 VCC VEE REF OUT
+XIA1 INP RG1 VCC VEE N1 ADTL082
+RIA1 N1  RG1 24.7k
+XIA2 INM RG2 VCC VEE N2 ADTL082
+RIA2 N2  RG2 24.7k
+* unity-gain difference stage: OUT = REF + (N1 - N2) = REF + G*(INP-INM)
+RIA3 N2  X   10k
+RIA4 N1  Y   10k
+RIA5 X   OUT 10k
+RIA6 Y   REF 10k
+XIA3 Y   X   VCC VEE OUT ADTL082
+.ends
+
+* ---- analysis ------------------------------------------------------------
+.tran 0 2m 0 0.05u
+.four 50k 9 I(RL)
+
+.meas tran vin_pp   PP  V(IN)            FROM 1.9m TO 2m
+.meas tran vcno_pp  PP  V(IN_NET)       FROM 1.9m TO 2m
+.meas tran vcno_avg AVG V(IN_NET)       FROM 1.9m TO 2m
+.meas tran iL_pp    PP  I(RL)           FROM 1.9m TO 2m
+.meas tran iL_rms   RMS I(RL)           FROM 1.9m TO 2m
+.meas tran iL_max   MAX I(RL)           FROM 1.9m TO 2m
+.meas tran iL_min   MIN I(RL)           FROM 1.9m TO 2m
+.meas tran vL_pp    PP  V(DRV_P,DRV_M)  FROM 1.9m TO 2m
+.meas tran va_max   MAX V(A_OUT)        FROM 1.9m TO 2m
+.meas tran va_min   MIN V(A_OUT)        FROM 1.9m TO 2m
+.meas tran vb_max   MAX V(B_OUT)        FROM 1.9m TO 2m
+.meas tran vb_min   MIN V(B_OUT)        FROM 1.9m TO 2m
+.meas tran amp_pp   PP  V(AMP_OUT)      FROM 1.9m TO 2m
+.meas tran amp_avg  AVG V(AMP_OUT)      FROM 1.9m TO 2m
+.meas tran amp_max  MAX V(AMP_OUT)      FROM 1.9m TO 2m
+.meas tran amp_min  MIN V(AMP_OUT)      FROM 1.9m TO 2m
+.meas tran r4_pp     PP V(AMP_OUT,VIN)  FROM 1.9m TO 2m
+.meas tran r4_irms   RMS I(R4)          FROM 1.9m TO 2m
+.meas tran gain      PARAM (amp_pp/vL_pp)
+.end

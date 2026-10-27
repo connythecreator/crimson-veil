@@ -1,0 +1,15 @@
+* 2.5 V reference buffer using the spare TL082 half
+.include ADTL082.lib
+VCC VCC 0 5
+VEE VEE 0 -5
+R1 VCC VREF 47k
+R2 VREF 0 47k
+C1 VREF 0 0.1u
+XU6 VREF VOUT VCC VEE VOUT ADTL082
+* AD620 REF pin input resistance, approx 20k
+RREF VOUT 0 20k
+.tran 0 20m 0 10u
+.meas tran vout_avg AVG(V(VOUT)) FROM 15m TO 20m
+.meas tran vref_avg AVG(V(VREF)) FROM 15m TO 20m
+.meas tran i_load AVG(I(RREF)) FROM 15m TO 20m
+.end

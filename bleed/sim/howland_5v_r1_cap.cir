@@ -1,0 +1,62 @@
+* Mirrored Howland current pump - 1 mA PEAK operating point
+* Topology copied from bleed/bleed.kicad_sch (U5A/U5B, TL082ACP, +/-5 V)
+*
+*   U5A: R6  CurrentOut -> U5A-       R7  U5A- -> U5A out
+*        R9  Drive+     -> U5A+       R10 U5A+ -> Earth
+*        U5A out -> R8 -> C3 -> Drive+
+*   U5B: R11 U5B- -> Earth            R12 U5B- -> U5B out
+*        R14 Drive-     -> U5B+       R15 U5B+ -> CurrentOut
+*        U5B out -> R13 -> C2 -> Drive-
+*
+* 2 V p-p excitation, R8/R13 = 1k, bridge = 47k -> 1.99 mA p-p = 1 mA peak.
+* AD5933 VOUT bias is 1.65 V (VDD = 3.3 V).  Run 20 ms for cap settling.
+*
+* Run:  wine LTspice.exe -b howland_5v_r1_cap.cir
+
+.include ADTL082.lib
+
+.param RB   = 47k
+.param RS   = 1k
+.param RL   = 1k
+.param VAMP = 1.5
+.param VDC  = 1.65
+
+VCC VCC 0 5
+VEE VEE 0 -5
+VIN IN  0 DC 0 AC 1 SINE(0 {VAMP} 50k)
+CIN IN IN_NET 1u
+RBIAS IN_NET 0 470k
+
+R6  IN_NET A_INM {RB}
+R7  A_INM A_OUT {RB}
+R9  DRV_P A_INP {RB}
+R10 A_INP 0     {RB}
+R8  A_OUT A_C3  {RS}
+C3  A_C3  DRV_P 0.1u
+XU5A A_INP A_INM VCC VEE A_OUT ADTL082
+
+R11 B_INM 0     {RB}
+R12 B_INM B_OUT {RB}
+R14 DRV_M B_INP {RB}
+R15 B_INP IN_NET {RB}
+R13 B_OUT B_C2  {RS}
+C2  B_C2  DRV_M 0.1u
+XU5B B_INP B_INM VCC VEE B_OUT ADTL082
+
+RL  DRV_P DRV_M {RL}
+
+
+.tran 0 20m 0 0.05u
+.meas tran vin_pp  PP  V(IN)           FROM 19m TO 20m
+.meas tran iL_pp   PP  I(RL)           FROM 19m TO 20m
+.meas tran vL_pp   PP  V(DRV_P,DRV_M)  FROM 19m TO 20m
+.meas tran iL_rms  RMS I(RL)           FROM 19m TO 20m
+.meas tran vp_avg  AVG V(DRV_P)        FROM 19m TO 20m
+.meas tran vm_avg  AVG V(DRV_M)        FROM 19m TO 20m
+.meas tran va_avg  AVG V(A_OUT)        FROM 19m TO 20m
+.meas tran vb_avg  AVG V(B_OUT)        FROM 19m TO 20m
+.meas tran va_max  MAX V(A_OUT)        FROM 19m TO 20m
+.meas tran va_min  MIN V(A_OUT)        FROM 19m TO 20m
+.meas tran vb_max  MAX V(B_OUT)        FROM 19m TO 20m
+.meas tran vb_min  MIN V(B_OUT)        FROM 19m TO 20m
+.end

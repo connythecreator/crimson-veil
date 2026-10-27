@@ -1,0 +1,86 @@
+* Project Crimson AFE - tetrapolar abdominal case, frequency response
+*
+* Same netlist as afe_body.cir at RTIS = 20 ohm, RG = 4.95k (G = 10.9), with a
+* 1 A AC source at VOUT.  I(RT) is the drive current into the body; the result
+* in mA/V times 1.5 V peak gives the peak current at the 2000 mV p-p range.
+*
+* Run:  wine LTspice.exe -b afe_body_ac.cir
+
+.include ADTL082.lib
+
+.param RB   = 47k
+.param RS   = 10k
+.param RG   = 4.95k
+.param RC   = 300
+.param RTIS = 20
+.param VDC  = 2.24
+
+VCC VCC 0 5
+VEE VEE 0 -5
+VOUT IN 0 DC {VDC} AC 1
+
+C17 IN  IN_NET 10u
+R17 IN_NET 0 10k
+
+R6  IN_NET A_INM {RB}
+R7  A_INM  A_OUT {RB}
+R9  DRV_P  A_INP {RB}
+R10 A_INP  0     {RB}
+R8  A_OUT  A_C3  {RS}
+R16 A_OUT  A_C3  {RS}
+C3  A_C3   DRV_P 0.1u
+XU5A A_INP A_INM VCC VEE A_OUT ADTL082
+
+R11 B_INM 0     {RB}
+R12 B_INM B_OUT {RB}
+R14 DRV_M B_INP {RB}
+R15 B_INP IN_NET {RB}
+R13 B_OUT B_C2  {RS}
+R18 B_OUT B_C2  {RS}
+C2  B_C2  DRV_M 0.1u
+XU5B B_INP B_INM VCC VEE B_OUT ADTL082
+
+RCD1 DRV_P A    {RC}
+RT   A     B    {RTIS}
+RCD2 B     DRV_M {RC}
+RCS1 A     SP   {RC}
+RCS2 B     SM   {RC}
+RBIAS DRV_P 0 10k
+
+XU4 SP SM RG1 RG2 VCC VEE VREF AMP_OUT AD620
+RV1 RG1 RG2 {RG}
+
+R20 VCC VREF_D 47k
+R21 VREF_D 0    47k
+C18 VREF_D 0    0.1u
+XU6A VREF_D VREF VCC VEE VREF ADTL082
+
+R4 AMP_OUT VIN 10k
+VVIN VIN 0 2.5
+
+.subckt AD620 INP INM RG1 RG2 VCC VEE REF OUT
+XIA1 INP RG1 VCC VEE N1 ADTL082
+RIA1 N1  RG1 24.7k
+XIA2 INM RG2 VCC VEE N2 ADTL082
+RIA2 N2  RG2 24.7k
+RIA3 N2  X   10k
+RIA4 N1  Y   10k
+RIA5 X   OUT 10k
+RIA6 Y   REF 10k
+XIA3 Y   X   VCC VEE OUT ADTL082
+.ends
+
+.ac dec 20 500 2meg
+
+.meas ac tr_500  FIND mag(I(RT))/1m AT=500
+.meas ac tr_1k   FIND mag(I(RT))/1m AT=1k
+.meas ac tr_2k   FIND mag(I(RT))/1m AT=2k
+.meas ac tr_5k   FIND mag(I(RT))/1m AT=5k
+.meas ac tr_10k  FIND mag(I(RT))/1m AT=10k
+.meas ac tr_20k  FIND mag(I(RT))/1m AT=20k
+.meas ac tr_50k  FIND mag(I(RT))/1m AT=50k
+.meas ac tr_100k FIND mag(I(RT))/1m AT=100k
+.meas ac tr_200k FIND mag(I(RT))/1m AT=200k
+.meas ac tr_500k FIND mag(I(RT))/1m AT=500k
+.meas ac tr_1meg FIND mag(I(RT))/1m AT=1meg
+.end

@@ -1,0 +1,87 @@
+* Project Crimson AFE - tetrapolar abdominal case, electrode contact sweep
+*
+* Same netlist as afe_body.cir with the tissue transfer impedance fixed at
+* 20 ohm and the per-electrode contact resistance stepped over the range a
+* gel electrode actually shows at 50 kHz (100 ohm fresh gel ... 4.7k dry or
+* poorly prepped skin).  The point of the run is that the sensed voltage does
+* not move: in a tetrapolar system the contact impedance is in the drive loop,
+* not in the sense loop.
+*
+* Run:  wine LTspice.exe -b afe_body_loads.cir
+
+.include ADTL082.lib
+
+.param RB   = 47k
+.param RS   = 10k
+.param RG   = 4.95k        ; RV1 -> G = 10.9
+.param RC   = 300
+.param RTIS = 20
+.param VAMP = 1.5          ; 3.00 V p-p (2000 mV p-p range at 5 V)
+.param VDC  = 2.24
+
+.step param RC list 100 300 1k 2.2k 4.7k
+
+VCC VCC 0 5
+VEE VEE 0 -5
+VOUT IN 0 DC {VDC} AC 1 SINE({VDC} {VAMP} 50k)
+
+C17 IN  IN_NET 10u
+R17 IN_NET 0 10k
+
+R6  IN_NET A_INM {RB}
+R7  A_INM  A_OUT {RB}
+R9  DRV_P  A_INP {RB}
+R10 A_INP  0     {RB}
+R8  A_OUT  A_C3  {RS}
+R16 A_OUT  A_C3  {RS}
+C3  A_C3   DRV_P 0.1u
+XU5A A_INP A_INM VCC VEE A_OUT ADTL082
+
+R11 B_INM 0     {RB}
+R12 B_INM B_OUT {RB}
+R14 DRV_M B_INP {RB}
+R15 B_INP IN_NET {RB}
+R13 B_OUT B_C2  {RS}
+R18 B_OUT B_C2  {RS}
+C2  B_C2  DRV_M 0.1u
+XU5B B_INP B_INM VCC VEE B_OUT ADTL082
+
+RCD1 DRV_P A    {RC}
+RT   A     B    {RTIS}
+RCD2 B     DRV_M {RC}
+RCS1 A     SP   {RC}
+RCS2 B     SM   {RC}
+RBIAS DRV_P 0 10k
+
+XU4 SP SM RG1 RG2 VCC VEE VREF AMP_OUT AD620
+RV1 RG1 RG2 {RG}
+
+R20 VCC VREF_D 47k
+R21 VREF_D 0    47k
+C18 VREF_D 0    0.1u
+XU6A VREF_D VREF VCC VEE VREF ADTL082
+
+R4 AMP_OUT VIN 10k
+VVIN VIN 0 2.5
+
+.subckt AD620 INP INM RG1 RG2 VCC VEE REF OUT
+XIA1 INP RG1 VCC VEE N1 ADTL082
+RIA1 N1  RG1 24.7k
+XIA2 INM RG2 VCC VEE N2 ADTL082
+RIA2 N2  RG2 24.7k
+RIA3 N2  X   10k
+RIA4 N1  Y   10k
+RIA5 X   OUT 10k
+RIA6 Y   REF 10k
+XIA3 Y   X   VCC VEE OUT ADTL082
+.ends
+
+.tran 0 2m 0 0.05u
+
+.meas tran iL_pp     PP  I(RT)            FROM 1.9m TO 2m
+.meas tran vdrive_pp PP  V(DRV_P,DRV_M)   FROM 1.9m TO 2m
+.meas tran vsns_pp   PP  V(A,B)           FROM 1.9m TO 2m
+.meas tran amp_pp    PP  V(AMP_OUT)       FROM 1.9m TO 2m
+.meas tran amp_max   MAX V(AMP_OUT)       FROM 1.9m TO 2m
+.meas tran amp_min   MIN V(AMP_OUT)       FROM 1.9m TO 2m
+.end

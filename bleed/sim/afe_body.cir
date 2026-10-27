@@ -1,0 +1,118 @@
+* Project Crimson AFE - tetrapolar abdominal case
+*
+* Matches bleed/bleed_parts_build.kicad_sch rev 2: Drive+/- go to the drive
+* mux, Sense+/- come back from a non-overlapping sense pair into the AD620.
+*
+* Lumped body model (per measurement shot):
+*
+*   Drive+ --RC-- A --RTIS-- B --RC-- Drive-
+*                  |            |
+*                 RCS          RCS
+*                  |            |
+*               Sense+       Sense-
+*
+*   RC   = one gel-electrode contact resistance (0.1-1k at 50 kHz)
+*   RTIS = tissue impedance between the drive contact points
+*   RCS  = sense-electrode contact resistance - only carries the AD620's
+*          ~1 nA bias current, so it barely affects the sensed voltage
+*
+* The sense pair is a different electrode pair, so the voltage the AD620 sees
+* is the transfer impedance between them, not the full 2*RC + RTIS load.  RTIS
+* is stepped to cover the 5-50 ohm range typical of an abdominal shot.
+*
+* RV1 is stepped between its two useful settings: 50k (G = 1.99) and 4.95k
+* (G = 10.98), the range the 50k trimmer can reach.
+*
+* Run:  wine LTspice.exe -b afe_body.cir
+
+.include ADTL082.lib
+
+.param RB   = 47k
+.param RS   = 10k          ; two in parallel = 5k
+.param RG   = 50k          ; RV1
+.param RC   = 300          ; per-electrode contact resistance
+.param RTIS = 20           ; tissue / transfer impedance
+.param VAMP = 1.5          ; 3.00 V p-p (2000 mV p-p range at 5 V)
+.param VDC  = 2.24
+.param RBIAS = 1e12        ; sense DC return; 10k = the spare part, 1e12 = none
+
+.step param RTIS  list 10 20 50
+.step param RG    list 50k 4.95k
+.step param RBIAS list 1e12 10k
+
+VCC VCC 0 5
+VEE VEE 0 -5
+VOUT IN 0 DC {VDC} AC 1 SINE({VDC} {VAMP} 50k)
+
+C17 IN  IN_NET 10u
+R17 IN_NET 0 10k
+
+R6  IN_NET A_INM {RB}
+R7  A_INM  A_OUT {RB}
+R9  DRV_P  A_INP {RB}
+R10 A_INP  0     {RB}
+R8  A_OUT  A_C3  {RS}
+R16 A_OUT  A_C3  {RS}
+C3  A_C3   DRV_P 0.1u
+XU5A A_INP A_INM VCC VEE A_OUT ADTL082
+
+R11 B_INM 0     {RB}
+R12 B_INM B_OUT {RB}
+R14 DRV_M B_INP {RB}
+R15 B_INP IN_NET {RB}
+R13 B_OUT B_C2  {RS}
+R18 B_OUT B_C2  {RS}
+C2  B_C2  DRV_M 0.1u
+XU5B B_INP B_INM VCC VEE B_OUT ADTL082
+
+* ---- body / electrode network -------------------------------------------
+RCD1 DRV_P A    {RC}
+RT   A     B    {RTIS}
+RCD2 B     DRV_M {RC}
+RCS1 A     SP   {RC}
+RCS2 B     SM   {RC}
+
+* C2/C3 block DC, so the drive/sense network has no DC path at all and the
+* AD620's 1 nA input bias current would walk the inputs to a rail.  One
+* resistor from a DRIVE node to 0 V pins the whole floating network: the
+* sense pair reaches it through the tissue, and because both sense inputs
+* still see only their own contact resistance the pair stays balanced.
+* (Putting the resistor on Sense+ instead adds 300/10k of the drive voltage
+* to the sensed differential signal - the simulation shows it.)
+RBIAS DRV_P 0 {RBIAS}
+
+* ---- receive chain -------------------------------------------------------
+XU4 SP SM RG1 RG2 VCC VEE VREF AMP_OUT AD620
+RV1 RG1 RG2 {RG}
+
+R20 VCC VREF_D 47k
+R21 VREF_D 0    47k
+C18 VREF_D 0    0.1u
+XU6A VREF_D VREF VCC VEE VREF ADTL082
+
+R4 AMP_OUT VIN 10k
+VVIN VIN 0 2.5
+
+.subckt AD620 INP INM RG1 RG2 VCC VEE REF OUT
+XIA1 INP RG1 VCC VEE N1 ADTL082
+RIA1 N1  RG1 24.7k
+XIA2 INM RG2 VCC VEE N2 ADTL082
+RIA2 N2  RG2 24.7k
+RIA3 N2  X   10k
+RIA4 N1  Y   10k
+RIA5 X   OUT 10k
+RIA6 Y   REF 10k
+XIA3 Y   X   VCC VEE OUT ADTL082
+.ends
+
+.tran 0 2m 0 0.05u
+
+.meas tran iL_pp     PP  I(RT)            FROM 1.9m TO 2m
+.meas tran iL_rms    RMS I(RT)            FROM 1.9m TO 2m
+.meas tran vdrive_pp PP  V(DRV_P,DRV_M)   FROM 1.9m TO 2m
+.meas tran vsns_pp   PP  V(A,B)           FROM 1.9m TO 2m
+.meas tran amp_pp    PP  V(AMP_OUT)       FROM 1.9m TO 2m
+.meas tran amp_max   MAX V(AMP_OUT)       FROM 1.9m TO 2m
+.meas tran amp_min   MIN V(AMP_OUT)       FROM 1.9m TO 2m
+.meas tran amp_gain  PARAM (amp_pp/vsns_pp)
+.end

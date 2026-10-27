@@ -1,0 +1,53 @@
+* Mirrored Howland current pump - AC transconductance vs frequency
+* Topology copied from bleed/bleed.kicad_sch (U5A/U5B, TL082ACP, +/-5 V)
+*
+*   U5A: R6  CurrentOut -> U5A-       R7  U5A- -> U5A out
+*        R9  Drive+     -> U5A+       R10 U5A+ -> Earth
+*        U5A out -> R8 -> C3 -> Drive+
+*   U5B: R11 U5B- -> Earth            R12 U5B- -> U5B out
+*        R14 Drive-     -> U5B+       R15 U5B+ -> CurrentOut
+*        U5B out -> R13 -> C2 -> Drive-
+*
+* R8/R13 = 1k (the value for ~1 mA p-p).  Sweeps 1 kHz - 10 MHz.
+* The 0.1 uF coupling caps give a high-pass corner near 1.5 kHz.
+* Run:  wine LTspice.exe -b howland_ac.cir
+
+.include ADTL082.lib
+
+.param RB   = 47k        ; R6 R7 R9 R10 R11 R12 R14 R15 (bridge network)
+.param RS   = 1k        ; R8 R13 (current-setting, as drawn)
+.param RL   = 1k         ; external load between Drive+ and Drive-
+.param VAMP = 0.5        ; input amplitude (1 Vpp excitation)
+
+VCC VCC 0 5
+VEE VEE 0 -5
+VIN IN  0 DC 0 AC 1 SINE(0 {VAMP} 50k)
+
+* --- U5A ---
+R6  IN    A_INM {RB}
+R7  A_INM A_OUT {RB}
+R9  DRV_P A_INP {RB}
+R10 A_INP 0     {RB}
+R8  A_OUT A_C3  {RS}
+C3  A_C3  DRV_P 0.1u
+XU5A A_INP A_INM VCC VEE A_OUT ADTL082
+
+* --- U5B (mirrored) ---
+R11 B_INM 0     {RB}
+R12 B_INM B_OUT {RB}
+R14 DRV_M B_INP {RB}
+R15 B_INP IN    {RB}
+R13 B_OUT B_C2  {RS}
+C2  B_C2  DRV_M 0.1u
+XU5B B_INP B_INM VCC VEE B_OUT ADTL082
+
+* --- external load (electrodes / body model) ---
+RL  DRV_P DRV_M {RL}
+
+.ac dec 50 1k 10Meg
+.meas ac iL_1k    FIND mag(I(RL)) AT 1k
+.meas ac iL_10k   FIND mag(I(RL)) AT 10k
+.meas ac iL_100k  FIND mag(I(RL)) AT 100k
+.meas ac iL_1meg  FIND mag(I(RL)) AT 1meg
+.meas ac iL_max   MAX  mag(I(RL))
+.end

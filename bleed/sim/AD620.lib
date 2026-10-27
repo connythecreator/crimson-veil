@@ -1,0 +1,13 @@
+* AD620 behavioural model (three-opamp instrumentation amplifier)
+* Pin order: 1=IN+ 2=IN- 3=RG1 4=RG2 5=V+ 6=V- 7=REF 8=OUT
+.subckt AD620 INP INM RG1 RG2 VCC VEE REF OUT
+XIA1 INP RG1 VCC VEE N1 ADTL082
+RIA1 N1  RG1 24.7k
+XIA2 INM RG2 VCC VEE N2 ADTL082
+RIA2 N2  RG2 24.7k
+RIA3 N2  X   10k
+RIA4 N1  Y   10k
+RIA5 X   OUT 10k
+RIA6 Y   REF 10k
+XIA3 Y   X   VCC VEE OUT ADTL082
+.ends AD620
