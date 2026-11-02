@@ -25,6 +25,7 @@ pytest.importorskip("numpy")
 
 import numpy as np
 import pyeit.mesh as mesh
+import matplotlib.pyplot as plt
 from pyeit.eit.fem import EITForward
 from pyeit.mesh.wrapper import PyEITAnomaly_Circle
 
@@ -134,7 +135,7 @@ def test_default_solver_selects_pyeit(monkeypatch):
     solver.close()
 
 
-def test_pyeit_with_project_protocol(tmp_path):
+def test_pyeit_with_project_protocol():
     """Test digital baseline-to-anomaly reconstruction through the pipeline."""
 
     solver = PyEITSolver(
@@ -195,10 +196,7 @@ def test_pyeit_with_project_protocol(tmp_path):
     assert len(v0) == 40
     assert len(v0) == len(measurements)
 
-    output_dir = (
-        tmp_path
-        / "pyeit_outputs"
-    )
+    output_dir = Path(__file__).parent / "pyeit_outputs"
 
     output_dir.mkdir(
         parents=True,
@@ -363,7 +361,14 @@ def test_pyeit_with_project_protocol(tmp_path):
             output_dir
             / f"{position_name}.png"
         )
-        output_path.write_bytes(png)
+        plt.imsave(
+            output_path,
+            values,
+            cmap="RdBu_r",
+            vmin=-peak_absolute_change,
+            vmax=peak_absolute_change,
+            origin="upper",
+        )
 
         print(
             "Saved image:",
