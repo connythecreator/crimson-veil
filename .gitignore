@@ -52,3 +52,31 @@ bleed/.history/
 # Scratch / backup copies
 *.bak
 *.bak[0-9]*
+
+# Marketing decks, slides, promo renders, and generator scripts (local-only)
+marketing/
+
+# Root-level presentation/report deliverables
+/*.pptx
+/*.potx
+/*.docx
+/*.pdf
+
+# Loose top-level photos/brand exports
+/imagdaadade.jpg
+/CrimsonVeil-Cybercore-2-in-5.png
+/CrimsonVeil-Cybercore-2-in-5.svg
+
+# UI screenshots
+screenshots/
+
+# Generated pyEIT reconstruction figures
+software/reconstruction/figures/
+
+# Whole-device assembly generated outputs (keep scripts/README trackable)
+3Dmodels/assembly/parts/
+3Dmodels/assembly/preview/
+3Dmodels/assembly/belt-anim/
+3Dmodels/assembly/pi-stack-anim/
+3Dmodels/assembly/*.blend1
+3Dmodels/assembly/*.glb
