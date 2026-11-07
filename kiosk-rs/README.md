@@ -43,7 +43,22 @@ src/app.rs        state machine, networking glue, 15 fps frame pacing
 - **Controls**: `SINGLE SCAN` runs one scan; `MONITOR` toggles continuous mode
   (debounced: frequent while the user interacts via `activity`, backing off
   when idle). Intervals are `CV_ACTIVE_INTERVAL_S` / `CV_IDLE_INTERVAL_S`
-  (default 60 s / 120 s). There is no auto-start.
+  (default 15 s / 30 s). There is no auto-start.
+- **Demo mode**: Settings has **ENABLE DEMO** (upload the ESP32 mock firmware and
+  capture the mock baseline) and **INJECT ANOMALY** (switch the mock firmware to
+  its target table and run a scan). Pressing INJECT ANOMALY three times (or
+  using SINGLE SCAN after it) satisfies the persistence alert. The demo button
+  becomes **EXIT DEMO** while active and re-uploads the real firmware. If the
+  real self-test fails, use **CONTINUE ANYWAY** to reach Settings and enable the
+  demo without first repairing the hardware.
+- **Anomaly alert**: `scan_result.anomaly_score` is the 99th percentile of
+  the absolute difference map. The kiosk tracks it across scans; when it stays
+  at or above `CV_ANOMALY_THRESHOLD` (default `0.05`) for
+  `CV_ANOMALY_PERSIST_SCANS` (default `3`) consecutive scans, a modal
+  **INTERNAL BLEEDING IDENTIFIED** popup appears with a `DISMISS` button.
+  A single noisy frame cannot trigger it, and dismissing resets the streak.
+- **Temperatures**: the scan page readouts and the Settings page show both the
+  ESP32 and AD5933 temperatures from `metrics`.
 - **Scan effects** (`src/fx.rs`, `src/hud.rs`): while a scan runs, a fixed
   lattice of points pulses in place (they do not move — only their brightness
   shimmers); when the reconstructed PNG arrives (baked to a circular disc), a

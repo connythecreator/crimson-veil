@@ -32,7 +32,9 @@ DEFAULT_FREQUENCY_HZ = float(os.environ.get("CV_FREQUENCY_HZ", "50000"))
 N_ELECTRODES = 8
 
 # USB serial to the ESP32.
-ESP32_PORT = os.environ.get("CV_ESP32_PORT", "/dev/ttyACM0")
+# Empty = auto-detect: prefer CP210x/CH340/Espressif by USB ID, then ttyUSB,
+# then ttyACM. Set CV_ESP32_PORT to pin an exact device.
+ESP32_PORT = os.environ.get("CV_ESP32_PORT", "")
 ESP32_BAUD = int(os.environ.get("CV_ESP32_BAUD", "115200"))
 
 # Kiosk display: the 3.5" SPI panel is 480x320; kept for reference/tools.

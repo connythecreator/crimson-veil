@@ -7,9 +7,10 @@
 #
 #   /run/veil-bms/telemetry.json
 #
-# Fields: ts, power_mode (0=USB, else battery), vin_v (battery when on
-# battery), vout_v (5V rail), iout_a, temp_c (LM75B), charging, standby (both
-# active-low, true=asserted), low_v (configured shutdown threshold, V).
+# Fields: ts, power_mode (1=battery; 0=USB without battery data; 2=USB with
+# battery/charging), vin_v (battery voltage in modes 1/2), vout_v (5V rail),
+# iout_a, temp_c (LM75B), charging, standby (both active-low, true=asserted),
+# low_v (configured shutdown threshold, V).
 #
 # No battery SoC/time-left here: that estimation lives in metrics.py (host).
 

@@ -114,3 +114,19 @@ def test_summarize_samples(core):
 def test_phase_wrap(core):
     assert math.isclose(core.wrap_deg(370.0), 10.0)
     assert math.isclose(core.wrap_deg(-370.0), -10.0)
+
+
+def test_expected_resistor(core):
+    assert core.expected_resistor(10_000.0) == complex(10_000.0, 0.0)
+    with pytest.raises(ValueError):
+        core.expected_resistor(0)
+
+
+def test_evaluate_expected_resistor_passes(core):
+    expected = core.expected_resistor(10_000.0)
+    raw = complex(1000.0, 0.0)
+    samples = [(raw.real, raw.imag) for _ in range(16)]
+    result = core.evaluate_expected(expected, samples)
+    assert result["measured"]["mag"] == pytest.approx(10_000.0)
+    assert result["measured"]["phase_deg"] == pytest.approx(0.0)
+    assert [check["status"] for check in result["checks"]] == ["pass", "pass"]

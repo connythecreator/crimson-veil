@@ -1,0 +1,9 @@
+ AD5933 — https://www.analog.com/media/en/technical-documentation/data-sheets/AD5933.pdf
+- AD620 — https://www.analog.com/media/en/technical-documentation/data-sheets/AD620.pdf
+- TL082 — https://www.ti.com/lit/ds/symlink/tl082.pdf
+- CD74HC4067 — https://www.ti.com/lit/ds/symlink/cd74hc4067.pdf
+- CD74HC4067 — https://www.ti.com/lit/ds/symlink/cd74hc4067.pdf
+- TI AN-1515 (Howland current pump) — https://www.ti.com/lit/an/snoa474a/snoa474a.pdf
+- Adler & Boyle, IEEE TBME 2017 — https://doi.org/10.1109/TBME.2017.2728323
+- Dräger PulmoVista 500 — https://www.draeger.com/en_uk/Products/PulmoVista-500
+- Timpel ENLIGHT — https://timpelmedical.com/en/

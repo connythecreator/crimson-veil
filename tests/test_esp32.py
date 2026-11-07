@@ -58,15 +58,16 @@ def _frame(n_points: int, freq: float = 50_000.0) -> dict:
     }
 
 
-def test_open_learns_electrodes_and_frequency():
+def test_open_learns_electrodes_and_frequency(tmp_path):
+    port = str(tmp_path)
     t = FakeTransport([_hello(n_electrodes=8), _hello(n_electrodes=8)])
     hw = Esp32Hardware(t)
-    hw.open(DeviceConfig(backend="esp32", options={"port": "/dev/ttyACM0"}))
+    hw.open(DeviceConfig(backend="esp32", options={"port": port}))
     assert hw.n_electrodes == 8
     assert hw.electrodes == list(range(8))
     assert hw.firmware == "1.0.0"
     assert hw.frequency_hz == 50_000.0
-    assert hw.identify() == "esp32:/dev/ttyACM0"
+    assert hw.identify() == f"esp32:{port}"
     # It asked the ESP32 to identify itself.
     assert t.written[0]["type"] == "identify"
 
@@ -117,6 +118,24 @@ def test_bad_json_raises():
     hw = Esp32Hardware(t)
     hw.open(DeviceConfig(backend="esp32", options={}))
     with pytest.raises(Esp32Error):
+        hw.scan()
+
+
+def test_scan_ignores_repl_dict_echo():
+    t = FakeTransport([_hello(), _hello(), "{'type': 'scan'}", _frame(40)])
+    hw = Esp32Hardware(t)
+    hw.open(DeviceConfig(backend="esp32", options={}))
+
+    points = hw.scan()
+    assert len(points) == 40
+
+
+def test_scan_times_out_after_repl_echo_instead_of_surfacing_it():
+    t = FakeTransport([_hello(), _hello(), "{'type': 'scan'}"])
+    hw = Esp32Hardware(t)
+    hw.open(DeviceConfig(backend="esp32", options={}))
+
+    with pytest.raises(Esp32Error, match="timed out"):
         hw.scan()
 
 
@@ -433,3 +452,19 @@ def test_selftest_reads_result_and_absorbs_telemetry():
     assert out["ad5933"] is True
     assert t.written[-1] == {"type": "selftest"}
     assert hw.telemetry()["temp_esp32_c"] == 50.0
+
+
+def test_open_reports_bench_hwtest_firmware():
+    t = FakeTransport([{"type": "hwtest_hello", "firmware": "hwtest 1.2.0"}])
+    hw = Esp32Hardware(t)
+    with pytest.raises(Esp32Error, match="bench hwtest firmware"):
+        hw.open(DeviceConfig(backend="esp32", options={}))
+
+
+def test_mock_mode_roundtrip():
+    t = FakeTransport([_hello(), {"type": "mock_mode_result", "mode": "target"}])
+    hw = Esp32Hardware(t)
+    hw.open(DeviceConfig(backend="esp32", options={}))
+
+    assert hw.mock_mode("target") == "target"
+    assert t.written[-1] == {"type": "mock_mode", "mode": "target"}

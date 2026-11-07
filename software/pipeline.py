@@ -15,11 +15,42 @@ host-side calibration step.
 
 from __future__ import annotations
 
+import math
+from dataclasses import dataclass
+
 from .core import config
 from .core.types import ScanData
 from .interfaces.hardware import HardwareBackend
 from .interfaces.solver import SolverBackend
 from .reconstruction.image import conductivity_to_png
+
+
+@dataclass
+class ScanOutput:
+    """PNG bytes plus the scalar anomaly score used by the kiosk alert."""
+
+    png: bytes
+    anomaly_score: float
+
+
+def anomaly_score(values: list[list[float]]) -> float:
+    """Return a robust peak of the reconstructed difference map.
+
+    The pyEIT BP image is in arbitrary units, so this is a relative score: the
+    99th percentile of the absolute pixel values. A localized high-contrast
+    inclusion raises it above the diffuse background. The kiosk applies the
+    threshold and the persistence count.
+    """
+    flat = sorted(
+        abs(value)
+        for row in values
+        for value in row
+        if math.isfinite(value)
+    )
+    if not flat:
+        return 0.0
+    index = min(len(flat) - 1, int(0.99 * (len(flat) - 1)))
+    return float(flat[index])
 
 
 def default_hardware() -> HardwareBackend:
@@ -75,12 +106,12 @@ def acquire(hardware: HardwareBackend) -> ScanData:
     )
 
 
-def run_scan(
+def run_scan_output(
     hardware: HardwareBackend | None = None,
     solver: SolverBackend | None = None,
     baseline: ScanData | None = None,
-) -> bytes:
-    """Run a full scan and return the reconstructed image as PNG bytes.
+) -> ScanOutput:
+    """Run a full scan and return the PNG plus its anomaly score.
 
     If ``hardware``/``solver`` are not supplied, the configured defaults are
     created and closed here. If they are supplied (e.g. by ``main.py`` at boot),
@@ -102,7 +133,10 @@ def run_scan(
             solver.setup(n_electrodes, config.mesh_config(n_electrodes))
         frame = acquire(hardware)
         cmap = solver.reconstruct(frame, baseline=baseline)
-        return conductivity_to_png(cmap)
+        return ScanOutput(
+            png=conductivity_to_png(cmap),
+            anomaly_score=anomaly_score(cmap.values),
+        )
     finally:
         try:
             if owns_solver and solver is not None:
@@ -110,3 +144,12 @@ def run_scan(
         finally:
             if owns_hardware and hardware is not None:
                 hardware.close()
+
+
+def run_scan(
+    hardware: HardwareBackend | None = None,
+    solver: SolverBackend | None = None,
+    baseline: ScanData | None = None,
+) -> bytes:
+    """Run a full scan and return the reconstructed image as PNG bytes."""
+    return run_scan_output(hardware=hardware, solver=solver, baseline=baseline).png

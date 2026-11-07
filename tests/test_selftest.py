@@ -209,3 +209,31 @@ def test_impedance_reports_loaded_calibration_points():
     check = selftest.impedance_check(FakeSession(hardware=hw))
     assert check.status == "pass"
     assert "2 calibration points" in check.detail
+
+
+def test_impedance_fails_on_open_mux_electrode():
+    hw = Esp32Hardware(
+        selftest_result={
+            "ad5933": True,
+            "mux": False,
+            "calibration": True,
+            "calibration_entries": 2,
+            "error": "mux open: electrode(s) 3, 4",
+        }
+    )
+    check = selftest.impedance_check(FakeSession(hardware=hw))
+    assert check.status == "fail"
+    assert "mux open" in check.detail
+    assert "3, 4" in check.detail
+
+
+def test_battery_reports_usb_charging_with_battery(monkeypatch):
+    monkeypatch.setattr(
+        metrics,
+        "read_bms",
+        lambda: _fresh_bms(power_mode=2, vin_v=4.0, charging=True),
+    )
+    check = selftest.battery_check()
+    assert check.status == "pass"
+    assert "USB power, charging" in check.detail
+    assert "4.00 V" in check.detail

@@ -399,7 +399,8 @@ class PyEITSolver:
         )
 
         return ConductivityMap(
-            values=image.tolist()
+            values=image.tolist(),
+            centered=True,
         )
 
     def close(self) -> None:

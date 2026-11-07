@@ -10,7 +10,8 @@ Examples:
     python tools/hwtest.py --upload --port /dev/ttyUSB0
     python tools/hwtest.py --port /dev/ttyUSB0
     python tools/hwtest.py --port /dev/ttyUSB0 --f 10000 --json
-    python tools/hwtest.py --port /dev/ttyUSB0 --calibrate --freqs 10000,50000
+    python tools/hwtest.py --port /dev/ttyUSB0 --calibrate --fixture resistor --freqs 10000,50000
+    python tools/hwtest.py --port /dev/ttyUSB0 --calibrate --fixture capacitor --freqs 10000,50000
 """
 
 from __future__ import annotations
@@ -26,11 +27,13 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 HWTEST_DIR = ROOT / "firmware" / "mp-firm" / "hwtest"
-HWTEST_FILES = ("main.py", "hwtest_core.py", "ad5933_driver.py")
+HWTEST_FILES = ("main.py", "hwtest_core.py", "ad5933_driver.py", "status_led.py")
 
 DEFAULT_BAUD = 115200
 DEFAULT_FREQ_HZ = 50_000.0
 DEFAULT_CAPACITANCE_F = 0.1e-6
+DEFAULT_RESISTANCE_OHM = 100.0
+DEFAULT_RANGE = "1vpp"
 DEFAULT_SAMPLES = 16
 DEFAULT_TOL_PCT = 5.0
 DEFAULT_TOL_DEG = 5.0
@@ -209,7 +212,10 @@ def run_test(serial: LineSerial, args: argparse.Namespace) -> dict:
             "type": "hwtest_run",
             "seq": 1,
             "f": args.f,
+            "fixture": args.fixture,
+            "range": args.range,
             "c_f": args.c_f,
+            "r_ohm": args.r_ohm,
             "samples": args.samples,
             "tol_pct": args.tol_pct,
             "tol_deg": args.tol_deg,
@@ -219,6 +225,44 @@ def run_test(serial: LineSerial, args: argparse.Namespace) -> dict:
     )
     point_timeout = max(args.timeout, 1.0 + 0.5 * args.samples)
     return wait_for(serial, ("hwtest_result",), timeout=point_timeout, seq=1)
+
+
+def run_mux(serial: LineSerial, args: argparse.Namespace) -> dict:
+    serial.write_line({"type": "hwtest_identify"})
+    hello = wait_for(serial, ("hwtest_hello",), timeout=args.timeout)
+    if not hello.get("firmware", "").startswith("hwtest"):
+        raise HwTestError(f"unexpected firmware: {hello.get('firmware')!r}")
+    serial.write_line(
+        {
+            "type": "hwtest_mux",
+            "seq": 1,
+            "f": args.f,
+            "min_raw": args.min_raw,
+        }
+    )
+    timeout = max(args.timeout, 2.0 + 0.5 * 8)
+    return wait_for(serial, ("hwtest_mux_result",), timeout=timeout, seq=1)
+
+
+def run_excite(serial: LineSerial, args: argparse.Namespace) -> dict:
+    serial.write_line({"type": "hwtest_identify"})
+    hello = wait_for(serial, ("hwtest_hello",), timeout=args.timeout)
+    if not hello.get("firmware", "").startswith("hwtest"):
+        raise HwTestError(f"unexpected firmware: {hello.get('firmware')!r}")
+    serial.write_line(
+        {
+            "type": "hwtest_excite",
+            "seq": 1,
+            "f": args.f,
+            "range": args.range,
+        }
+    )
+    return wait_for(serial, ("hwtest_excite",), timeout=args.timeout, seq=1)
+
+
+def run_stop(serial: LineSerial) -> dict:
+    serial.write_line({"type": "hwtest_stop"})
+    return {"type": "hwtest_stopped", "status": "pass"}
 
 
 def _parse_freqs(text: str) -> list[float]:
@@ -252,7 +296,10 @@ def run_calibration(
             "type": "hwtest_calibrate",
             "seq": 1,
             "freqs": freqs,
+            "fixture": args.fixture,
+            "range": args.range,
             "c_f": args.c_f,
+            "r_ohm": args.r_ohm,
             "samples": args.samples,
             "tol_pct": args.tol_pct,
             "tol_deg": args.tol_deg,
@@ -281,7 +328,10 @@ def format_result(result: dict) -> str:
         f"  firmware   : {result.get('firmware', '?')}",
         f"  frequency  : {_fmt(result.get('f_hz'), ' Hz', 0)}",
         f"  temperature: {_fmt(result.get('temp_ad5933_c'), ' C')}",
+        f"  fixture    : {(result.get('fixture') or {}).get('kind', 'capacitor')}",
+        f"  range      : {result.get('range', '?')}",
         f"  capacitor  : {_fmt((result.get('fixture') or {}).get('c_f'), ' F', 9)}",
+        f"  resistor   : {_fmt((result.get('fixture') or {}).get('r_ohm'), ' ohm')}",
         f"  expected   : {_fmt(expected.get('mag'), ' ohm')} @ "
         f"{_fmt(expected.get('phase_deg'), ' deg')}",
         f"  raw        : re {_fmt(raw.get('re_mean'))}  im {_fmt(raw.get('im_mean'))}  "
@@ -304,6 +354,30 @@ def format_result(result: dict) -> str:
     return "\n".join(lines)
 
 
+def format_mux(result: dict) -> str:
+    lines = [
+        "Crimson Veil - mux continuity",
+        f"  frequency : {_fmt(result.get('f_hz'), ' Hz', 0)}",
+        f"  min raw   : {_fmt(result.get('min_raw'))}",
+        "  e  status      raw|S|",
+    ]
+    for point in result.get("points", []):
+        lines.append(
+            f"  {int(point.get('e', -1)):1d}  "
+            f"{str(point.get('status', '?')).upper():<9} "
+            f"{_fmt(point.get('raw_abs')):>10}"
+        )
+    lines.append(f"  status    : {str(result.get('status', '?')).upper()}")
+    open_electrodes = result.get("open_electrodes")
+    if open_electrodes:
+        lines.append(
+            "  open      : " + ", ".join(str(electrode) for electrode in open_electrodes)
+        )
+    if result.get("error"):
+        lines.append(f"  error     : {result['error']}")
+    return "\n".join(lines)
+
+
 def format_calibration(result: dict) -> str:
     lines = [
         "Crimson Veil - calibration written",
@@ -314,9 +388,17 @@ def format_calibration(result: dict) -> str:
     for entry in result.get("entries", []):
         lines.append(
             f"    {_fmt(entry.get('f'), ' Hz', 0):>12}  "
+            f"{str(entry.get('fixture', '?')):9}  "
+            f"{str(entry.get('range', '?')):5}  "
             f"K {_fmt(entry.get('mag'), ' ohm/code')} @ "
             f"{_fmt(entry.get('phase_deg'), ' deg')}  "
             f"[{str(entry.get('status', '?')).upper()}]"
+        )
+    for item in result.get("comparison", []):
+        lines.append(
+            f"    compare {_fmt(item.get('f'), ' Hz', 0):>8}: "
+            f"mag diff {_fmt(item.get('mag_diff_pct'), ' %')}, "
+            f"phase diff {_fmt(item.get('phase_diff_deg'), ' deg')}"
         )
     if result.get("error"):
         lines.append(f"  error  : {result['error']}")
@@ -345,16 +427,55 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--f", type=float, default=DEFAULT_FREQ_HZ, help="test frequency (Hz)")
     parser.add_argument(
+        "--fixture",
+        choices=("capacitor", "resistor"),
+        default="capacitor",
+        help="reference fixture for tests/calibration (default: capacitor)",
+    )
+    parser.add_argument(
         "--c-f",
         type=float,
         default=DEFAULT_CAPACITANCE_F,
         help="fixture capacitance (F)",
+    )
+    parser.add_argument(
+        "--r-ohm",
+        type=float,
+        default=DEFAULT_RESISTANCE_OHM,
+        help="fixture resistance (ohm)",
+    )
+    parser.add_argument(
+        "--range",
+        choices=("2vpp", "1vpp", "400mv", "200mv"),
+        default=DEFAULT_RANGE,
+        help="AD5933 excitation range (default: 1vpp)",
     )
     parser.add_argument("--samples", type=int, default=DEFAULT_SAMPLES)
     parser.add_argument("--tol-pct", type=float, default=DEFAULT_TOL_PCT)
     parser.add_argument("--tol-deg", type=float, default=DEFAULT_TOL_DEG)
     parser.add_argument("--drift-pct", type=float, default=DEFAULT_DRIFT_PCT)
     parser.add_argument("--drift-deg", type=float, default=DEFAULT_DRIFT_DEG)
+    parser.add_argument(
+        "--mux",
+        action="store_true",
+        help="run the mux continuity cycle (all roles on each electrode)",
+    )
+    parser.add_argument(
+        "--min-raw",
+        type=float,
+        default=10.0,
+        help="raw magnitude below this is treated as open in --mux (default: 10)",
+    )
+    parser.add_argument(
+        "--excite",
+        action="store_true",
+        help="leave the AD5933 excitation running for a scope AFE test",
+    )
+    parser.add_argument(
+        "--stop",
+        action="store_true",
+        help="power down the AD5933 and stop excitation",
+    )
     parser.add_argument("--json", action="store_true", help="print the raw result JSON")
     return parser
 
@@ -377,7 +498,13 @@ def main(argv: list[str] | None = None) -> int:
 
         serial = LineSerial(port, args.baud, args.timeout)
         try:
-            if args.calibrate:
+            if args.stop:
+                result = run_stop(serial)
+            elif args.excite:
+                result = run_excite(serial, args)
+            elif args.mux:
+                result = run_mux(serial, args)
+            elif args.calibrate:
                 result = run_calibration(serial, args, freqs)
             else:
                 result = run_test(serial, args)
@@ -389,6 +516,16 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.json:
         print(json.dumps(result, indent=2))
+    elif args.excite:
+        print(
+            "Excitation ON at "
+            f"{_fmt(result.get('f'), ' Hz', 0)}. "
+            "Scope the AFE now; run with --stop when finished."
+        )
+    elif args.stop:
+        print("Excitation stopped (AD5933 powered down).")
+    elif args.mux:
+        print(format_mux(result))
     elif args.calibrate:
         print(format_calibration(result))
     else:

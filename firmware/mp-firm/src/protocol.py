@@ -88,7 +88,12 @@ def read_line(stream):
     if not raw:
         return None
     if isinstance(raw, bytes):
-        raw = raw.decode("utf-8")
+        try:
+            raw = raw.decode("utf-8")
+        except UnicodeError:
+            # Serial noise on open (or a stray non-UTF8 byte) must not crash
+            # the command loop; skip the malformed line.
+            return ""
     return raw.rstrip("\r\n")
 
 

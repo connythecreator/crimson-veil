@@ -36,6 +36,18 @@ pub struct ServerMessage {
     #[serde(default)]
     pub bytes: usize,
     #[serde(default)]
+    pub anomaly_score: f32,
+    #[serde(default)]
+    pub mock: bool,
+    #[serde(default)]
+    pub electrodes: u32,
+    #[serde(default)]
+    pub mode: String,
+    #[serde(default)]
+    pub port: String,
+    #[serde(default)]
+    pub files: Vec<String>,
+    #[serde(default)]
     pub continuous: bool,
     #[serde(default)]
     pub scanning: bool,
@@ -100,6 +112,12 @@ pub enum ClientMessage {
     SetFrequency { frequency_hz: f64 },
     #[serde(rename = "self_test")]
     SelfTest,
+    #[serde(rename = "hardware_retry")]
+    HardwareRetry,
+    #[serde(rename = "upload_firmware")]
+    UploadFirmware { mock: bool, electrodes: u32 },
+    #[serde(rename = "mock_mode")]
+    MockMode { mode: String },
     #[serde(rename = "ping")]
     Ping,
 }
@@ -132,6 +150,14 @@ mod tests {
         assert_eq!(m.id, "abc");
         assert_eq!(m.width, 256);
         assert_eq!(m.bytes, 1234);
+        assert_eq!(m.anomaly_score, 0.0);
+    }
+
+    #[test]
+    fn parse_scan_result_with_anomaly_score() {
+        let raw = r#"{"type":"scan_result","id":"abc","width":256,"height":256,"bytes":1234,"anomaly_score":0.075}"#;
+        let m: ServerMessage = serde_json::from_str(raw).unwrap();
+        assert_eq!(m.anomaly_score, 0.075);
     }
 
     #[test]
@@ -150,13 +176,13 @@ mod tests {
     fn encode_continuous() {
         let json = ClientMessage::Continuous {
             on: true,
-            active_interval_s: 60.0,
-            idle_interval_s: 120.0,
+            active_interval_s: 15.0,
+            idle_interval_s: 30.0,
         }
         .to_json();
         assert!(json.contains(r#""type":"continuous""#));
-        assert!(json.contains(r#""active_interval_s":60.0"#));
-        assert!(json.contains(r#""idle_interval_s":120.0"#));
+        assert!(json.contains(r#""active_interval_s":15.0"#));
+        assert!(json.contains(r#""idle_interval_s":30.0"#));
     }
 
     #[test]
@@ -187,6 +213,37 @@ mod tests {
     #[test]
     fn encode_self_test() {
         assert_eq!(ClientMessage::SelfTest.to_json(), r#"{"type":"self_test"}"#);
+    }
+
+    #[test]
+    fn encode_hardware_retry() {
+        assert_eq!(
+            ClientMessage::HardwareRetry.to_json(),
+            r#"{"type":"hardware_retry"}"#
+        );
+    }
+
+    #[test]
+    fn encode_upload_firmware() {
+        assert_eq!(
+            ClientMessage::UploadFirmware {
+                mock: true,
+                electrodes: 8
+            }
+            .to_json(),
+            r#"{"type":"upload_firmware","mock":true,"electrodes":8}"#
+        );
+    }
+
+    #[test]
+    fn encode_mock_mode() {
+        assert_eq!(
+            ClientMessage::MockMode {
+                mode: "target".into()
+            }
+            .to_json(),
+            r#"{"type":"mock_mode","mode":"target"}"#
+        );
     }
 
     #[test]

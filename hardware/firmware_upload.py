@@ -24,6 +24,7 @@ FIRMWARE_FILES = (
     "main.py",
     "protocol.py",
     "ad5933_driver.py",
+    "status_led.py",
     "mock_ad5933.py",
     "mock_tables_4.py",
     "mock_tables_8.py",

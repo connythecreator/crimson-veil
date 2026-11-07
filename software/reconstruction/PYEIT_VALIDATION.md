@@ -1,10 +1,9 @@
 # pyEIT integration validation
 
 Validated on 14 October 2026, and re-run against the current host and firmware
-on 27 October 2026. The numerical solver, host pipeline and synthetic
-end-to-end path pass. Physical acquisition is still unvalidated: the AD5933
-driver and gain/phase calibration now exist, but the mux wiring and a saline
-phantom have not been verified on hardware.
+on 28 October 2026. The numerical solver, host pipeline and synthetic
+end-to-end path pass. The as-built analog chain (excluding the mux bank) has
+been bench-verified; the mux wiring and a full saline phantom have not.
 
 ## Reference comparison
 
@@ -26,6 +25,16 @@ pipeline or API. Implementation checks used the official
 
 - Support both upstream protocol layouts, maintaining one-to-one ordering and
   sense polarity correction.
+- Render difference maps on a symmetric zero-centred scale using the classic
+  EIT blue/white/red ramp: positive conductivity change (lower impedance) is
+  red, the baseline is white and negative change (higher impedance) is blue.
+  Difference PNGs are RGB and the kiosk crops the full field; absolute maps
+  stay grayscale and keep the luminance crop.
+- Treat the mock impedance tables as post-calibration boundary voltages. The
+  firmware now skips `Z = K / S` for a mock driver (`is_mock`), and an empty
+  calibration leaves measurements unchanged instead of returning their
+  reciprocal. Previously the mock's single baseline/target pair was inverted
+  in the live kiosk and in the saved diagnostic figures.
 - Require a captured baseline by default. The homogeneous unit-model reference
   is available only with explicit `allow_homogeneous_reference=True` for FEM
   simulations. Raw device counts do not have a demonstrated common scale with it.
@@ -54,8 +63,8 @@ pytest 9.x.
 
 | Final run | Result |
 | --- | --- |
-| Full suite, installed pyEIT 1.2.4 (`pytest -q`) | **200 passed**, 11.0 seconds |
-| Rust kiosk (`cargo test`) | **15 passed** |
+| Full suite, installed pyEIT 1.2.4 (`pytest -q`) | **246 passed**, 13.3 seconds |
+| Rust kiosk (`cargo test`) | **22 passed** |
 | Whitespace/error check (`git diff --check`) | Passed |
 
 The suite covers:
@@ -64,6 +73,10 @@ The suite covers:
 - Independent FEM voltage acquisition, equal baseline/frame producing zero,
   and both increased and decreased conductivity localized in all four quadrants.
 - Correct positive/negative reconstruction signs and finite image values.
+- Zero-centred classic EIT rendering: positive conductivity change (lower
+  impedance) is red, negative change (higher impedance) is blue, and the
+  baseline is black. The mock firmware's baseline/target pair is verified end
+  to end through the real command loop, including the calibration bypass.
 - Rejection of malformed counts, electrode/frequency mismatches, NaN/Inf and
   zero-real baseline measurements.
 - Real `Esp32Hardware` parsing → `ScanSession` baseline capture → `pipeline` →
@@ -90,15 +103,17 @@ against actual pyEIT implementations, not just mocked protocol objects.
 
 ## Remaining limits
 
-1. **Physical acquisition is unverified.** The AD5933 driver now implements the
-   sweep and temperature reads, and `tools/hwtest.py` exercises the analog
-   channel with a known capacitor, but no full-ring capture has been compared
-   against a phantom or an independent impedance analyser.
-2. **Mux roles do not retain distinct addresses.** `MuxBank` shares address
-   pins across the four roles. `select_measurement()` changes that same address
-   repeatedly while enabling each role. With requested drive `(0, 1)` and sense
-   `(2, 3)`, the code leaves all enabled roles on address 3. Confirm the schematic
-   and independent selection/latching mechanism before changing GPIO behavior.
+1. **Full-ring physical acquisition is unverified.** The AD5933 driver and
+   analog chain (excluding the mux bank) are bench-verified, and
+   `tools/hwtest.py` exercises the channel with a known fixture, but no
+   full-ring capture has been compared against a phantom or an independent
+   impedance analyser.
+2. **Mux bank and full-ring scan are unverified.** The firmware drives four
+   independent 3-bit address buses for the always-enabled, non-latching muxes,
+   and `selftest` now runs an all-roles-per-electrode continuity check that
+   fails if any electrode is open. The real mux wiring, channel matching and
+   on-resistance still need bench confirmation, and `cal.json` must be
+   re-derived with the mux bank in the signal path.
 3. **Calibration is bench-derived, not clinical.** The production firmware now
    loads `cal.json` written by `firmware/mp-firm/hwtest/` and refuses scans when
    it is missing or invalid. That establishes gain and phase for the bench

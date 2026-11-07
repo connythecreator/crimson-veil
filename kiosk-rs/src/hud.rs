@@ -19,6 +19,11 @@ pub enum Action {
     Scan,
     ToggleMonitor,
     CaptureBaseline,
+    RetryHardware,
+    DismissBleeding,
+    EnableDemo,
+    InjectAnomaly,
+    ContinueAnyway,
 }
 
 // Phone palette: near-black bezel, dark app surface, raised cards.
@@ -63,8 +68,7 @@ pub fn draw(
     // Pre-start: a full-screen terminal-style self-test. A tap is handled by
     // the app (it needs the input state), so no action is returned here.
     if state.phase == Phase::SelfTest {
-        self_test_page(&p, app, state);
-        return None;
+        return self_test_page(ctx, &p, app, state);
     }
 
     let status = Rect::from_min_max(app.min, Pos2::new(app.right(), app.top() + STATUS_H));
@@ -82,14 +86,14 @@ pub fn draw(
     let body = content.shrink(4.0);
     let action = match state.page {
         Page::Scan => scan_page(ctx, &p, body, state, fx, time_s, image),
-        Page::Settings => {
-            settings_page(&p, body, state);
-            None
-        }
+        Page::Settings => settings_page(ctx, &p, body, state),
         Page::Calibration => calibration_page(ctx, &p, body, state),
     };
     rail_nav(ctx, rail, state);
     home_indicator(&p, app);
+    if state.anomaly_alert {
+        return bleeding_alert(ctx, &p, app, state);
+    }
     action
 }
 
@@ -105,11 +109,21 @@ fn status_bar(painter: &egui::Painter, rect: Rect, state: &AppState) {
         FontId::proportional(14.0),
         TEXT,
     );
+    if state.demo_mode {
+        painter.text(
+            Pos2::new(rect.left() + 62.0, cy),
+            Align2::LEFT_CENTER,
+            "DEMO",
+            FontId::monospace(9.0),
+            WARN,
+        );
+    }
 
     // Right cluster: fuel-gauge glyph (with a charging bolt when charging),
     // the state-of-charge percentage immediately left of it, and the undershot
-    // runtime to the left of that. Temperatures are shown only in Settings; the
-    // signal bars are dropped for now (the `signal` fn is kept for later).
+    // runtime to the left of that. Temperatures are shown on the scan page and
+    // in Settings; the signal bars are dropped for now (the `signal` fn is kept
+    // for later).
     let glyph_cx = rect.right() - 22.0;
     battery(painter, Pos2::new(glyph_cx, cy), state);
 
@@ -433,6 +447,8 @@ fn scan_page(
         ("Scans", format!("{}", state.scan_count)),
         ("Active", format!("{:.0}s", state.active_interval_s)),
         ("Idle", format!("{:.0}s", state.idle_interval_s)),
+        ("ESP32", fmt_temp(state.temp_esp32_c)),
+        ("AD5933", fmt_temp(state.temp_ad5933_c)),
     ];
     for (key, value) in rows {
         if y + 11.0 > column.bottom() {
@@ -511,7 +527,12 @@ fn painted_button(
 }
 
 /// Full-screen terminal-style hardware self-test (shown before the HUD).
-fn self_test_page(painter: &egui::Painter, app: Rect, state: &AppState) {
+fn self_test_page(
+    ctx: &egui::Context,
+    painter: &egui::Painter,
+    app: Rect,
+    state: &AppState,
+) -> Option<Action> {
     let left = app.left() + 14.0;
     let right = app.right() - 14.0;
     let mut y = app.top() + 12.0;
@@ -589,18 +610,55 @@ fn self_test_page(painter: &egui::Painter, app: Rect, state: &AppState) {
         }
     }
 
-    let (footer, footer_color) = if state.self_test_done {
-        ("TAP TO CONTINUE", OK)
+    let failed = state.boot_error.is_some()
+        || state.checks.iter().any(|check| check.status == "fail");
+    let mut action = None;
+
+    if state.self_test_done && failed {
+        let gap = 6.0;
+        let button_w = 154.0;
+        let retry = Rect::from_center_size(
+            Pos2::new(
+                app.center().x - button_w / 2.0 - gap / 2.0,
+                app.bottom() - 30.0,
+            ),
+            Vec2::new(button_w, 22.0),
+        );
+        let cont = Rect::from_center_size(
+            Pos2::new(
+                app.center().x + button_w / 2.0 + gap / 2.0,
+                app.bottom() - 30.0,
+            ),
+            Vec2::new(button_w, 22.0),
+        );
+        if painted_button(ctx, painter, retry, "RECONNECT & RETRY", true, false) {
+            action = Some(Action::RetryHardware);
+        } else if painted_button(ctx, painter, cont, "CONTINUE ANYWAY", true, false) {
+            action = Some(Action::ContinueAnyway);
+        }
+        painter.text(
+            Pos2::new(app.center().x, app.bottom() - 10.0),
+            Align2::CENTER_CENTER,
+            "HARDWARE SELF-TEST FAILED",
+            FontId::monospace(8.5),
+            CRIM2,
+        );
     } else {
-        ("TAP TO RETRY IF THE SERVICE IS OFFLINE", STEEL)
-    };
-    painter.text(
-        Pos2::new(app.center().x, app.bottom() - 16.0),
-        Align2::CENTER_CENTER,
-        footer,
-        FontId::monospace(10.0),
-        footer_color,
-    );
+        let (footer, footer_color) = if state.self_test_done {
+            ("TAP TO CONTINUE", OK)
+        } else {
+            ("TAP TO RETRY IF THE SERVICE IS OFFLINE", STEEL)
+        };
+        painter.text(
+            Pos2::new(app.center().x, app.bottom() - 16.0),
+            Align2::CENTER_CENTER,
+            footer,
+            FontId::monospace(10.0),
+            footer_color,
+        );
+    }
+
+    action
 }
 
 /// Calibration page: capture the measured reference pyEIT differences against.
@@ -675,7 +733,69 @@ fn placeholder(painter: &egui::Painter, body: Rect, title: &str, sub: &str) {
 
 /// Settings page: battery detail and every temperature sensor (the status bar
 /// deliberately shows none of these).
-fn settings_page(painter: &egui::Painter, body: Rect, state: &AppState) {
+/// Modal warning when a large difference-EIT anomaly persists across scans.
+fn bleeding_alert(
+    ctx: &egui::Context,
+    painter: &egui::Painter,
+    app: Rect,
+    state: &AppState,
+) -> Option<Action> {
+    painter.rect_filled(
+        app,
+        egui::CornerRadius::same(SCREEN_R),
+        Color32::from_black_alpha(190),
+    );
+    let panel = Rect::from_center_size(app.center(), Vec2::new(340.0, 150.0));
+    painter.rect_filled(panel, egui::CornerRadius::same(12), CARD);
+    painter.rect_stroke(
+        panel,
+        egui::CornerRadius::same(12),
+        Stroke::new(2.0_f32, CRIM2),
+        egui::StrokeKind::Inside,
+    );
+
+    painter.text(
+        Pos2::new(panel.center().x, panel.top() + 28.0),
+        Align2::CENTER_CENTER,
+        "INTERNAL BLEEDING IDENTIFIED",
+        FontId::monospace(15.0),
+        CRIM2,
+    );
+    painter.text(
+        Pos2::new(panel.center().x, panel.top() + 58.0),
+        Align2::CENTER_CENTER,
+        format!(
+            "Anomaly persisted across {} consecutive scans.",
+            state.anomaly_persist_scans
+        ),
+        FontId::monospace(9.5),
+        STEEL,
+    );
+    painter.text(
+        Pos2::new(panel.center().x, panel.top() + 76.0),
+        Align2::CENTER_CENTER,
+        format!("Score {:.3}  /  threshold {:.3}", state.anomaly_score, state.anomaly_threshold),
+        FontId::monospace(8.5),
+        STEELD,
+    );
+
+    let button = Rect::from_center_size(
+        Pos2::new(panel.center().x, panel.bottom() - 28.0),
+        Vec2::new(120.0, 24.0),
+    );
+    if painted_button(ctx, painter, button, "DISMISS", true, false) {
+        Some(Action::DismissBleeding)
+    } else {
+        None
+    }
+}
+
+fn settings_page(
+    ctx: &egui::Context,
+    painter: &egui::Painter,
+    body: Rect,
+    state: &AppState,
+) -> Option<Action> {
     card(painter, body);
     let left = body.left() + 10.0;
     let right = body.right() - 10.0;
@@ -719,6 +839,55 @@ fn settings_page(painter: &egui::Painter, body: Rect, state: &AppState) {
     row(painter, left, right, y, "AD5933", &fmt_temp(state.temp_ad5933_c));
     y += 15.0;
     row(painter, left, right, y, "Pi SoC", &fmt_temp(state.temp_pi_c));
+    y += 20.0;
+
+    section(painter, left, &mut y, "Demo");
+    let gap = 6.0;
+    let half = (right - left - gap) / 2.0;
+    let demo_btn = Rect::from_min_size(
+        Pos2::new(left, y),
+        Vec2::new(half, 22.0),
+    );
+    let anomaly_btn = Rect::from_min_size(
+        Pos2::new(left + half + gap, y),
+        Vec2::new(half, 22.0),
+    );
+    let mut action = None;
+    if painted_button(
+        ctx,
+        painter,
+        demo_btn,
+        if state.demo_mode { "EXIT DEMO" } else { "ENABLE DEMO" },
+        !state.demo_busy,
+        state.demo_mode,
+    ) {
+        action = Some(Action::EnableDemo);
+    }
+    let inject_enabled = state.demo_mode
+        && state.baseline_ready
+        && !state.scanning
+        && !state.demo_busy;
+    if painted_button(
+        ctx,
+        painter,
+        anomaly_btn,
+        "INJECT ANOMALY",
+        inject_enabled,
+        false,
+    ) {
+        action = Some(Action::InjectAnomaly);
+    }
+
+    if action.is_none() {
+        let button = Rect::from_min_max(
+            Pos2::new(left, body.bottom() - 30.0),
+            Pos2::new(right, body.bottom() - 8.0),
+        );
+        if painted_button(ctx, painter, button, "RECONNECT HARDWARE", true, false) {
+            action = Some(Action::RetryHardware);
+        }
+    }
+    action
 }
 
 fn section(painter: &egui::Painter, x: f32, y: &mut f32, title: &str) {

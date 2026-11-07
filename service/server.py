@@ -39,8 +39,8 @@ DEFAULT_HOST = "127.0.0.1"
 DEFAULT_PORT = 8765
 # Debounce: scan every ACTIVE interval while the user is interacting, and back
 # off to the IDLE interval after ACTIVITY_TIMEOUT_S of quiet.
-DEFAULT_ACTIVE_INTERVAL_S = 60.0
-DEFAULT_IDLE_INTERVAL_S = 120.0
+DEFAULT_ACTIVE_INTERVAL_S = 15.0
+DEFAULT_IDLE_INTERVAL_S = 30.0
 ACTIVITY_TIMEOUT_S = 30.0
 METRICS_INTERVAL_S = 5.0
 
@@ -64,9 +64,21 @@ class ControlServer:
         async with lock:
             await ws.send(protocol.encode(message))
 
-    async def _send_result(self, ws: ServerConnection, scan_id: str, png: bytes) -> None:
+    async def _send_result(
+        self,
+        ws: ServerConnection,
+        scan_id: str,
+        png: bytes,
+        anomaly_score: float,
+    ) -> None:
         width, height = _png_size(png)
-        header = protocol.ScanResult(id=scan_id, width=width, height=height, bytes=len(png))
+        header = protocol.ScanResult(
+            id=scan_id,
+            width=width,
+            height=height,
+            bytes=len(png),
+            anomaly_score=anomaly_score,
+        )
         lock = self._send_locks.setdefault(ws, asyncio.Lock())
         async with lock:
             await ws.send(protocol.encode(header))
@@ -75,8 +87,8 @@ class ControlServer:
     async def _run_scan(self, ws: ServerConnection, scan_id: str) -> None:
         await self._send_json(ws, protocol.Progress(id=scan_id, message="Scanning..."))
         try:
-            png = await asyncio.to_thread(
-                self._session.run_scan,
+            output = await asyncio.to_thread(
+                self._session.run_scan_output,
                 lambda _msg: None,
             )
         except BusyError:
@@ -89,7 +101,7 @@ class ControlServer:
                 ws, protocol.ScanError(id=scan_id, message=f"{type(exc).__name__}: {exc}")
             )
             return
-        await self._send_result(ws, scan_id, png)
+        await self._send_result(ws, scan_id, output.png, output.anomaly_score)
 
     async def _capture_baseline(self, ws: ServerConnection, request_id: str) -> None:
         try:
@@ -255,6 +267,47 @@ class ControlServer:
                         await self._send_json(
                             ws, protocol.Ready(**self._session.ready_payload())
                         )
+                elif kind == "hardware_retry":
+                    if scan_task and not scan_task.done():
+                        scan_task.cancel()
+                        scan_task = None
+                    continuous = False
+                    await self._send_json(
+                        ws, protocol.State(continuous=False, scanning=False, interval_s=0.0)
+                    )
+                    try:
+                        await asyncio.to_thread(self._session.reboot)
+                    except Exception as exc:  # noqa: BLE001 - report and keep serving
+                        await self._send_json(
+                            ws,
+                            protocol.BootError(
+                                message=f"{type(exc).__name__}: {exc}"
+                            ),
+                        )
+                    checks = await asyncio.to_thread(
+                        selftest.run_self_test, self._session
+                    )
+                    await self._send_json(ws, protocol.SelfTestResult(checks=checks))
+                    if self._session.booted:
+                        await self._send_json(
+                            ws, protocol.Ready(**self._session.ready_payload())
+                        )
+                elif kind == "mock_mode":
+                    try:
+                        mode = await asyncio.to_thread(
+                            self._session.set_mock_mode,
+                            str(msg.get("mode", "auto")),
+                        )
+                        await self._send_json(
+                            ws, protocol.MockModeResult(mode=mode)
+                        )
+                    except Exception as exc:  # noqa: BLE001 - report to the client
+                        await self._send_json(
+                            ws,
+                            protocol.ScanError(
+                                id="", message=f"mock_mode: {type(exc).__name__}: {exc}"
+                            ),
+                        )
                 elif kind == "upload_firmware":
                     if scan_task and not scan_task.done():
                         await self._send_json(
@@ -267,13 +320,15 @@ class ControlServer:
                         continue
                     if continuous:
                         continuous = False
+                    mock = bool(msg.get("mock", False))
+                    electrodes = int(msg.get("electrodes", 8))
                     try:
                         # Release the serial port before mpremote takes it.
                         await asyncio.to_thread(self._session.close)
                         result = await asyncio.to_thread(
                             upload_firmware,
-                            mock=bool(msg.get("mock", False)),
-                            electrodes=int(msg.get("electrodes", 8)),
+                            mock=mock,
+                            electrodes=electrodes,
                         )
                         await self._send_json(
                             ws, protocol.FirmwareUploaded(**result)
@@ -288,6 +343,35 @@ class ControlServer:
                         )
                     try:
                         await asyncio.to_thread(self._session.boot)
+                        if mock:
+                            # One-click demo: use the homogeneous mock table as
+                            # the pyEIT reference, then let the UI inject targets.
+                            try:
+                                await asyncio.to_thread(
+                                    self._session.set_mock_mode, "baseline"
+                                )
+                                await asyncio.to_thread(
+                                    self._session.capture_baseline
+                                )
+                                await self._send_json(
+                                    ws,
+                                    protocol.BaselineCaptured(
+                                        id="demo-baseline",
+                                        frequency_hz=self._session.frequency_hz,
+                                        n_electrodes=self._session.n_electrodes,
+                                    ),
+                                )
+                            except Exception as exc:  # noqa: BLE001
+                                await self._send_json(
+                                    ws,
+                                    protocol.ScanError(
+                                        id="",
+                                        message=(
+                                            "demo baseline: "
+                                            f"{type(exc).__name__}: {exc}"
+                                        ),
+                                    ),
+                                )
                         await self._send_json(
                             ws, protocol.Ready(**self._session.ready_payload())
                         )

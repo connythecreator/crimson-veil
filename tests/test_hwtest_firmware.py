@@ -80,7 +80,14 @@ def test_boot_and_auto_run_pass(firmware_module, monkeypatch):
     assert result["seq"] == 0
     assert result["expected"]["mag"] == pytest.approx(31.8309886, rel=1e-5)
     by_name = {check["name"]: check for check in result["checks"]}
-    assert set(by_name) == {"i2c", "temperature", "acquisition", "stability", "impedance"}
+    assert set(by_name) == {
+        "i2c",
+        "temperature",
+        "acquisition",
+        "signal",
+        "stability",
+        "impedance",
+    }
     assert all(check["status"] == "pass" for check in result["checks"])
 
 
@@ -113,6 +120,18 @@ def test_acquisition_error_is_reported_not_raised(firmware_module, monkeypatch):
     assert "i2c bus fault" in result["error"]
     by_name = {check["name"]: check for check in result["checks"]}
     assert by_name["acquisition"]["status"] == "fail"
+
+
+def test_low_signal_fails_with_afe_hint(firmware_module, monkeypatch):
+    _capture(monkeypatch, firmware_module)
+    firmware = firmware_module.HwTestFirmware(FakeDriver(raw=(1.0, 1.0)))
+
+    result = firmware.run_once()
+
+    by_name = {check["name"]: check for check in result["checks"]}
+    assert by_name["signal"]["status"] == "fail"
+    assert "AFE power" in by_name["signal"]["detail"]
+    assert result["status"] == "fail"
 
 
 def test_saturated_samples_fail_acquisition(firmware_module, monkeypatch):
@@ -195,6 +214,7 @@ def test_calibration_writes_file_and_reloads(firmware_module, monkeypatch, tmp_p
 
     assert result["type"] == "hwtest_calibration"
     assert result["status"] == "pass"
+    assert result["fixture"] == "capacitor"
     assert result["file"] == str(path)
     assert [entry["f"] for entry in result["entries"]] == [10_000.0, 50_000.0]
     assert replies[-1]["type"] == "hwtest_calibration"
@@ -202,7 +222,28 @@ def test_calibration_writes_file_and_reloads(firmware_module, monkeypatch, tmp_p
 
     entries, error = firmware_module.load_calibration_file()
     assert error is None
-    assert sorted(entries) == [10_000.0, 50_000.0]
+    assert sorted(entries) == [
+        ("capacitor", 10_000.0),
+        ("capacitor", 50_000.0),
+    ]
+
+
+def test_calibration_merges_resistor_and_capacitor(firmware_module, monkeypatch, tmp_path):
+    path = tmp_path / "cal.json"
+    monkeypatch.setattr(firmware_module, "CALIBRATION_FILE", str(path))
+    _capture(monkeypatch, firmware_module)
+    firmware = firmware_module.HwTestFirmware(FakeDriver())
+
+    firmware.calibrate(freqs=[10_000], fixture_kind="resistor", samples=4)
+    capacitor = firmware.calibrate(
+        freqs=[10_000], fixture_kind="capacitor", samples=4
+    )
+
+    assert len(capacitor["comparison"]) == 1
+    entries, error = firmware_module.load_calibration_file()
+    assert error is None
+    assert ("resistor", 10_000.0) in entries
+    assert ("capacitor", 10_000.0) in entries
 
 
 def test_boot_reports_loaded_calibration(firmware_module, monkeypatch, tmp_path):
@@ -228,3 +269,111 @@ def test_boot_reports_loaded_calibration(firmware_module, monkeypatch, tmp_path)
     assert hello["calibration"]["present"] is True
     assert hello["calibration"]["entries"] == 2
     assert hello["calibration"]["error"] is None
+
+
+def test_hwtest_read_line_skips_non_utf8_noise(firmware_module):
+    stream = io.BytesIO(b"\xff\xfe\n" + b'{"type":"hwtest_identify"}\n')
+    assert firmware_module.read_line(stream) == ""
+    assert firmware_module.read_line(stream) == '{"type":"hwtest_identify"}'
+
+
+class FakeLED:
+    def __init__(self):
+        self.fail_count = 0
+        self.ok_count = 0
+
+    def fail(self):
+        self.fail_count += 1
+
+    def ok(self):
+        self.ok_count += 1
+
+
+class RecordingMux:
+    ROLES = ("drive_pos", "drive_neg", "sense_pos", "sense_neg")
+
+    def __init__(self):
+        self.addresses = {role: 0 for role in self.ROLES}
+
+    def set_address(self, role, electrode):
+        self.addresses[role] = electrode
+
+    def park_all(self):
+        for role in self.addresses:
+            self.addresses[role] = 0
+
+
+class MuxDriver(FakeDriver):
+    def __init__(self, mux, open_electrode=None):
+        super().__init__(raw=(1000.0, 0.0))
+        self.mux = mux
+        self.open_electrode = open_electrode
+
+    def measure(self, _frequency):
+        if (
+            self.open_electrode is not None
+            and set(self.mux.addresses.values()) == {self.open_electrode}
+        ):
+            return (0.0, 0.0)
+        return (1000.0, 0.0)
+
+
+def test_passing_run_clears_led(firmware_module, monkeypatch):
+    _capture(monkeypatch, firmware_module)
+    led = FakeLED()
+    firmware = firmware_module.HwTestFirmware(FakeDriver(), led=led)
+
+    result = firmware.run_once(seq=1)
+
+    assert result["status"] == "pass"
+    assert led.ok_count == 1
+    assert led.fail_count == 0
+
+
+def test_failed_run_flashes_led(firmware_module, monkeypatch):
+    _capture(monkeypatch, firmware_module)
+    led = FakeLED()
+    firmware = firmware_module.HwTestFirmware(
+        FakeDriver(raw=(32_767.0, 0.0)), led=led
+    )
+
+    result = firmware.run_once(seq=1)
+
+    assert result["status"] == "fail"
+    assert led.fail_count == 1
+    assert led.ok_count == 0
+
+
+def test_mux_cycle_passes_when_all_electrodes_connected(firmware_module, monkeypatch):
+    replies = _capture(monkeypatch, firmware_module)
+    mux = RecordingMux()
+    led = FakeLED()
+    firmware = firmware_module.HwTestFirmware(
+        MuxDriver(mux), mux=mux, led=led
+    )
+
+    result = firmware.mux_test(seq=1)
+
+    assert replies[-1]["type"] == "hwtest_mux_result"
+    assert result["status"] == "pass"
+    assert result["open_electrodes"] == []
+    assert all(point["status"] == "connected" for point in result["points"])
+    assert led.ok_count == 1
+    assert led.fail_count == 0
+    assert mux.addresses == {role: 0 for role in RecordingMux.ROLES}
+
+
+def test_mux_cycle_fails_and_flashes_on_open_electrode(firmware_module, monkeypatch):
+    _capture(monkeypatch, firmware_module)
+    mux = RecordingMux()
+    led = FakeLED()
+    firmware = firmware_module.HwTestFirmware(
+        MuxDriver(mux, open_electrode=3), mux=mux, led=led
+    )
+
+    result = firmware.mux_test(seq=1)
+
+    assert result["status"] == "fail"
+    assert result["open_electrodes"] == [3]
+    assert led.fail_count == 1
+    assert led.ok_count == 0

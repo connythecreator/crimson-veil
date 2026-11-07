@@ -2,7 +2,13 @@
 
 Simulation of the excitation stage in `../bleed.kicad_sch` (U5A/U5B, TL082ACP,
 ±5 V). The topology is taken from the KiCad schematic, not from
-`docs/eit-bioimpedance/eit-netlist.md`.
+`docs/eit-bioimpedance/README.md`.
+
+> **Operating point:** the checked-in decks were run at the earlier
+> **5 V AD5933 / 2 Vpp / RG = 50 kΩ** development point. The as-built board is
+> **3.3 V / 1 Vpp / REF = 1.65 V / RG ≈ 26 kΩ**; see
+> [As-built operating point](#as-built-operating-point) below. Treat the 5 V
+> tables as historical design data.
 
 ## Topology (from the schematic)
 
@@ -164,16 +170,21 @@ rail than with option A.
 The inventory is 10×47k, 10×10k, 10×10 µF, 10×0.1 µF, one 50k trimpot and one
 spare TL082. The ideal R8 = R13 = 1 kΩ is not available; the practical builds
 below use 3×10k in parallel (3.33k) or 2×10k in parallel (5k) for each
-current-setting resistor. The spare TL082 buffers a 2.5 V reference for the
-AD620, which allows a DC-coupled receive path.
+current-setting resistor. The spare TL082 buffers the AD620 reference, which
+allows a DC-coupled receive path.
+
+The **as-built board** now differs from the sheet in three values: the AD5933
+runs at **3.3 V / 1 Vpp**, the AD620 REF is **1.65 V** (AD5933 VDD/2), and the
+RG trimmer is set to about **26 kΩ** (G ≈ 2.9). The sections below describe the
+earlier 5 V/2 Vpp/50 kΩ development point; treat those numbers as historical.
 
 `../bleed_parts_build.kicad_sch` is a standalone KiCad sheet of this build (A2,
 fully wired, **0.6 mA build**). It is derived from `bleed.kicad_sch` without
 modifying it, and fixes the topology issues listed further down: Kelvin sense
-into the AD620, AD620 V− on −5 V, REF on the buffered 2.5 V, the input HPF, and
-R8/R13 = 2×10k (5k). The 50k trimpot is the AD620 RG trimmer; the input HPF DC
-return is a fixed 10k (R17), and the sense DC return is a fixed 10k (R19) from
-`Drive+` to Earth.
+into the AD620, AD620 V− on −5 V, REF on the buffered 2.5 V (as-built 1.65 V),
+the input HPF, and R8/R13 = 2×10k (5k). The 50k trimpot is the AD620 RG
+trimmer; the input HPF DC return is a fixed 10k (R17), and the sense DC return
+is a fixed 10k (R19) from `Drive+` to Earth.
 
 Local connections are drawn as wires, not made through net labels. The AD5933
 decoupling bank (C21, C5, C11, C4, C6) sits across the +5 V and Earth rails
@@ -207,15 +218,21 @@ Power the spare TL082 from **+5 V and −5 V** (not a single 5 V rail; the
 TL082 needs at least 7 V total supply). Tie the unused half off: +in to
 ground, −in to its output. Add 0.1 µF from each supply to ground.
 
+For the **as-built 3.3 V board**, divide the 3.3 V rail instead (47k/47k)
+and buffer the resulting **1.65 V**; the TL082 still runs from ±5 V.
+
 ### Receive path
 
 * Move AD620 pin 4 (V−) from Earth to **−5 V**. Pin 7 stays at +5 V.
-* AD620 pin 5 (REF) to the buffered 2.5 V.
+* AD620 pin 5 (REF) to the buffered reference. The as-built 3.3 V board uses
+  **1.65 V** (AD5933 VDD/2); the earlier 5 V development build used 2.5 V.
 * AD620 pin 6 (OUT) → R4 = 10k → AD5933 pin 5 (VIN). **No coupling capacitor
-  is needed**: the AD620 output and the AD5933 VIN are both at 2.5 V DC, so
-  there is no DC current through R4.
-* AD620 RG: leave pins 1/8 open for G = 1 (0.9 mA build), or fit the 50k
-  trimpot for G = 2…100 (0.6 mA build).
+  is needed** when the AD620 REF matches the AD5933 VIN: both sit at 1.65 V on
+  the as-built board (2.5 V on the earlier 5 V build), so there is no DC
+  current through R4.
+* AD620 RG: fit the trimmer. The as-built setting is about **26 kΩ** for
+  G ≈ 2.9; the earlier development point used 50 kΩ (G ≈ 2) or 4.95 kΩ
+  (G ≈ 10.9).
 
 The input high-pass is still required. Without it the AD5933 VOUT bias
 propagates to the TL082 outputs and the 2000 mV p-p range at 5 V clips U5B.
@@ -330,7 +347,7 @@ in the tetrapolar circuit the AD620 never sees the load voltage (next section).
 ### Abdominal (tetrapolar) operation
 
 The sheet drives one electrode pair and senses a different, non-overlapping
-pair (`Sense±` → U4.3/U4.2), as `docs/eit-bioimpedance/` requires. Two things
+pair (`Sense±` → U4.3/U4.2), as `docs/eit-bioimpedance/README.md` requires. Two things
 follow.
 
 **The AD620 sees only the tissue transfer impedance.** Contact impedance sits
@@ -366,6 +383,11 @@ and contact impedances:
 
 The AD620 output stays between 2.33 and 2.67 V — no headroom problem. At the
 1000 mV p-p range every voltage in this table halves.
+
+These are the historical 5 V/2 Vpp/50 kΩ results. The as-built 3.3 V/1 Vpp
+point delivers about **0.20 mA p-p** (scale the sense voltage by ~0.32), and
+the AD620 output is centred on **1.65 V** with RG ≈26 kΩ (G ≈ 2.9) rather than
+2.5 V and G = 2/10.9.
 
 Contact sweep (`afe_body_loads.cir`, Rt = 20 Ω, G = 10.9):
 
@@ -405,19 +427,14 @@ Flat within 1 % from about 3 kHz to 300 kHz, which covers the AD5933's whole
 1 kHz–100 kHz range. Stay below ~300 kHz: the pump peaks sharply towards
 1 MHz.
 
-**Gain.** `docs/eit-bioimpedance/README.md` expects an instrumentation-amp gain
-of 10–50; the AD620 needs RG = 49.4k/(G−1), i.e. **4.95k for G = 10.9** (the
-trimpot at about a tenth of its travel, which the simulation uses) and
-**1.27k for G = 40**. G ≈ 11 puts a 10–100 Ω transfer impedance at 68–684 mV
-p-p, the right range for the AD5933's 12-bit converter and its ×1/×5 receive
-PGA. G = 40 helps only for small transfer impedances: at 50 Ω it gives 1.25 V
-p-p, and at 100 Ω 2.5 V p-p, which is just inside the AD620's 2.5 V + 1.4 V
-positive headroom. A trimpot is fine for development but its 100–250 ppm/°C
-drift is comparable to the 0.1–1 % changes EIT is looking for; for a final
-build replace RV1 with a fixed resistor and calibrate against a known one.
-Keep the sense electrodes Ag/AgCl: at G = 40 a few mV of half-cell mismatch is
-fine, but hundreds of mV (other electrode types) would use up the headroom, and
-the receive chain is DC-coupled.
+**Gain.** The as-built AD620 uses RG ≈ **26 kΩ** (trimmer), giving **G ≈ 2.9**
+from `G = 1 + 49.4k/RG`. The earlier simulation used RG = 50k (G ≈ 2) and
+4.95k (G ≈ 10.9) to bracket the range; the tetrapolar table above is from those
+historical runs. At the as-built point the AD620 output sits at **1.65 V** and
+is DC-coupled to the AD5933 VIN. A trimmer is fine for development, but its
+100–250 ppm/°C drift is comparable to the 0.1–1% changes EIT is looking for;
+for a final build replace RV1 with a fixed resistor and calibrate against a
+known one. Keep the sense electrodes Ag/AgCl: the receive chain is DC-coupled.
 
 **Safety.** At 50 kHz the design runs at 0.221 mA RMS. IEC 60601-1 patient
 auxiliary current (between electrodes, normal condition) is 100 µA from
@@ -433,8 +450,10 @@ is 5 mA — the pump uses **4.4 % of it**. The limit falls steeply below that:
 
 So the 2000 mV p-p range is compliant above about **2.2 kHz**. For a sweep
 that goes lower, drop to the 400 mV p-p range (0.044 mA RMS, 44 % of the
-1 kHz limit) or the 200 mV range (0.022 mA RMS). There is no DC patient
-current: C2/C3 isolate the load, and R19 is on the load side of C3.
+1 kHz limit) or the 200 mV range (0.022 mA RMS). The as-built 3.3 V/1 Vpp
+point is about **0.20 mA p-p (≈0.07 mA RMS)**, so it has more margin than the
+5 V/2 Vpp figures in this table. There is no DC patient current: C2/C3 isolate
+the load, and R19 is on the load side of C3.
 
 **Isolation is not in this design.** C2/C3 are functional coupling caps, not a
 safety barrier, and the ground is the Pi's ground. A patient-connected board
@@ -460,24 +479,21 @@ The 0.1 µF coupling caps set a high-pass corner near **1.5 kHz**. There is
 significant peaking near 1 MHz — verify with a real TL082 before running the
 pump near/beyond that.
 
-## Recommendation
+## As-built operating point
 
-**With the parts on hand**, use the **0.6 mA build** — the one drawn in
-`../bleed_parts_build.kicad_sch`: R8 = R13 = 5k (2×10k in parallel), AD5933 at
-5 V with the 2000 mV p-p range, input HPF with a fixed 10k DC return, buffered
-2.5 V at the AD620 REF, R19 = 10k as the sense DC return, and the 50k trimpot
-as RG (G ≈ 2 at 50k, rising as it is wound down). It uses the whole 10×47k /
-10×10k inventory with nothing spare and gives 0.626 mA p-p. The 0.9 mA build
-(R8/R13 = 3.33k, trimpot as the input DC return, RG open) gives 0.913 mA p-p
-but has no gain control and no sense DC return, so it is not usable as drawn
-against a tetrapolar body.
+The current board is the parts build with the AD5933 at **3.3 V** and the
+**1 Vpp** range, not 5 V/2 Vpp. R8 = R13 = 5 kΩ, the input HPF uses a fixed
+10 kΩ DC return, the AD620 runs on ±5 V with REF at **1.65 V** (AD5933 VDD/2),
+R19 = 10 kΩ is the sense DC return, and the trimmer is set to RG ≈ **26 kΩ**
+(G ≈ 2.9). At 1 Vpp the Howland input is ~0.97 Vpp, so the drive current is
+about **0.20 mA p-p (0.07 mA RMS)**, well under the 1 mA peak ceiling. The
+AD620 output sits at 1.65 V and is DC-coupled to the AD5933 VIN.
 
-For the abdomen, set RV1 to about 4.95k (G = 10.9) rather than 50k: 0.626 mA
-p-p into a 10–100 Ω transfer impedance then gives 68–684 mV p-p at the AD620,
-which is a sensible level for the AD5933. At 50 kHz that is 0.221 mA RMS, 4 %
-of the 5 mA IEC 60601-1 patient auxiliary current limit; below about 2.2 kHz
-drop to a lower AD5933 excitation range to stay inside the 100 µA–1 mA part
-of the limit.
+The checked-in LTspice decks simulate the earlier **5 V/2 Vpp/50 kΩ**
+development point used while choosing the parts. They remain useful for the
+topology, load sweeps and contact model, but do not use the 5 V numbers as the
+current operating point. Re-run the decks at 3.3 V/1 Vpp/26 kΩ if you need
+simulated as-built values.
 
 The ideal reference operating point still needs R8 = R13 = 1 kΩ, which is not
 available from 10k/47k parts (ten 10k per side would be needed for the two
@@ -544,12 +560,9 @@ the whole `.asc` set.
 * The `ADTL082` macromodel is characterised for ±15 V. At ±5 V its output
   swing/rail behaviour is only approximate; confirm the bias margins on the
   bench.
-* The AD5933 is specified for 2.7–5.5 V, so the KiCad net's +5 V on pins
-  9/10/11 is within spec. Remember that the output amplitude and bias scale
-  with VDD, and that the bias is range-dependent (see the table above).
-  The reference design uses the 1000 mV p-p range; at 5 V that becomes
-  1.47 V p-p, so Rs = 1k gives ~1.5 mA p-p. Rs ≈ 1.5k restores ~1 mA p-p.
-  If the AD5933 is a module with its own 3.3 V regulator, measure VOUT: a
-  ~0.76 V bias means the die is at 3.3 V, ~1.15 V means 5 V.
+* The checked-in KiCad sheet still feeds the AD5933 from +5 V; the as-built
+  board runs it at **3.3 V / 1 Vpp**. The 5 V/2 Vpp simulation tables above are
+  historical. On the as-built board, a VOUT bias of ~0.76 V indicates the
+  3.3 V die; ~1.15 V indicates 5 V.
 * `I(R8)`/`I(R13)` is the sense current; the load current differs by the
   feedback-divider current at large Rs.

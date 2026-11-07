@@ -149,6 +149,17 @@ class ScanSession:
         with self._state_lock:
             return self._frequency_hz
 
+    def set_mock_mode(self, mode: str) -> str:
+        """Select a mock-firmware table (baseline/target/continuous/auto)."""
+        with self._state_lock:
+            hardware = self._hardware
+        if hardware is None:
+            raise RuntimeError("ScanSession.boot() must succeed before mock mode.")
+        setter = getattr(hardware, "mock_mode", None)
+        if setter is None:
+            raise RuntimeError("mock_mode is only available with the mock firmware")
+        return setter(str(mode))
+
     # --- scanning ---------------------------------------------------------
 
     def capture_baseline(self, on_progress: ProgressFn | None = None) -> None:
@@ -171,8 +182,10 @@ class ScanSession:
         finally:
             self._scan_lock.release()
 
-    def run_scan(self, on_progress: ProgressFn | None = None) -> bytes:
-        """Run a full scan and return PNG bytes.
+    def run_scan_output(
+        self, on_progress: ProgressFn | None = None
+    ) -> pipeline.ScanOutput:
+        """Run a full scan and return the PNG plus its anomaly score.
 
         Serialised: raises :class:`BusyError` if another scan holds the lock.
         Boot must succeed before scanning; a failed device must not silently
@@ -192,9 +205,15 @@ class ScanSession:
             if hardware is None or solver is None:
                 raise RuntimeError("ScanSession.boot() must succeed before scanning.")
 
-            return pipeline.run_scan(hardware=hardware, solver=solver, baseline=baseline)
+            return pipeline.run_scan_output(
+                hardware=hardware, solver=solver, baseline=baseline
+            )
         finally:
             self._scan_lock.release()
+
+    def run_scan(self, on_progress: ProgressFn | None = None) -> bytes:
+        """Run a full scan and return PNG bytes."""
+        return self.run_scan_output(on_progress).png
 
     def reboot(self) -> str:
         """Release and reopen the backends (used after a firmware upload).

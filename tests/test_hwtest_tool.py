@@ -39,13 +39,17 @@ class FakeSerial:
 def _args(**over):
     values = {
         "f": 50_000.0,
+        "fixture": "capacitor",
+        "range": "2vpp",
         "c_f": 0.1e-6,
+        "r_ohm": 100.0,
         "samples": 16,
         "tol_pct": 5.0,
         "tol_deg": 5.0,
         "drift_pct": 2.0,
         "drift_deg": 2.0,
         "timeout": 10.0,
+        "min_raw": 10.0,
     }
     values.update(over)
     return SimpleNamespace(**values)
@@ -66,6 +70,8 @@ def test_run_test_sends_identify_then_run_and_filters_sequence(tool):
     assert serial.written[1]["type"] == "hwtest_run"
     assert serial.written[1]["seq"] == 1
     assert serial.written[1]["f"] == 50_000.0
+    assert serial.written[1]["fixture"] == "capacitor"
+    assert serial.written[1]["range"] == "2vpp"
 
 
 def test_run_test_rejects_wrong_firmware(tool):
@@ -117,9 +123,14 @@ def test_upload_copies_only_hwtest_files(tool, monkeypatch):
 
     files = tool.upload("/dev/ttyACM0")
 
-    assert files == ["main.py", "hwtest_core.py", "ad5933_driver.py"]
+    assert files == ["main.py", "hwtest_core.py", "ad5933_driver.py", "status_led.py"]
     copied = [command[-1] for command in commands]
-    assert copied == [":main.py", ":hwtest_core.py", ":ad5933_driver.py"]
+    assert copied == [
+        ":main.py",
+        ":hwtest_core.py",
+        ":ad5933_driver.py",
+        ":status_led.py",
+    ]
     assert not any("mock" in command for command in copied)
 
 
@@ -149,6 +160,9 @@ def test_run_calibration_sends_frequencies(tool):
     assert tool.run_calibration(serial, _args(), [10_000.0, 50_000.0]) == result
     assert serial.written[1]["type"] == "hwtest_calibrate"
     assert serial.written[1]["freqs"] == [10_000.0, 50_000.0]
+    assert serial.written[1]["fixture"] == "capacitor"
+    assert serial.written[1]["range"] == "2vpp"
+    assert serial.written[1]["range"] == "2vpp"
 
 
 def test_format_calibration_lists_entries(tool):
@@ -169,4 +183,61 @@ def test_format_calibration_lists_entries(tool):
     )
     assert "calibration written" in text
     assert "10000 Hz" in text or "10,000 Hz" in text
+    assert "PASS" in text
+
+
+def test_run_excite_starts_continuous_output(tool):
+    ack = {"type": "hwtest_excite", "seq": 1, "f": 50_000.0, "status": "on"}
+    serial = FakeSerial(
+        [
+            json.dumps({"type": "hwtest_hello", "firmware": "hwtest 1.3.0"}),
+            json.dumps(ack),
+        ]
+    )
+    assert tool.run_excite(serial, _args()) == ack
+    assert serial.written[1]["type"] == "hwtest_excite"
+    assert serial.written[1]["f"] == 50_000.0
+
+
+def test_run_stop_sends_stop(tool):
+    serial = FakeSerial([])
+    assert tool.run_stop(serial)["status"] == "pass"
+    assert serial.written == [{"type": "hwtest_stop"}]
+
+
+def test_upload_set_includes_status_led(tool):
+    assert "status_led.py" in tool.HWTEST_FILES
+
+
+def test_run_mux_sends_cycle_and_formats_result(tool):
+    result = {
+        "type": "hwtest_mux_result",
+        "seq": 1,
+        "f_hz": 50_000.0,
+        "min_raw": 10.0,
+        "status": "pass",
+        "open_electrodes": [],
+        "points": [
+            {"e": 0, "raw_abs": 125.0, "status": "connected"},
+            {"e": 1, "raw_abs": 3.0, "status": "open"},
+        ],
+    }
+    serial = FakeSerial(
+        [
+            json.dumps({"type": "hwtest_hello", "firmware": "hwtest 1.4.0"}),
+            json.dumps(result),
+        ]
+    )
+
+    assert tool.run_mux(serial, _args()) == result
+    assert serial.written[0]["type"] == "hwtest_identify"
+    assert serial.written[1] == {
+        "type": "hwtest_mux",
+        "seq": 1,
+        "f": 50_000.0,
+        "min_raw": 10.0,
+    }
+    text = tool.format_mux(result)
+    assert "CONNECTED" in text
+    assert "OPEN" in text
     assert "PASS" in text

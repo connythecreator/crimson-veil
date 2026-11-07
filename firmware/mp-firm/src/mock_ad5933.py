@@ -14,8 +14,14 @@ pyEIT reference). In the default ``continuous``/``auto`` mode each following
 scan cycles to the next anomaly position, so monitor mode shows a moving
 anomaly. ``set_mode("baseline")`` / ``set_mode("target")`` force a table.
 
+The tables are impedance-like boundary voltages, i.e. the post-calibration
+quantity the solver expects. They are *not* raw AD5933 DFT counts, so the
+firmware must not apply its ``Z = K / S`` calibration to them. ``is_mock``
+marks this driver so the scan loop bypasses calibration.
+
 `MockMux` is a no-op implementation of the mux interface so `select_measurement`
-and the firmware self-test run unchanged.
+and the firmware self-test run unchanged. It records the independent address for
+each role, matching the real always-enabled, non-latching mux bank.
 
 This is a host/solver validation tool, not a physical acquisition model.
 """
@@ -35,7 +41,12 @@ def _tables(n_electrodes):
 
 
 class MockAD5933:
-    """Drop-in stand-in for :class:`ad5933_driver.AD5933`."""
+    """Drop-in stand-in for :class:`ad5933_driver.AD5933`.
+
+    Returns post-calibration, impedance-like values; calibration is bypassed.
+    """
+
+    is_mock = True
 
     def __init__(self, n_electrodes=8, baseline=None, targets=None):
         n = int(n_electrodes)
@@ -104,17 +115,21 @@ class MockAD5933:
 
 
 class MockMux:
-    """No-op mux bank: keeps the firmware's selection path intact."""
+    """Recording no-op mux bank with one independent address per role."""
 
-    def disable_all(self):
-        pass
+    ROLES = ("drive_pos", "drive_neg", "sense_pos", "sense_neg")
+    is_mock = True
 
-    def enable(self, role):
-        pass
+    def __init__(self):
+        self.addresses = {role: 0 for role in self.ROLES}
 
-    def disable(self, role):
-        pass
-
-    def set_address(self, electrode):
+    def set_address(self, role, electrode):
+        if role not in self.addresses:
+            raise ValueError(f"unknown mux role: {role!r}")
         if not 0 <= electrode < 16:
             raise ValueError("mock electrode out of range")
+        self.addresses[role] = electrode
+
+    def park_all(self):
+        for role in self.addresses:
+            self.addresses[role] = 0

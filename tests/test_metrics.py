@@ -35,6 +35,9 @@ BMS_ON_BATTERY = {
 }
 
 BMS_ON_USB = dict(BMS_ON_BATTERY, power_mode=0, vin_v=5.0, charging=True)
+BMS_ON_USB_CHARGING_BATTERY = dict(
+    BMS_ON_BATTERY, power_mode=2, vin_v=3.93, charging=True
+)
 
 
 # --- SoC curve -------------------------------------------------------------
@@ -120,6 +123,18 @@ def test_on_usb_reports_charging_and_no_soc(monkeypatch):
     snap = metrics.snapshot(FakeHardware({}))
     assert snap["on_battery"] is False
     assert snap["battery_v"] is None  # no battery voltage on USB
+    assert snap["runtime_s"] is None
+    assert snap["battery_charging"] is True
+
+
+def test_on_usb_with_battery_reports_battery_voltage_and_charging(monkeypatch):
+    monkeypatch.setattr(
+        metrics, "_read_bms", lambda: dict(BMS_ON_USB_CHARGING_BATTERY)
+    )
+    snap = metrics.snapshot(FakeHardware({}))
+    assert snap["on_battery"] is False
+    assert snap["battery_v"] == 3.93
+    assert snap["battery_pct"] is not None
     assert snap["runtime_s"] is None
     assert snap["battery_charging"] is True
 

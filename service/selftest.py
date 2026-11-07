@@ -46,16 +46,22 @@ def battery_check() -> Check:
     if not fresh:
         return Check("Battery", "fail", "BMS telemetry stale")
 
-    mode = bms.get("power_mode")
-    if mode is not None and int(mode) != 0:
-        pct = metrics.soc_from_voltage(bms.get("vin_v"), bms.get("low_v"))
-        detail = "on battery"
+    mode_raw = bms.get("power_mode")
+    try:
+        mode = int(mode_raw) if mode_raw is not None else None
+    except (TypeError, ValueError):
+        mode = None
+
+    pct = metrics.soc_from_voltage(bms.get("vin_v"), bms.get("low_v"))
+    detail = "on battery" if mode == 1 else "USB power"
+    if mode == 2:
+        detail = "USB power, charging"
+    if mode in (1, 2):
         if pct is not None:
             detail += f" {pct:.0f}%"
         if bms.get("vin_v") is not None:
             detail += f" / {float(bms['vin_v']):.2f} V"
-        return Check("Battery", "pass", detail)
-    return Check("Battery", "pass", "USB power")
+    return Check("Battery", "pass", detail)
 
 
 def esp_check(session) -> Check:
@@ -84,7 +90,7 @@ def esp_check(session) -> Check:
 
 
 def impedance_check(session) -> Check:
-    """Impedance subsystem: AD5933/mux probe and calibration-file check."""
+    """Impedance subsystem: AD5933, mux continuity and calibration check."""
     hardware = session.hardware
     if hardware is None:
         return Check("Impedance Subsystem", "skip", "ESP not connected")
@@ -103,6 +109,13 @@ def impedance_check(session) -> Check:
             str(result.get("error") or "AD5933 not responding"),
         )
 
+    if result.get("mux") is False:
+        return Check(
+            "Impedance Subsystem",
+            "fail",
+            str(result.get("error") or "mux continuity failed"),
+        )
+
     if result.get("calibration") is False:
         return Check(
             "Impedance Subsystem",
@@ -114,7 +127,7 @@ def impedance_check(session) -> Check:
             ),
         )
 
-    detail = "AD5933 responding"
+    detail = "AD5933 responding, mux continuity ok"
     temp = result.get("temp_ad5933_c")
     if temp is not None:
         detail += f" ({float(temp):.1f} C)"

@@ -21,7 +21,9 @@ Client -> service messages::
     {"type": "stop"}
     {"type": "set_frequency", "frequency_hz": float}
     {"type": "self_test"}
+    {"type": "hardware_retry"}                 # close/reopen the ESP and re-run the self-test
     {"type": "upload_firmware", "mock": bool, "electrodes": int}
+    {"type": "mock_mode", "mode": "baseline"|"target"|"continuous"|"auto"}
     {"type": "ping"}
 
 Service -> client messages::
@@ -32,7 +34,8 @@ Service -> client messages::
      "n_electrodes": int}
     {"type": "boot_error", "message": str}
     {"type": "progress", "id": str, "message": str}
-    {"type": "scan_result", "id": str, "width": int, "height": int, "bytes": int}
+    {"type": "scan_result", "id": str, "width": int, "height": int, "bytes": int,
+     "anomaly_score": float}
         followed by one binary frame containing the PNG bytes
     {"type": "scan_error", "id": str, "message": str}
     {"type": "state", "continuous": bool, "scanning": bool, "interval_s": float}
@@ -46,6 +49,7 @@ Service -> client messages::
                  "detail": str}, ...]}
     {"type": "firmware_uploaded", "port": str, "files": [str, ...],
      "mock": bool, "electrodes": int}
+    {"type": "mock_mode_result", "mode": str}
     {"type": "pong"}
 
 Continuous mode debounces between scans: after each scan the service waits
@@ -87,8 +91,8 @@ class CaptureBaseline:
 @dataclass
 class Continuous:
     on: bool = True
-    active_interval_s: float = 60.0
-    idle_interval_s: float = 120.0
+    active_interval_s: float = 15.0
+    idle_interval_s: float = 30.0
     type: str = field(default="continuous", init=False)
 
 
@@ -111,6 +115,17 @@ class SetFrequency:
 @dataclass
 class SelfTest:
     type: str = field(default="self_test", init=False)
+
+
+@dataclass
+class HardwareRetry:
+    type: str = field(default="hardware_retry", init=False)
+
+
+@dataclass
+class MockMode:
+    mode: str = "auto"
+    type: str = field(default="mock_mode", init=False)
 
 
 @dataclass
@@ -165,6 +180,7 @@ class ScanResult:
     width: int
     height: int
     bytes: int
+    anomaly_score: float = 0.0
     type: str = field(default="scan_result", init=False)
 
 
@@ -209,6 +225,12 @@ class Check:
 class SelfTestResult:
     checks: list[Check] = field(default_factory=list)
     type: str = field(default="self_test_result", init=False)
+
+
+@dataclass
+class MockModeResult:
+    mode: str
+    type: str = field(default="mock_mode_result", init=False)
 
 
 @dataclass

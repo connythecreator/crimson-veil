@@ -1,5 +1,5 @@
 // =====================================================================
-//  Crimson Veil  -  CE07929 protoboard case      v0.2  "two boards, one lid"
+//  Crimson Veil  -  CE07929 protoboard case      v0.3  "two boards, a deep lid"
 // =====================================================================
 //  Holds TWO Core Electronics / Makerverse CE07929 protoboards, side by
 //  side on their long edges, FLAT, on EIGHT printed PINCH CLIPS - one
@@ -7,6 +7,11 @@
 //  10 mm sill so the ESP32 and the rest of the end-of-board IO can be
 //  reached with the lid on.  A separate lid closes the top and screws
 //  down into the two long walls with 4 x M3.
+//
+//  v0.3 raises the lid's ceiling by LID_RISE without touching the tray:
+//  the lid becomes a deep cap, the screw seats stay on the old slab's
+//  plane, and the same 4 x M3 x 10 bite the same pilots.  See "WHY THE LID
+//  IS A DEEP CAP" below.  The tray is unchanged, so an old base still fits.
 //
 //  In OpenSCAD:  Design > Automatic Reload and Preview   [x]
 //  so this rebuilds whenever the file is edited.
@@ -80,6 +85,26 @@
 //  lip is notched where a pilaster passes through it.
 //
 //  ---------------------------------------------------------------------
+//  WHY THE LID IS A DEEP CAP
+//  ---------------------------------------------------------------------
+//  The tray is fixed.  To add internal height without reprinting it, the
+//  lid grows upward instead: the register lip and the four screw seats stay
+//  exactly where they were, while the ceiling over the bay and the top face
+//  rise by LID_RISE.  Each head still bottoms at z 25.20 - the old slab's
+//  underside - so the same 4 x M3 x 10 bite the same pilots; the
+//  counterbore just gets LID_RISE deeper.  That is the deep countersink:
+//  an 11.80 deep well with its seat where the old lid's top face was.
+//
+//  Two walls make it printable.  The counterbore is o6.20 at y 56.20, only
+//  0.20 inside the tray's 4.50 long wall, so a deep well against that
+//  ligament would peel.  The lid therefore overhangs 2.00 all round
+//  (LID_OVH), which leaves 2.20 on the well's outer side.  Its inner side
+//  is held 2.00 off the raised ceiling (LID_WELL_WALL) at y 51.10, and the
+//  vent field is trimmed to VENT_Y 49.00 so 2.10 of roof remains between
+//  the vents and that ceiling edge.  The lid prints top-face down as a
+//  3 mm roof on a 10 mm riser: no support, no bridging.
+//
+//  ---------------------------------------------------------------------
 //  THE NUMBERS THIS CASE IS BUILT FROM
 //  ---------------------------------------------------------------------
 //    BOARD_L/W/T     166.00 x 52.00 x 1.60  the board
@@ -96,6 +121,10 @@
 //    BOARD_TOP         6.00  board top above the bench
 //    WALL_H           24.00  wall top / lid seat; 18.00 above the board,
 //                            enough for the ESP32 DevKit V1's 15.01
+//    LID_RISE         10.00  the raised lid: ceiling and top face above the
+//                            old slab, with the screw seats held at 25.20
+//    LID_CEIL         34.00  the bay's new ceiling
+//    LID_TOP          37.00  the finished case height
 //
 //  ---------------------------------------------------------------------
 //  PARTS
@@ -104,9 +133,12 @@
 //          pilasters that carry the M3 lid pilots), a closed +X end wall,
 //          the -X sill, and 8 pinch clips at the board mounting holes.
 //          The clips are the only board support.
-//    LID   3 mm slab with a hexagonal vent field, a 1.2 mm register lip
-//          and 4 x M3 countersunk holes at x +/-45.  It prints top-face
-//          down, so the lip points up and the vents need no support.
+//    LID   a deep cap: 3 mm roof over the bay on a 10 mm riser band, a
+//          hexagonal vent field, a 1.2 mm register lip and 4 x M3 deep
+//          counterbores at x +/-45.  The seats stay at z 25.20, so the
+//          same M3 x 10 screws are used; the 2 mm overhang is what gives
+//          the wells a wall.  It prints top-face down, so the lip points
+//          up and the vents need no support.
 //
 //  ASSEMBLY
 //    1. lower each board into its bay, pad side up, and press it down over
@@ -118,7 +150,9 @@
 //       full-width opening from z 10.00 to the top; the sill below it is
 //       left solid, so leads leave over it rather than through it.
 //    3. drop the lid on.  The register lip centres it; drive 4 x M3 x 10
-//       down through the lid into the long walls.  The screws thread
+//       down through the deep counterbores into the long walls.  The heads
+//       sink 11.80 below the lid's top face, back to the old slab's
+//       underside, so the screw length is unchanged.  The screws thread
 //       straight into the printed plastic, as on the Pi case.
 //
 //  DISASSEMBLY: 4 lid screws out, lid off, pinch the four clips and lift
@@ -183,8 +217,17 @@ FLOOR     = 1.60;   // 4 perimeters at a 0.4 nozzle.  The floor is the biggest
 LIFT      = 2.80;   // clear air under the board, for solder joints
 WALL_H    = 24.00;  // wall top, and the lid's seat
 SILL_H    = 10.00;  // the open -X end is solid only up to here
-LID_T     = 3.00;
-LID_OVH   = 2.00;   // lid overhang at the open end: the finger lift
+LID_T     = 3.00;   // the roof's thickness over the bay
+LID_RISE  = 10.00;  // how far the ceiling and top face rise above the old
+                    // 27.00 slab.  The screw seats do NOT move: the
+                    // counterbore round each head gets deeper by the same
+                    // amount, so the same 4 x M3 x 10 still land in the
+                    // tray's pilots.
+LID_OVH   = 2.00;   // lid overhang all round.  The -X side was always the
+                    // finger lift; the other three sides are what give the
+                    // deep screw wells a printable wall - the counterbore's
+                    // outer edge is only 0.20 inside the tray's long wall.
+LID_WELL_WALL = 2.00; // plastic between a screw well and the ceiling edge
 LID_LIP   = 1.20;   // register lip below the lid
 LID_LIP_W = 2.00;
 LID_EMBED = 0.50;   // lip buried into the slab, so no coplanar union face
@@ -196,8 +239,10 @@ LID_FIT   = 0.40;   // lip clearance to the inner walls, per side
 //  the register lip and the four screws.
 HEX_PITCH = 17.00;
 HEX_WEB   =  3.00;
-VENT_X    = 79.00;   // vent field half-width  (lip inner face at 81.60)
-VENT_Y    = 50.50;   // vent field half-depth  (lip inner face at 52.60)
+VENT_X    = 79.00;   // vent field half-width  (raised ceiling edge at 81.70)
+VENT_Y    = 49.00;   // vent field half-depth  (raised ceiling edge at 51.10).
+                     // Trimmed from 50.50: the roof needs 2.10 between the
+                     // vents and the deep screw wells' ceiling edge.
 
 //  Pinch clips, one per board mounting hole (8 total).  The lower post and
 //  flange are BELOW the board; only the pin and head go through the hole.
@@ -239,6 +284,16 @@ BOARD_TOP  = SEAT_Z + BOARD_T;                      // 6.00 board top
 //  the pilasters on the inner face, not by the bare wall.
 SCREW_Y    = OY - SCREW_HEAD_D/2 - 0.20;            // 56.20
 
+//  The deep lid.  LID_TOP is the new top face, LID_CEIL the raised
+//  underside over the bay.  The ceiling stops LID_WELL_WALL short of the
+//  screw counterbores so each deep well keeps a wall; the +0.10 on X laps
+//  the ceiling void into the register lip's inner face rather than landing
+//  exactly on it.
+LID_TOP     = WALL_H + LID_T + LID_RISE;              // 37.00
+LID_CEIL    = WALL_H + LID_RISE;                      // 34.00
+LID_CEIL_X  = IX - LID_FIT - LID_LIP_W + 0.10;        // 81.70
+LID_CEIL_Y  = SCREW_Y - SCREW_HEAD_D/2 - LID_WELL_WALL; // 51.10
+
 //  Pilasters: a rib on the inner face at each screw, plus one at
 //  mid-span.  Each screw pilaster is 4.50 + 1.50 = 6.00 of local wall.
 PILASTER_X = [-SCREW_X, 0, SCREW_X];
@@ -267,7 +322,8 @@ module box(x0, x1, y0, y1, z0, z1) {
 }
 
 //  Cutaway for preview only.  CUT_AT is a fraction of the case's outer
-//  envelope, measured from the -X / -Y face of that axis.
+//  envelope (now the lid's, which overhangs the tray by LID_OVH), measured
+//  from the -X / -Y face of that axis.
 module cutaway() {
     if (CUT_AWAY == "none") {
         children();
@@ -275,17 +331,24 @@ module cutaway() {
         difference() {
             children();
             if (CUT_AWAY == "+X")
-                box(-OX - LID_OVH + CUT_AT*(2*OX + LID_OVH) - 1, OX + 1,
-                    -OY - 1, OY + 1, -1, WALL_H + LID_T + 2);
+                box(-(OX + LID_OVH) + CUT_AT*2*(OX + LID_OVH) - 1,
+                    OX + LID_OVH + 1,
+                    -(OY + LID_OVH) - 1, OY + LID_OVH + 1,
+                    -1, LID_TOP + 2);
             if (CUT_AWAY == "-X")
-                box(-OX - LID_OVH - 1, -OX - LID_OVH + CUT_AT*(2*OX + LID_OVH) + 1,
-                    -OY - 1, OY + 1, -1, WALL_H + LID_T + 2);
+                box(-(OX + LID_OVH) - 1,
+                    -(OX + LID_OVH) + CUT_AT*2*(OX + LID_OVH) + 1,
+                    -(OY + LID_OVH) - 1, OY + LID_OVH + 1,
+                    -1, LID_TOP + 2);
             if (CUT_AWAY == "+Y")
-                box(-OX - LID_OVH - 1, OX + 1,
-                    -OY + CUT_AT*2*OY - 1, OY + 1, -1, WALL_H + LID_T + 2);
+                box(-(OX + LID_OVH) - 1, OX + LID_OVH + 1,
+                    -(OY + LID_OVH) + CUT_AT*2*(OY + LID_OVH) - 1,
+                    OY + LID_OVH + 1, -1, LID_TOP + 2);
             if (CUT_AWAY == "-Y")
-                box(-OX - LID_OVH - 1, OX + 1,
-                    -OY - 1, -OY + CUT_AT*2*OY + 1, -1, WALL_H + LID_T + 2);
+                box(-(OX + LID_OVH) - 1, OX + LID_OVH + 1,
+                    -(OY + LID_OVH) - 1,
+                    -(OY + LID_OVH) + CUT_AT*2*(OY + LID_OVH) + 1,
+                    -1, LID_TOP + 2);
         }
     }
 }
@@ -456,16 +519,28 @@ module lid_vents() {
                     translate([i*HEX_DX,
                                HEX_DY*((i % 2 == 0) ? 0 : 1) + 2*HEX_DY*j,
                                0])
-                        cylinder(d = HEX_HOLE_D, h = LID_T + 2, $fn = 6);
-            box(-VENT_X, VENT_X, -VENT_Y, VENT_Y, -1, LID_T + 3);
+                        cylinder(d = HEX_HOLE_D,
+                                 h = LID_T + LID_RISE + 3, $fn = 6);
+            box(-VENT_X, VENT_X, -VENT_Y, VENT_Y,
+                -1, LID_T + LID_RISE + 4);
         }
 }
 
 module lid_local() {
     difference() {
         union() {
-            // slab
-            box(-OX - LID_OVH, OX, -OY, OY, WALL_H, WALL_H + LID_T);
+            //  The cap: solid from the wall seat to the new top face, with
+            //  the bay's ceiling lifted to LID_CEIL.  Inboard of the
+            //  ceiling edge only the roof (LID_CEIL .. LID_TOP) is left, so
+            //  the lid reads as a 3 mm roof on a 10 mm riser band.
+            difference() {
+                box(-OX - LID_OVH, OX + LID_OVH,
+                    -OY - LID_OVH, OY + LID_OVH,
+                    WALL_H, LID_TOP);
+                box(-LID_CEIL_X, LID_CEIL_X,
+                    -LID_CEIL_Y, LID_CEIL_Y,
+                    WALL_H - 1, LID_CEIL);
+            }
 
             // register lip: a 2 mm ring down the inside of the walls,
             // buried 0.50 into the slab so the union has no coplanar face
@@ -493,23 +568,28 @@ module lid_local() {
         //  hexagonal vent field, cut straight through the slab
         lid_vents();
 
-        // M3 clearance through the slab
+        // M3 clearance through the cap
         for (sx = [-1, 1], sy = [-1, 1])
             translate([sx*SCREW_X, sy*SCREW_Y, WALL_H - 0.10])
-                cylinder(d = SCREW_CLEAR, h = LID_T + 1.10, $fn = 24);
+                cylinder(d = SCREW_CLEAR,
+                         h = LID_T + LID_RISE + 1.10, $fn = 24);
 
-        // counterbore for the head, open at the top face
+        // counterbore for the head, open at the top face.  Its floor stays
+        // at the old slab's underside, so the screw seat does not move; the
+        // extra LID_RISE is all depth - the deep countersink.
         for (sx = [-1, 1], sy = [-1, 1])
             translate([sx*SCREW_X, sy*SCREW_Y,
                        WALL_H + LID_T - SCREW_HEAD_H])
-                cylinder(d = SCREW_HEAD_D, h = SCREW_HEAD_H + 1, $fn = 32);
+                cylinder(d = SCREW_HEAD_D,
+                         h = SCREW_HEAD_H + LID_RISE + 1, $fn = 32);
     }
 }
 
 //  Print orientation: top face down, so the lip points up and needs no
-//  support.  The counterbores are then recesses in the bed face.
+//  support.  The deep counterbores are then recesses in the bed face, and
+//  the pocket under the roof opens upward.
 module lid_print() {
-    translate([0, 0, WALL_H + LID_T]) rotate([180, 0, 0]) lid_local();
+    translate([0, 0, LID_TOP]) rotate([180, 0, 0]) lid_local();
 }
 
 // =====================================================================

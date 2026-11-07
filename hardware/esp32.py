@@ -45,6 +45,7 @@ import math
 import os
 import threading
 import time
+from pathlib import Path
 from typing import Protocol, runtime_checkable
 
 from software.core.types import DeviceConfig, RawPoint
@@ -53,6 +54,35 @@ DEFAULT_BAUD = 115200
 DEFAULT_TIMEOUT_S = 5.0
 # The sim spends ~20 ms/point; give the ESP32 generous headroom per point.
 PER_POINT_TIMEOUT_S = 0.5
+HWTEST_FIRMWARE_ERROR = (
+    "ESP32 is running the bench hwtest firmware; upload the production "
+    "firmware with 'python dev.py upload-firmware'"
+)
+
+
+def _preferred_serial_port() -> str | None:
+    """Prefer an Espressif/CP210x/CH340 adapter over an unrelated CDC device.
+
+    A Pi may also have an Arduino (or another CDC device) on ``ttyACM*``. Use
+    ``/dev/serial/by-id`` names so we do not silently open the wrong board.
+    """
+    by_id = Path("/dev/serial/by-id")
+    links = sorted(by_id.iterdir()) if by_id.is_dir() else []
+    markers = ("cp210", "ch340", "espressif", "silicon_labs", "wch")
+    for link in links:
+        if any(marker in link.name.lower() for marker in markers):
+            try:
+                return str(link.resolve())
+            except OSError:
+                continue
+    for link in links:
+        if "arduino" not in link.name.lower():
+            try:
+                return str(link.resolve())
+            except OSError:
+                continue
+    candidates = sorted(glob.glob("/dev/ttyUSB*")) + sorted(glob.glob("/dev/ttyACM*"))
+    return candidates[0] if candidates else None
 
 
 @runtime_checkable
@@ -78,6 +108,16 @@ class SerialTransport:
         import serial  # imported lazily so the suite does not need pyserial
 
         self._serial = serial.Serial(port=port, baudrate=baud, timeout=timeout)
+        # ESP32 DevKit auto-reset circuits use DTR/RTS. Opening the port can
+        # leave the CP210x asserting one of them, holding the ESP in reset or
+        # download mode. Deassert both after opening so the firmware runs and
+        # sends its boot `hello`; the reader below waits for that line.
+        try:
+            self._serial.dtr = False
+            self._serial.rts = False
+        except (AttributeError, OSError):
+            pass
+        time.sleep(0.05)
         self._read_buffer = bytearray()
 
     def write_line(self, text: str) -> None:
@@ -140,17 +180,19 @@ class Esp32Hardware:
 
     def _open_connection(self, cfg: DeviceConfig) -> None:
         opts = cfg.options or {}
-        self._port = str(opts.get("port", "/dev/ttyACM0"))
+        self._port = str(opts.get("port", "") or "")
         self._baud = int(opts.get("baud", DEFAULT_BAUD))
         self._timeout = float(opts.get("timeout_s", DEFAULT_TIMEOUT_S))
 
         # The CP210x/CH340 bridges commonly appear as ttyUSB*, while native USB
-        # CDC is ttyACM*. If the configured path is absent, use whichever
-        # Espressif-style adapter is present.
-        if not os.path.exists(self._port):
-            candidates = sorted(glob.glob("/dev/ttyACM*") + glob.glob("/dev/ttyUSB*"))
-            if candidates:
-                self._port = candidates[0]
+        # CDC is ttyACM*. If the configured path is absent/empty, prefer an
+        # Espressif-style adapter by USB ID rather than the first CDC device.
+        if not self._port or not os.path.exists(self._port):
+            preferred = _preferred_serial_port()
+            if preferred:
+                self._port = preferred
+            elif not self._port:
+                self._port = "/dev/ttyACM0"
 
         if self._transport is None:
             self._transport = SerialTransport(self._port, self._baud, self._timeout)
@@ -300,6 +342,34 @@ class Esp32Hardware:
                     raise Esp32Error(str(msg.get("message", "unknown ESP32 error")))
                 # Ignore anything else (e.g. a stray hello).
 
+    def mock_mode(self, mode: str) -> str:
+        """Switch the mock firmware table; only valid with the mock front end."""
+        with self._io_lock:
+            if not self._open or self._transport is None:
+                raise Esp32Error("ESP32 is not open")
+            self._transport.write_line(
+                json.dumps({"type": "mock_mode", "mode": str(mode)})
+            )
+
+            deadline = time.monotonic() + self._timeout
+            while True:
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    raise Esp32Error("timed out waiting for mock_mode result")
+                msg = self._read(timeout=remaining)
+                if msg is None:
+                    continue
+                kind = msg.get("type")
+                if kind == "mock_mode_result":
+                    return str(msg.get("mode", "auto"))
+                if kind == "telemetry":
+                    self._telemetry = msg
+                    continue
+                if kind == "error":
+                    raise Esp32Error(str(msg.get("message", "unknown ESP32 error")))
+                if kind in ("frame", "selftest_result"):
+                    raise Esp32Error(f"unexpected {kind} while waiting for mock_mode")
+
     # --- internals --------------------------------------------------------
 
     def _apply_hello(self, hello: dict) -> None:
@@ -319,11 +389,14 @@ class Esp32Hardware:
             msg = self._read(timeout=remaining)
             if msg is None:
                 continue
-            if msg.get("type") == kind:
+            msg_type = msg.get("type")
+            if msg_type == "hwtest_hello":
+                raise Esp32Error(HWTEST_FIRMWARE_ERROR)
+            if msg_type == kind:
                 return msg
-            if msg.get("type") == "telemetry":
+            if msg_type == "telemetry":
                 self._telemetry = msg
-            elif msg.get("type") == "error":
+            elif msg_type == "error":
                 raise Esp32Error(str(msg.get("message", "unknown ESP32 error")))
 
     def _read(self, timeout: float) -> dict | None:
@@ -340,6 +413,11 @@ class Esp32Hardware:
         try:
             msg = json.loads(text)
         except json.JSONDecodeError as exc:
+            # A MicroPython REPL echoes a dict literal with single quotes, e.g.
+            # ``{'type': 'scan'}``. Treat that as UART noise, not a protocol
+            # error, so a stuck REPL cannot be surfaced to the service/UI.
+            if "'" in text:
+                return None
             raise Esp32Error(f"bad line from ESP32: {line!r}") from exc
         if not isinstance(msg, dict) or "type" not in msg:
             raise Esp32Error(f"expected a JSON object with a 'type': {line!r}")

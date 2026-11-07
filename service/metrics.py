@@ -171,10 +171,18 @@ def snapshot(hardware=None) -> dict:
             esp = {}
 
     # --- battery: BMS first, sysfs fallback ---
+    # Witty Pi 4 power mode: 1 = running from battery; 0 = USB without a
+    # battery reading; 2 = USB with the battery connected/charging. Only mode
+    # 1 counts as "on battery" for the runtime estimate.
     power_mode = bms.get("power_mode")
-    on_battery = power_mode is not None and int(power_mode) != 0
+    try:
+        mode = int(power_mode) if power_mode is not None else None
+    except (TypeError, ValueError):
+        mode = None
+    on_battery = mode == 1
     low_v = bms.get("low_v")
-    vin_v = bms.get("vin_v") if on_battery else None
+    # Modes 1 and 2 carry the battery voltage on Vin; mode 0 is the 5 V input.
+    vin_v = bms.get("vin_v") if mode in (1, 2) else None
     charging = bool(bms.get("charging"))
 
     battery_v = vin_v

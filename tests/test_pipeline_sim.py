@@ -70,3 +70,21 @@ def test_stub_solver_returns_nonempty_map():
     solver.setup(config.N_ELECTRODES, config.mesh_config())
     cmap = solver.reconstruct(frame=None)  # type: ignore[arg-type]
     assert cmap.width > 0 and cmap.height > 0
+
+
+def test_anomaly_score_uses_upper_percentile():
+    values = [[0.0] * 100 for _ in range(100)]
+    for row in values[:2]:
+        for x in range(100):
+            row[x] = 10.0
+    assert pipeline.anomaly_score(values) == 10.0
+
+    values = [[0.0] * 100 for _ in range(100)]
+    values[0][0] = 10.0
+    assert pipeline.anomaly_score(values) == 0.0
+
+
+def test_run_scan_output_returns_png_and_anomaly_score():
+    output = pipeline.run_scan_output()
+    assert output.png[:8] == b"\x89PNG\r\n\x1a\n"
+    assert output.anomaly_score > 0.0

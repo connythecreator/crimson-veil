@@ -48,7 +48,14 @@ component to image conductivity changes; it does not reconstruct complex
 admittivity or estimate absolute conductivity. Upstream BP's `normalize=True`
 divides by `sign(v0.real)`, not the reference amplitude. Zero-real reference
 measurements are rejected. A constant gain therefore still scales the output,
-which is in arbitrary units. PNG brightness is normalised per image.
+which is in arbitrary units.
+
+The solver returns a zero-centred difference map (`ConductivityMap.centered`).
+Difference PNGs use the classic EIT blue/white/red ramp on a symmetric scale:
+increasing conductivity (lower impedance, e.g. pooled blood) is red, the
+baseline is white, and decreasing conductivity (higher impedance) is blue.
+This is a sign convention, not an absolute conductivity scale; the magnitude is
+scaled per frame. Absolute (stub) maps keep the grayscale ramp.
 
 The circular mesh is a unit disk. Electrode 0 is at `(-1, 0)` and increasing
 indices go clockwise through the upper half of the circle. Image rows run from

@@ -2,7 +2,9 @@
 
 Self-contained firmware for bringing up the analog front end from a development
 computer. It is **not** the production EIT firmware and does not use the
-Raspberry Pi, the control service, pyEIT, the mux bank or any mock tables.
+Raspberry Pi, the control service, pyEIT or any mock tables. The analog test
+bypasses the mux bank; a separate `hwtest_mux` command runs the mux continuity
+cycle.
 
 ## What it tests
 
@@ -11,10 +13,11 @@ Raspberry Pi, the control service, pyEIT, the mux bank or any mock tables.
 - Single-point AD5933 acquisition at 50 kHz (overridable)
 - Drive/receive analog channel through a known capacitor
 - Measurement stability and saturation
-- Gain/phase calibration factor `K` for the known fixture
+- Gain/phase calibration factor `K` for a body-range resistor (default 100 Ω) or a 0.1 µF capacitor
 - Creates/merges `cal.json`, the calibration file consumed by the main firmware
 
-It does **not** test the CD74HC4067 mux bank or electrode continuity.
+The analog test does **not** exercise the CD74HC4067 mux bank. `hwtest_mux`
+does: it sets all four roles to each electrode and reports connected/open.
 
 ## Bench I²C pins
 
@@ -24,8 +27,18 @@ It does **not** test the CD74HC4067 mux bank or electrode continuity.
 | SCL | GPIO22 | D22 |
 
 Bus 0 at **100 kHz**, AD5933 address `0x0D`, 10 kΩ pull-ups to 3.3 V on both
-lines. This matches the production I²C pinout; the bench firmware simply does
-not drive the mux outputs.
+lines. This matches the production I²C pinout. The analog test does not drive
+the mux outputs; `hwtest_mux` drives the production mux pin map. The as-built
+AD5933 runs at **3.3 V**, so the I²C
+lines connect directly with no level shifter.
+
+The as-built analog chain around it is a TL082 Howland on ±5 V biased at 2.5 V,
+an AD620 on ±5 V with REF at **1.65 V** (AD5933 VDD/2), and an RG trimmer set
+to about **26 kΩ** (G ≈ 2.9).
+
+A failed `hwtest_run`, `hwtest_calibration` or `hwtest_mux` flashes GPIO2
+(active-high, driven low at boot) at 5 Hz for five seconds. A passing result
+cancels the flash.
 
 The driver uses the same I²C behavior as the working
 [`mjmeli/arduino-ad5933`](https://github.com/mjmeli/arduino-ad5933) library:
@@ -91,18 +104,36 @@ bench test is finished; `cal.json` stays on the ESP32 across uploads.
 ```bash
 python tools/hwtest.py --port /dev/ttyUSB0
 python tools/hwtest.py --port /dev/ttyUSB0 --f 10000
-python tools/hwtest.py --port /dev/ttyUSB0 --calibrate --freqs 10000,50000
+python tools/hwtest.py --port /dev/ttyUSB0 --range 1vpp --samples 32 --f 50000
+python tools/hwtest.py --port /dev/ttyUSB0 --calibrate --fixture resistor --range 1vpp --samples 32 --freqs 10000,50000
+python tools/hwtest.py --port /dev/ttyUSB0 --calibrate --fixture capacitor --range 1vpp --samples 32 --freqs 10000,50000
 python tools/hwtest.py --port /dev/ttyUSB0 --json
+python tools/hwtest.py --port /dev/ttyUSB0 --mux
 ```
 
-The firmware auto-runs once on boot (50 kHz, 16 samples) and then accepts
-commands over USB serial. It discards one warm-up point before collecting the
-samples, then calibrates from the first half and verifies on the second half.
-The host tool sends its own `hwtest_run` and ignores the boot result.
+The production firmware now runs the AD5933 in the **1 Vpp** range at **3.3 V**.
+At 50 kHz with the 0.1 µF fixture, 16 samples can be marginal (the signal is
+~500 codes); use `--samples 32` for a stable 1 Vpp calibration. The Howland
+input remains biased at 2.5 V; the AD5933 output is AC-coupled into it. The
+AD620 output is DC-coupled to the AD5933 VIN because both sit at 1.65 V.
 
-`--calibrate` measures each frequency in `--freqs`, merges the resulting `K`
-entries with any existing `cal.json`, and writes the file back to the ESP32.
-The file is what the main EIT firmware loads at boot.
+The firmware announces `hwtest_hello` on boot and then waits for commands; the
+host tool sends `hwtest_run`. It discards one warm-up point before collecting
+the samples, then calibrates from the first half and verifies on the second
+half.
+
+`--calibrate` measures each frequency in `--freqs` for the selected
+`--fixture` (`resistor` or `capacitor`), merges the resulting `K` entries with
+any existing `cal.json`, and writes the file back to the ESP32. The two stages
+are explicit:
+
+1. Connect a **body-range resistor** (the default is **100 Ω**; use a 0.1% part) and run `--fixture resistor`.
+2. Swap to the **0.1 µF capacitor** and run `--fixture capacitor`.
+
+The main firmware combines them: magnitude from the resistor, phase from the
+capacitor. Do not use a 10 kΩ reference at the normal 1 Vpp operating point;
+it is outside the linear range and will be rejected. The hwtest result also prints the magnitude/phase difference between
+the two references at each frequency.
 
 Exit codes: `0` pass/warn, `1` fail, `2` link/protocol error.
 
@@ -111,8 +142,9 @@ Exit codes: `0` pass/warn, `1` fail, `2` link/protocol error.
 Host → ESP32:
 
 ```json
-{"type":"hwtest_run","seq":1,"f":50000,"c_f":1e-7,"samples":16,"tol_pct":5,"tol_deg":5}
-{"type":"hwtest_calibrate","seq":1,"freqs":[10000,50000],"c_f":1e-7,"samples":16}
+{"type":"hwtest_run","seq":1,"f":50000,"fixture":"capacitor","c_f":1e-7,"r_ohm":100,"samples":16}
+{"type":"hwtest_calibrate","seq":1,"freqs":[10000,50000],"fixture":"resistor","r_ohm":100,"c_f":1e-7,"samples":16}
+{"type":"hwtest_mux","seq":1,"f":50000,"min_raw":10}
 {"type":"hwtest_identify"}
 {"type":"hwtest_temp"}
 {"type":"hwtest_stop"}
@@ -121,9 +153,10 @@ Host → ESP32:
 ESP32 → host:
 
 ```json
-{"type":"hwtest_hello","firmware":"hwtest 1.2.0","fixture":{"kind":"capacitor","c_f":1e-7},"default_f":50000,"calibration":{"present":false,"entries":0,"error":"..."}}
+{"type":"hwtest_hello","firmware":"hwtest 1.3.0","fixture":{"kind":"capacitor","c_f":1e-7,"r_ohm":100},"default_f":50000,"calibration":{"present":false,"entries":0,"error":"..."}}
 {"type":"hwtest_result","seq":1,"status":"pass","temp_ad5933_c":30.0,"checks":[],"raw":{},"calibration":{},"measured":{}}
-{"type":"hwtest_calibration","seq":1,"file":"cal.json","entries":[{"f":10000,"k_re":1,"k_im":0,"status":"pass"}],"status":"pass","error":null}
+{"type":"hwtest_calibration","seq":1,"file":"cal.json","fixture":"resistor","entries":[{"f":10000,"fixture":"resistor","r_ohm":100,"k_re":1,"k_im":0,"status":"pass"}],"comparison":[],"status":"pass","error":null}
+{"type":"hwtest_mux_result","seq":1,"f_hz":50000,"min_raw":10,"status":"pass","open_electrodes":[],"points":[{"e":0,"raw_abs":125.0,"status":"connected"}]}
 {"type":"hwtest_temp","temp_ad5933_c":30.0}
 {"type":"hwtest_error","message":"..."}
 ```
@@ -149,19 +182,26 @@ is the reference. A second known component or a DMM is needed for that.
 
 ```json
 {
-  "version": 1,
-  "fixture": {"kind": "capacitor", "c_f": 1e-7},
+  "version": 2,
   "entries": [
-    {"f": 10000.0, "k_re": ..., "k_im": ..., "mag": ..., "phase_deg": ..., "status": "pass"}
+    {"f": 10000.0, "fixture": "resistor", "r_ohm": 100,
+     "k_re": ..., "k_im": ..., "mag": ..., "phase_deg": ..., "status": "pass"},
+    {"f": 10000.0, "fixture": "capacitor", "c_f": 1e-7,
+     "k_re": ..., "k_im": ..., "mag": ..., "phase_deg": ..., "status": "pass"}
   ]
 }
 ```
 
 The main firmware loads this at boot, selects the nearest frequency for a scan,
-and applies `Z = K / raw`. If the file is missing, empty, or invalid, the main
-firmware refuses scans and reports `calibration: false` in its selftest so the
-backend self-test fails with the calibration error. Re-run `--calibrate` after
-changing the fixture or analog front end.
+and combines the two references into one `K`: `|K|` from the resistor and
+`arg(K)` from the capacitor. It then applies `Z = K / raw`. The two references
+must agree (default tolerance 10% magnitude / 5 degrees phase); if they do not,
+the calibration is rejected and scans/selftest fail. A 10 kΩ resistor is too
+high for the current front end at 1 Vpp excitation; use a 100–470 Ω reference
+or reduce the excitation/gain and recalibrate both stages.
+If the file is missing, empty, or invalid, scans are refused and the backend
+self-test fails with the calibration error. Re-run both calibration stages
+after changing the fixture, mux bank or analog front end.
 
 ## Troubleshooting
 
@@ -170,19 +210,13 @@ changing the fixture or analog front end.
   write. Check that the module has a common GND, that SDA→GPIO21 and
   SCL→GPIO22 are not swapped, that both lines have 10 kΩ pull-ups, and that no
   other I2C master shares the bus.
-- **5 V AD5933 through a logic-level shifter**: an AD5933 may run at 5 V
-  (2.7–5.5 V), but the ESP32 side must be 3.3 V. The 5 V supply and the ESP32
-  **must share a ground**; "5 V only" is not enough. The shifter must have
-  **HV = 5 V** (the same rail as the AD5933) and **LV = 3.3 V**, with the
-  AD5933-side pull-ups to 5 V and the ESP32-side pull-ups to 3.3 V. If the
-  shifter's high side is only 3.3 V while the AD5933 runs at 5 V, the AD5933
-  sees ~3.3 V as a logic high, which is below its VIH (≈0.7 × 5 V = 3.5 V):
-  scans and reads can work while writes NACK. Use a bidirectional I2C shifter
-  (BSS138 or PCA9306 class); a unidirectional shifter or a TXS0108E with the
-  wrong loading can fail the same way. Never let 5 V reach an ESP32 pin.
 - **Temperature unavailable / acquisition fails at every frequency**: the
   same bus problem. The I²C bus runs at 100 kHz; try a different excitation
   frequency with `--f` only after the raw acquisition works.
+- **Raw ≈ 0 with fixture connected**: the fixture is not in the drive/sense
+  loop, the AFE is unpowered, or the AD620 REF/RG is wrong. The analog test
+  does not drive the mux bank; keep any mux bank bypassed or addressed to the
+  fixture. Use `--mux` to test the mux bank separately.
 - **50 kHz reading is noisy or clipped**: use `--f 10000` or `--f 5000`.
 
 ## Caveats

@@ -34,6 +34,14 @@ def expected_impedance(freq_hz, capacitance_f):
     return complex(0.0, -1.0 / (2.0 * math.pi * freq_hz * capacitance_f))
 
 
+def expected_resistor(resistance_ohm):
+    """Expected impedance of a resistor: a real value at 0 degrees."""
+    resistance_ohm = float(resistance_ohm)
+    if resistance_ohm <= 0:
+        raise ValueError("resistance must be positive")
+    return complex(resistance_ohm, 0.0)
+
+
 def is_saturated(real, imag, limit=ADC_SATURATION_LIMIT):
     """True when either AD5933 output register is at/near full scale."""
     return abs(float(real)) >= limit or abs(float(imag)) >= limit
@@ -117,16 +125,15 @@ def summarize_samples(samples):
     }
 
 
-def evaluate(
-    freq_hz,
-    capacitance_f,
+def evaluate_expected(
+    expected,
     samples,
     tol_pct=DEFAULT_TOL_PCT,
     tol_deg=DEFAULT_TOL_DEG,
     drift_pct=DEFAULT_DRIFT_PCT,
     drift_deg=DEFAULT_DRIFT_DEG,
 ):
-    """Calibrate against the known capacitor and verify it on held-out samples.
+    """Calibrate against a known complex reference and verify on held-out samples.
 
     The first half of the samples derives ``K``; the second half is used to
     produce the reported impedance. That makes the check sensitive to drift and
@@ -145,7 +152,6 @@ def evaluate(
     raw_cal = mean_complex(calibration_values)
     raw_verify = mean_complex(verification_values)
 
-    expected = expected_impedance(freq_hz, capacitance_f)
     checks = []
 
     if raw_cal == 0 or raw_verify == 0:
@@ -255,3 +261,23 @@ def evaluate(
         },
         "checks": checks,
     }
+
+
+def evaluate(
+    freq_hz,
+    capacitance_f,
+    samples,
+    tol_pct=DEFAULT_TOL_PCT,
+    tol_deg=DEFAULT_TOL_DEG,
+    drift_pct=DEFAULT_DRIFT_PCT,
+    drift_deg=DEFAULT_DRIFT_DEG,
+):
+    """Capacitor convenience wrapper around :func:`evaluate_expected`."""
+    return evaluate_expected(
+        expected_impedance(freq_hz, capacitance_f),
+        samples,
+        tol_pct=tol_pct,
+        tol_deg=tol_deg,
+        drift_pct=drift_pct,
+        drift_deg=drift_deg,
+    )

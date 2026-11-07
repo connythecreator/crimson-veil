@@ -415,6 +415,9 @@ install_backend_service() {
 Description=Crimson Veil control service (WebSocket over software.pipeline)
 After=network.target
 Wants=network.target
+# Keep retrying if the ESP is unplugged, reset, or re-enumerates under a new
+# tty; the UI also has a RECONNECT & RETRY button that calls hardware_retry.
+StartLimitIntervalSec=0
 
 [Service]
 Type=simple
@@ -428,7 +431,7 @@ Environment=PYTHONPATH=$REPO_DIR
 Environment=CV_BACKEND=esp32
 Environment=CV_SOLVER=pyeit
 ExecStart=$VENV_DIR/bin/python -m service.server --host 127.0.0.1 --port $SERVICE_PORT
-Restart=on-failure
+Restart=always
 RestartSec=2
 
 [Install]

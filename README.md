@@ -12,9 +12,9 @@ kiosk the operator uses. The suite is started by a single entrypoint.
 A Raspberry Pi 3 runs the kiosk and the control service. An ESP32 hangs off it
 over USB serial and owns the analog front end: an AD5933 impedance engine behind
 a Howland current source and an instrumentation amp, switched across the
-electrode ring by four CD74HC4067 muxes. The ring is built with 8 electrodes,
-tetrapolar (4 mm ECG snap buttons); the firmware and its mock tables also cover
-4 and 16.
+electrode ring by four CD74HC4067 muxes. The real front end is built with 8
+electrodes, tetrapolar (4 mm ECG snap buttons); the mock tables also cover 4
+and 16.
 
 A Witty Pi 4 L3V7 supplies the Pi from the battery and reports power telemetry.
 The panel is a 3.5" 480x320 SPI LCD with resistive touch, rendered by the vc4
@@ -131,12 +131,13 @@ was checked the same way while it was built, but has no committed script yet.
 project files — and `bleed/sim/` is the LTspice bench for its excitation stage,
 a mirrored Howland current pump taken from the schematic itself.
 
-`docs/eit-bioimpedance/` is the breadboard build the firmware grew on: AD5933
-with our own Howland source, instrumentation amp and four-mux bank, 8
-electrodes tetrapolar, plus its BOM, netlist, pinouts and sensor placement.
-`docs/InternalBleeding-Work/` holds the literature and project-brief research
-behind the design. The `docs/` tree is kept locally and is not part of this
-repository's published history.
+`docs/eit-bioimpedance/` documents the as-built parts-limited front end:
+AD5933 at 3.3 V / 1 Vpp, a mirrored TL082 Howland biased at 2.5 V, an AD620 on
+±5 V with its REF at 1.65 V, four 3.3 V always-enabled muxes with independent
+address buses, and 8 electrodes tetrapolar. The older OPA2277/AD623 breadboard
+notes have been removed. `docs/InternalBleeding-Work/` holds the literature and
+project-brief research behind the design. The `docs/` tree is kept locally and
+is not part of this repository's published history.
 
 The system view that ties the three together — constraints, safety argument,
 measurement chain and the decisions taken — is `Subsystem Breakdown & Decisions
@@ -209,7 +210,10 @@ eight positions, so **MONITOR** mode shows it moving once per scan (lower
 `CV_ACTIVE_INTERVAL_S` / `CV_IDLE_INTERVAL_S` for a faster demo). The kiosk's
 electrode ring renders exactly the count the firmware reports (`--electrodes`,
 4/8/16). Without an ESP32, `dev.py mock-firmware` exposes a pty and prints the
-`CV_ESP32_PORT` to use.
+`CV_ESP32_PORT` to use. Regenerate the mock figures from the real firmware path
+with `python tools/plot_mock_reconstruction.py`; the difference heatmap uses
+the classic EIT ramp: red is lower impedance (higher conductivity), blue is
+higher impedance, and black is the baseline.
 
 ### Bench bring-up
 
@@ -220,10 +224,16 @@ the loop:
 python tools/hwtest.py --upload --port /dev/ttyUSB0
 python tools/hwtest.py --port /dev/ttyUSB0 --f 10000 --json
 python tools/hwtest.py --port /dev/ttyUSB0 --calibrate --freqs 10000,50000
+python tools/hwtest.py --port /dev/ttyUSB0 --mux
+python tools/mux_test.py --port /dev/ttyUSB0
 ```
 
 `--calibrate` writes the gain/phase factor for a known fixture into `cal.json`,
-which the production firmware reads on boot. See
+which the production firmware reads on boot. `tools/mux_test.py` and
+`tools/hwtest.py --mux` run the mux continuity cycle; with only electrode 0
+wired they should report electrode 0 connected and all others open. A failed
+production self-test flashes the GPIO2 status LED (active-high, low at boot) at
+5 Hz for five seconds. See
 [`firmware/mp-firm/hwtest/README.md`](firmware/mp-firm/hwtest/README.md) for the
 fixture wiring and I²C pins.
 

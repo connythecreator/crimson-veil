@@ -34,18 +34,21 @@ mirrors it in `kiosk-rs/src/protocol.rs`.
 | kiosk → service | `stop` | — |
 | kiosk → service | `set_frequency` | `frequency_hz` |
 | kiosk → service | `self_test` | — (runs the pre-start hardware checks) |
-| kiosk → service | `upload_firmware` | `mock`, `electrodes` (copy firmware to the ESP, reset, reboot) |
+| kiosk → service | `hardware_retry` | — (close/reopen the ESP, then rerun the hardware checks) |
+| kiosk → service | `upload_firmware` | `mock`, `electrodes` (copy firmware to the ESP, reset, reboot; mock uploads also capture the mock baseline) |
+| kiosk → service | `mock_mode` | `mode` (`baseline`, `target`, `continuous`, `auto`; mock firmware only) |
 | kiosk → service | `ping` | — |
 | service → kiosk | `ready` | `backend`, `solver`, `n_electrodes`, `frequency_hz`, `baseline_ready` |
 | service → kiosk | `baseline_captured` | `id`, `frequency_hz`, `n_electrodes` |
 | service → kiosk | `boot_error` | `message` |
 | service → kiosk | `progress` | `id`, `message` |
-| service → kiosk | `scan_result` | `id`, `width`, `height`, `bytes` (+ binary PNG) |
+| service → kiosk | `scan_result` | `id`, `width`, `height`, `bytes`, `anomaly_score` (+ binary PNG) |
 | service → kiosk | `scan_error` | `id`, `message` |
 | service → kiosk | `state` | `continuous`, `scanning`, `interval_s` |
 | service → kiosk | `metrics` | `battery_pct`, `battery_charging`, `on_battery`, `battery_v`, `runtime_s`, `low_v`, `temp_wittypi_c`, `temp_esp32_c`, `temp_ad5933_c`, `temp_pi_c` (every 5 s) |
 | service → kiosk | `self_test_result` | `checks: [{name, status, detail}, …]` |
 | service → kiosk | `firmware_uploaded` | `port`, `files`, `mock`, `electrodes` |
+| service → kiosk | `mock_mode_result` | `mode` |
 | service → kiosk | `pong` | — |
 
 ## Design
@@ -56,17 +59,19 @@ mirrors it in `kiosk-rs/src/protocol.rs`.
 - **Continuous mode is server-driven and debounced**: after `continuous{on}`,
   the server scans, then waits `active_interval_s` if the client sent
   `activity` within `ACTIVITY_TIMEOUT_S`, otherwise `idle_interval_s`
-  (defaults 60 s active / 120 s idle). It repeats until `stop` or disconnect.
+  (defaults 15 s active / 30 s idle). It repeats until `stop` or disconnect.
 - If boot fails the server still serves, replying `boot_error`; scans fall back
   to the configured sim defaults so the UI degrades rather than dies.
 - **Self-test** (`selftest.py`) runs on `self_test`: it retries `session.boot()`
   once (so hot-plugged hardware can come up), then reports `Battery` (Witty Pi
   BMS freshness), `Belt Controller (ESP)` (ESP `identify`/`hello`),
-  `Impedance Subsystem` (firmware `selftest`: AD5933 + mux), `PyEIT`
+  `Impedance Subsystem` (firmware `selftest`: AD5933 + mux continuity), `PyEIT`
   (installed/selected) and `Control Service`. Failures are reported, not raised.
 - **Firmware upload** (`upload_firmware`): closes the session to free the serial
   port, copies the MicroPython files with `mpremote`, hard-resets the ESP, and
-  re-boots the session. `mock=true` selects the synthetic AD5933/mux tables.
+  re-boots the session. `mock=true` selects the synthetic AD5933/mux tables and
+  automatically sets `mock_mode=baseline`, captures the mock baseline, and
+  reports `baseline_captured` so the UI can inject target anomalies immediately.
 - `python -m service.server --dev` forces the **sim** hardware + **stub** solver
   for mock visuals (pair with `crimson-veil-kiosk --dev`).
 - A background task broadcasts `metrics` every 5 s from `metrics.py`. Battery

@@ -22,6 +22,7 @@ from pyeit.eit.fem import EITForward
 from pyeit.mesh.wrapper import PyEITAnomaly_Circle
 
 from software.core.types import MeshConfig, RawPoint, ScanData
+from software.reconstruction.image import HEATMAP_NEUTRAL, colorize
 from software.reconstruction.pyeit_solver import PyEITSolver, _build_project_protocol
 
 FREQUENCY_HZ = 50_000.0
@@ -144,13 +145,25 @@ def test_conductivity_change_sign_and_quadrant(
         background=1.0,
     )
     frame = _acquire_node_voltages(digital_solver, altered_mesh.perm)
-    values = np.asarray(digital_solver.reconstruct(frame, homogeneous_scan).values)
+    cmap = digital_solver.reconstruct(frame, homogeneous_scan)
+    values = np.asarray(cmap.values)
+    assert cmap.centered
     assert np.isfinite(values).all()
     row, column = np.unravel_index(np.argmax(np.abs(values)), values.shape)
     assert abs(values[row, column]) > 1e-8
     assert np.sign(values[row, column]) == np.sign(conductivity - 1.0)
     assert (column > (values.shape[1] - 1) / 2) == (center[0] > 0)
     assert (row < (values.shape[0] - 1) / 2) == (center[1] > 0)
+
+    # Classic EIT rendering: higher conductivity (lower impedance) is red,
+    # lower conductivity (higher impedance) is blue, baseline is white.
+    rows = colorize(cmap.values)
+    red, green, blue = rows[row][column * 3 : column * 3 + 3]
+    if conductivity > 1.0:
+        assert red > blue and red > green
+    else:
+        assert blue > red and blue > green
+    assert tuple(rows[0][0:3]) == HEATMAP_NEUTRAL
 
 
 @pytest.mark.parametrize("component", ["real", "imag"])

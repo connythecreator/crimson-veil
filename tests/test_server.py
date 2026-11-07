@@ -50,6 +50,7 @@ async def _recv_result(ws, scan_id: str) -> bytes:
         assert msg["type"] != "scan_error", msg
         if msg["type"] == "scan_result" and msg["id"] == scan_id:
             assert msg["bytes"] > 0
+            assert msg["anomaly_score"] > 0.0
             blob = await asyncio.wait_for(ws.recv(), timeout=10)
             assert isinstance(blob, (bytes, bytearray))
             assert len(blob) == msg["bytes"]
@@ -180,5 +181,44 @@ def test_self_test_result_shape(session):
                 assert checks["Impedance Subsystem"]["status"] == "skip"
                 assert checks["PyEIT"]["status"] == "fail"
                 assert checks["Control Service"]["status"] == "pass"
+
+    asyncio.run(run())
+
+
+def test_hardware_retry_reconnects_and_self_tests(session):
+    async def run():
+        server = ControlServer(session)
+        port = _free_port()
+        async with serve(server.handler, "127.0.0.1", port, max_size=None):
+            async with connect(f"ws://127.0.0.1:{port}") as ws:
+                await _recv_type(ws, "ready")
+                await ws.send(protocol.encode(protocol.HardwareRetry()))
+                msg = await _recv_type(ws, "self_test_result")
+                checks = {c["name"]: c for c in msg["checks"]}
+                assert "Control Service" in checks
+                assert checks["Control Service"]["status"] == "pass"
+                assert session.booted
+
+    asyncio.run(run())
+
+
+def test_session_run_scan_output_has_anomaly_score(session):
+    output = session.run_scan_output()
+    assert output.png[:8] == b"\x89PNG\r\n\x1a\n"
+    assert output.anomaly_score > 0.0
+
+
+def test_mock_mode_roundtrip(session, monkeypatch):
+    monkeypatch.setattr(session, "set_mock_mode", lambda mode: "target")
+
+    async def run():
+        server = ControlServer(session)
+        port = _free_port()
+        async with serve(server.handler, "127.0.0.1", port, max_size=None):
+            async with connect(f"ws://127.0.0.1:{port}") as ws:
+                await _recv_type(ws, "ready")
+                await ws.send(protocol.encode(protocol.MockMode(mode="target")))
+                msg = await _recv_type(ws, "mock_mode_result")
+                assert msg["mode"] == "target"
 
     asyncio.run(run())

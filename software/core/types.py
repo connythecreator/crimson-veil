@@ -66,10 +66,13 @@ class ConductivityMap:
     """A reconstructed 2D conductivity distribution.
 
     ``values`` is row-major [y][x], one float per pixel (arbitrary units).
+    ``centered`` marks a difference map whose baseline is zero, so it should be
+    rendered around a neutral midpoint rather than its own min/max.
     Kept as plain lists so this type stays dependency-free.
     """
 
     values: list[list[float]] = field(default_factory=list)
+    centered: bool = False
 
     @property
     def height(self) -> int:

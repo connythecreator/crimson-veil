@@ -93,8 +93,13 @@ def cmd_upload_firmware(args: argparse.Namespace) -> int:
 def cmd_calibrate(_args: argparse.Namespace) -> int:
     print("Calibration is created by the standalone hwtest firmware:")
     print(
-        "  python tools/hwtest.py --upload --port /dev/ttyUSB0 "
-        "--calibrate --freqs 10000,50000"
+        "  python tools/hwtest.py --port /dev/ttyUSB0 "
+        "--calibrate --fixture resistor --freqs 10000,50000"
+    )
+    print("  # swap in the 0.1 uF capacitor, then:")
+    print(
+        "  python tools/hwtest.py --port /dev/ttyUSB0 "
+        "--calibrate --fixture capacitor --freqs 10000,50000"
     )
     print("It writes cal.json on the ESP32; the main firmware loads it at boot.")
     return 0

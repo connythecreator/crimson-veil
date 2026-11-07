@@ -165,6 +165,11 @@ class AD5933:
         value = (value & 0xF9) | (self.output_range & 0x06)
         self._send_byte(REG_CONTROL, value)
 
+    def set_output_range(self, output_range):
+        """Change the AD5933 excitation range at runtime."""
+        self.output_range = output_range
+        self.set_range()
+
     def set_pga_gain(self):
         value = self._get_byte(REG_CONTROL)
         value = (value & 0xFE) | (self.pga_gain & 0x01)
@@ -226,6 +231,20 @@ class AD5933:
         real = self._twos_complement(self._read_bytes(REG_REAL, 2), 16)
         imag = self._twos_complement(self._read_bytes(REG_IMAG, 2), 16)
         return real, imag
+
+    def start_continuous(self, freq_hz):
+        """Start the excitation and leave it running for scope measurements.
+
+        The AD5933 keeps its VOUT at the configured frequency in measurement
+        mode; ``halt()`` powers it down and stops the excitation. If a board
+        stops the DDS after one conversion, use an external signal source for
+        the AFE test instead.
+        """
+        self.standby()
+        self.configure_sweep(freq_hz)
+        self.set_control_mode(CMD_INIT_START_FREQ)
+        self._sleep_settling(freq_hz)
+        self.set_control_mode(CMD_START_SWEEP)
 
     def measure(self, freq_hz):
         """Return one raw ``(real, imag)`` point at ``freq_hz``."""
